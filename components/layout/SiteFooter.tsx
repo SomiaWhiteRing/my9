@@ -46,16 +46,16 @@ export function SiteFooter({ className }: SiteFooterProps) {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="https://img.shields.io/github/stars/SomiaWhiteRing/my9?style=flat-square&label=GitHub%20Stars"
+            src="https://img.shields.io/github/stars/SomiaWhiteRing/my9?style=social&label=GitHub%20Stars"
             alt="GitHub Stars badge"
           />
         </a>
       </div>
       <div className="mt-2 flex items-center justify-center">
-        <a href="https://hits.sh/my9games.com/" target="_blank" rel="noreferrer" aria-label="hitsh">
+        <a href="https://hits.sh/my9.shatranj.space/" target="_blank" rel="noreferrer" aria-label="hitsh">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="https://hits.sh/my9games.com.svg?style=flat-square&label=hitsh"
+            src="https://hits.sh/my9.shatranj.space.svg?style=flat-square&label=visitors"
             alt="hitsh badge"
           />
         </a>
