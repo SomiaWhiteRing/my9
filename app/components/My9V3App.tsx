@@ -2,16 +2,27 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronsUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ActionCluster } from "@/app/components/v3/ActionCluster";
 import { CommentDialog } from "@/app/components/v3/CommentDialog";
 import { InlineToast, ToastKind } from "@/app/components/v3/InlineToast";
 import { NineGridBoard } from "@/app/components/v3/NineGridBoard";
 import { SearchDialog } from "@/app/components/v3/SearchDialog";
 import { SelectedGamesList } from "@/app/components/v3/SelectedGamesList";
-import { GameSearchResponse, ShareGame } from "@/lib/share/types";
+import {
+  SUBJECT_KIND_ORDER,
+  SubjectKind,
+  getSubjectKindMeta,
+  parseSubjectKind,
+} from "@/lib/subject-kind";
+import { SubjectSearchResponse, ShareGame } from "@/lib/share/types";
+import { cn } from "@/lib/utils";
 
 type ToastState = {
   kind: ToastKind;
@@ -29,17 +40,10 @@ type SearchMeta = {
   noResultQuery: string | null;
 };
 
-const DRAFT_STORAGE_KEY = "my-nine-games:v1";
-const DEFAULT_SEARCH_SUGGESTIONS = [
-  "可尝试游戏正式名或别名",
-  "中日英名称切换检索通常更有效",
-  "减少关键词，仅保留核心词",
-];
-
-function createSearchMeta(noResultQuery: string | null = null): SearchMeta {
+function createSearchMeta(suggestions: string[], noResultQuery: string | null = null): SearchMeta {
   return {
     topPickIds: [],
-    suggestions: DEFAULT_SEARCH_SUGGESTIONS,
+    suggestions,
     noResultQuery,
   };
 }
@@ -53,15 +57,18 @@ function cloneGames(games: Array<ShareGame | null>) {
 }
 
 interface My9V3AppProps {
+  kind: SubjectKind;
   initialShareId?: string | null;
   readOnlyShare?: boolean;
 }
 
 export default function My9V3App({
+  kind,
   initialShareId = null,
   readOnlyShare = false,
 }: My9V3AppProps) {
   const router = useRouter();
+  const kindMeta = useMemo(() => getSubjectKindMeta(kind), [kind]);
 
   const [games, setGames] = useState<Array<ShareGame | null>>(createEmptyGames());
   const [creatorName, setCreatorName] = useState("");
@@ -69,6 +76,7 @@ export default function My9V3App({
   const [loadingShare, setLoadingShare] = useState(Boolean(initialShareId));
   const [savingShare, setSavingShare] = useState(false);
   const [draftHydrated, setDraftHydrated] = useState(false);
+  const [kindPickerOpen, setKindPickerOpen] = useState(false);
 
   const [toast, setToast] = useState<ToastState>(null);
   const [singleUndoSnapshot, setSingleUndoSnapshot] = useState<DraftSnapshot | null>(null);
@@ -80,7 +88,10 @@ export default function My9V3App({
   const [searchError, setSearchError] = useState("");
   const [searchResults, setSearchResults] = useState<ShareGame[]>([]);
   const [searchActiveIndex, setSearchActiveIndex] = useState(-1);
-  const [searchMeta, setSearchMeta] = useState<SearchMeta>(createSearchMeta());
+  const [searchCommittedQuery, setSearchCommittedQuery] = useState("");
+  const [searchMeta, setSearchMeta] = useState<SearchMeta>(
+    createSearchMeta([`可尝试${kindMeta.label}正式名或别名`, "中日英名称切换检索通常更有效", "减少关键词，仅保留核心词"])
+  );
 
   const [commentOpen, setCommentOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -92,11 +103,21 @@ export default function My9V3App({
   const allSelected = filledCount === 9;
   const isReadonly = readOnlyShare;
 
+  const draftStorageKey = kindMeta.draftStorageKey;
+  const defaultSuggestions = useMemo(
+    () => [`可尝试${kindMeta.label}正式名或别名`, "中日英名称切换检索通常更有效", "减少关键词，仅保留核心词"],
+    [kindMeta.label]
+  );
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 2800);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    setSearchMeta(createSearchMeta(defaultSuggestions));
+  }, [defaultSuggestions]);
 
   useEffect(() => {
     if (!initialShareId) return;
@@ -114,6 +135,14 @@ export default function My9V3App({
         if (!response.ok || !json?.ok) {
           setToast({ kind: "error", message: json?.error || "共享页面加载失败" });
           setLoadingShare(false);
+          return;
+        }
+
+        const responseKind = parseSubjectKind(json.kind) ?? "game";
+        if (responseKind !== kind) {
+          setToast({ kind: "error", message: "分享类型与页面不匹配" });
+          setLoadingShare(false);
+          router.replace(`/${responseKind}/s/${json.shareId || currentShareId}`);
           return;
         }
 
@@ -135,7 +164,7 @@ export default function My9V3App({
     return () => {
       active = false;
     };
-  }, [initialShareId]);
+  }, [initialShareId, kind, router]);
 
   useEffect(() => {
     if (isReadonly || initialShareId) {
@@ -144,7 +173,7 @@ export default function My9V3App({
     }
 
     try {
-      const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+      const raw = localStorage.getItem(draftStorageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
         const savedGames = Array.isArray(parsed?.games) ? parsed.games : null;
@@ -154,19 +183,22 @@ export default function My9V3App({
         if (typeof parsed?.creatorName === "string") {
           setCreatorName(parsed.creatorName);
         }
+      } else {
+        setGames(createEmptyGames());
+        setCreatorName("");
       }
     } catch {
       // ignore invalid local draft
     } finally {
       setDraftHydrated(true);
     }
-  }, [initialShareId, isReadonly]);
+  }, [draftStorageKey, initialShareId, isReadonly]);
 
   useEffect(() => {
     if (isReadonly || initialShareId || !draftHydrated) return;
     try {
       localStorage.setItem(
-        DRAFT_STORAGE_KEY,
+        draftStorageKey,
         JSON.stringify({
           games,
           creatorName,
@@ -175,7 +207,7 @@ export default function My9V3App({
     } catch {
       // ignore write errors
     }
-  }, [games, creatorName, draftHydrated, initialShareId, isReadonly]);
+  }, [games, creatorName, draftHydrated, draftStorageKey, initialShareId, isReadonly]);
 
   useEffect(() => {
     if (!shareId || !isReadonly) return;
@@ -185,8 +217,8 @@ export default function My9V3App({
     }).catch(() => {});
   }, [shareId, isReadonly]);
 
-  function pushToast(kind: ToastKind, message: string) {
-    setToast({ kind, message });
+  function pushToast(kindValue: ToastKind, message: string) {
+    setToast({ kind: kindValue, message });
   }
 
   function makeUndoSnapshot() {
@@ -234,7 +266,7 @@ export default function My9V3App({
     makeUndoSnapshot();
     setGames(createEmptyGames());
     setSpoilerExpandedSet(new Set());
-    pushToast("info", "已清空已选游戏");
+    pushToast("info", `已清空已选${kindMeta.label}`);
   }
 
   async function handleSearch() {
@@ -246,13 +278,15 @@ export default function My9V3App({
 
     setSearchLoading(true);
     setSearchError("");
-    setSearchActiveIndex(0);
+    setSearchActiveIndex(-1);
+    setSearchCommittedQuery(q);
 
     try {
-      const response = await fetch(`/api/games/search?q=${encodeURIComponent(q)}`, {
-        cache: "no-store",
-      });
-      const json = (await response.json()) as Partial<GameSearchResponse> & {
+      const response = await fetch(
+        `/api/subjects/search?q=${encodeURIComponent(q)}&kind=${encodeURIComponent(kind)}`,
+        { cache: "no-store" }
+      );
+      const json = (await response.json()) as Partial<SubjectSearchResponse> & {
         ok?: boolean;
         error?: string;
       };
@@ -260,7 +294,7 @@ export default function My9V3App({
       if (!response.ok || !json?.ok) {
         setSearchError(json?.error || "搜索失败，请稍后再试");
         setSearchResults([]);
-        setSearchMeta(createSearchMeta(q));
+        setSearchMeta(createSearchMeta(defaultSuggestions, q));
         return;
       }
 
@@ -270,14 +304,14 @@ export default function My9V3App({
         suggestions:
           Array.isArray(json.suggestions) && json.suggestions.length > 0
             ? json.suggestions
-            : DEFAULT_SEARCH_SUGGESTIONS,
+            : defaultSuggestions,
         noResultQuery: typeof json.noResultQuery === "string" ? json.noResultQuery : null,
       });
       setSearchActiveIndex(0);
     } catch {
       setSearchError("搜索失败，请稍后再试");
       setSearchResults([]);
-      setSearchMeta(createSearchMeta(q));
+      setSearchMeta(createSearchMeta(defaultSuggestions, q));
     } finally {
       setSearchLoading(false);
     }
@@ -286,11 +320,6 @@ export default function My9V3App({
   function openSearch(index: number) {
     if (guardReadonly()) return;
     setSelectedSlot(index);
-    setSearchQuery("");
-    setSearchError("");
-    setSearchResults([]);
-    setSearchActiveIndex(-1);
-    setSearchMeta(createSearchMeta());
     window.setTimeout(() => setSearchOpen(true), 0);
   }
 
@@ -348,7 +377,7 @@ export default function My9V3App({
     if (guardReadonly()) return;
     if (!allSelected) {
       const confirmed = window.confirm(
-        `当前仅选择了 ${filledCount}/9 个游戏，确认继续保存吗？`
+        `当前仅选择了 ${filledCount}/9 个${kindMeta.label}，确认继续保存吗？`
       );
       if (!confirmed) return;
     }
@@ -359,6 +388,7 @@ export default function My9V3App({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          kind,
           creatorName: creatorName.trim() || null,
           games,
         }),
@@ -370,9 +400,10 @@ export default function My9V3App({
         return;
       }
 
+      const targetKind = parseSubjectKind(json.kind) ?? kind;
       setShareId(json.shareId);
       pushToast("success", "分享页面已创建");
-      const target = `/s/${json.shareId}`;
+      const target = `/${targetKind}/s/${json.shareId}`;
       router.replace(target);
       window.setTimeout(() => {
         if (window.location.pathname !== target) {
@@ -386,8 +417,8 @@ export default function My9V3App({
     }
   }
 
-  function handleNotice(kind: ToastKind, message: string) {
-    pushToast(kind, message);
+  function handleNotice(kindValue: ToastKind, message: string) {
+    pushToast(kindValue, message);
   }
 
   function handleToggleSpoiler(index: number) {
@@ -410,14 +441,36 @@ export default function My9V3App({
     });
   }
 
+  function switchKind(nextKind: SubjectKind) {
+    if (nextKind === kind) {
+      setKindPickerOpen(false);
+      return;
+    }
+    setKindPickerOpen(false);
+    router.push(`/${nextKind}`);
+  }
+
   return (
     <main className="min-h-screen bg-[#f3f6fb] px-4 py-16 text-gray-800">
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
         <header className="space-y-3 text-center">
-          <h1 className="text-3xl font-bold leading-tight tracking-tight text-gray-800 sm:text-4xl">
-            构成我的9款游戏
-          </h1>
-          <p className="text-sm text-gray-500">把你最爱的游戏分享给大家。</p>
+          <div className="inline-flex items-center gap-2 sm:gap-3">
+            <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-gray-800 sm:text-4xl">
+              构成我的九部{kindMeta.label}
+            </h1>
+            {!isReadonly ? (
+              <button
+                type="button"
+                onClick={() => setKindPickerOpen(true)}
+                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:px-3 sm:py-1.5 sm:text-sm"
+                aria-label="切换填写类型"
+              >
+                <ChevronsUpDown className="h-3.5 w-3.5 text-slate-500" />
+                切换
+              </button>
+            ) : null}
+          </div>
+          <p className="text-sm text-gray-500">{kindMeta.subtitle}</p>
         </header>
 
         {toast ? <InlineToast kind={toast.kind} message={toast.message} /> : null}
@@ -452,9 +505,10 @@ export default function My9V3App({
         {loadingShare ? (
           <p className="text-sm text-gray-500">正在加载共享页面...</p>
         ) : (
-          <div className="mx-auto w-fit rounded-xl border-4 border-white bg-white p-4 shadow-2xl ring-1 ring-gray-100">
+          <div className="mx-auto w-full rounded-xl border-4 border-white bg-white p-1 sm:p-4 shadow-2xl ring-1 ring-gray-100">
             <NineGridBoard
               games={games}
+              subjectLabel={kindMeta.label}
               readOnly={isReadonly}
               onSelectSlot={openSearch}
               onRemoveSlot={(index) => {
@@ -480,6 +534,7 @@ export default function My9V3App({
         {isReadonly ? (
           <div className="flex w-full flex-col items-center gap-3">
             <SharePlatformActions
+              kind={kind}
               shareId={shareId}
               games={games}
               creatorName={creatorName}
@@ -490,6 +545,8 @@ export default function My9V3App({
 
         <SelectedGamesList
           games={games}
+          subjectLabel={kindMeta.label}
+          bangumiSearchCat={kindMeta.search.bangumiSearchCat}
           readOnly={isReadonly}
           spoilerExpandedSet={spoilerExpandedSet}
           onToggleSpoiler={handleToggleSpoiler}
@@ -500,6 +557,12 @@ export default function My9V3App({
       </div>
 
       <SearchDialog
+        kind={kind}
+        subjectLabel={kindMeta.label}
+        dialogTitle={kindMeta.searchDialogTitle}
+        inputPlaceholder={kindMeta.searchPlaceholder}
+        idleHint={kindMeta.searchIdleHint}
+        committedQuery={searchCommittedQuery}
         open={searchOpen}
         onOpenChange={(open) => {
           setSearchOpen(open);
@@ -534,6 +597,35 @@ export default function My9V3App({
         onChangeSpoiler={setCommentSpoiler}
         onSave={saveComment}
       />
+
+      <Dialog open={kindPickerOpen} onOpenChange={setKindPickerOpen}>
+        <DialogContent className="w-[86vw] max-w-[21rem] rounded-2xl p-4 sm:max-w-md sm:p-6">
+          <DialogHeader>
+            <DialogTitle>切换填写类型</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {SUBJECT_KIND_ORDER.map((item) => {
+              const meta = getSubjectKindMeta(item);
+              const active = item === kind;
+              return (
+                <Button
+                  key={item}
+                  type="button"
+                  variant="outline"
+                  onClick={() => switchKind(item)}
+                  className={cn(
+                    "h-auto justify-start gap-3 rounded-xl px-4 py-3 text-left",
+                    active && "border-sky-300 bg-sky-50 text-sky-700"
+                  )}
+                >
+                  <SubjectKindIcon kind={item} className="h-4 w-4" />
+                  <span className="font-semibold">{meta.label}</span>
+                </Button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

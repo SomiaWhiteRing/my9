@@ -1,10 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const SHARE_ID = "60fe04cbe7874fa2";
+const DEFAULT_KIND = "game";
 const ONE_PIXEL_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9YxX5iQAAAAASUVORK5CYII=";
 
 type MockShareState = {
+  kind: string;
   creatorName: string | null;
   games: Array<Record<string, unknown> | null>;
 };
@@ -23,11 +25,12 @@ function createFilledGames() {
   }));
 }
 
-function buildSearchResponse(query: string) {
+function buildSearchResponse(query: string, kind = DEFAULT_KIND) {
   if (query.toLowerCase() === "zelda") {
     return {
       ok: true,
       source: "bangumi",
+      kind,
       items: [
         {
           id: 101,
@@ -59,6 +62,7 @@ function buildSearchResponse(query: string) {
   return {
     ok: true,
     source: "bangumi",
+    kind,
     items: [
       {
         id,
@@ -78,6 +82,7 @@ function buildSearchResponse(query: string) {
 
 async function mockV3Apis(page: Page) {
   const state: MockShareState = {
+    kind: DEFAULT_KIND,
     creatorName: "测试玩家",
     games: createFilledGames(),
   };
@@ -98,23 +103,36 @@ async function mockV3Apis(page: Page) {
     });
   });
 
-  await page.route(/\/api\/games\/search\?/, async (route) => {
+  await page.route(/\/api\/subjects\/search\?/, async (route) => {
     const url = new URL(route.request().url());
     const q = (url.searchParams.get("q") || "").trim();
+    const kind = (url.searchParams.get("kind") || DEFAULT_KIND).trim();
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(buildSearchResponse(q)),
+      body: JSON.stringify(buildSearchResponse(q, kind)),
+    });
+  });
+
+  await page.route(/\/api\/games\/search\?/, async (route) => {
+    const url = new URL(route.request().url());
+    const q = (url.searchParams.get("q") || "").trim();
+    const kind = (url.searchParams.get("kind") || DEFAULT_KIND).trim();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(buildSearchResponse(q, kind)),
     });
   });
 
   await page.route(/\/api\/search\?/, async (route) => {
     const url = new URL(route.request().url());
     const q = (url.searchParams.get("q") || "").trim();
+    const kind = (url.searchParams.get("kind") || DEFAULT_KIND).trim();
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(buildSearchResponse(q)),
+      body: JSON.stringify(buildSearchResponse(q, kind)),
     });
   });
 
@@ -123,9 +141,11 @@ async function mockV3Apis(page: Page) {
     if (request.method() === "POST") {
       await new Promise((resolve) => setTimeout(resolve, 220));
       const body = request.postDataJSON() as {
+        kind?: string;
         creatorName?: string | null;
         games?: Array<Record<string, unknown> | null>;
       };
+      state.kind = body.kind || DEFAULT_KIND;
       state.creatorName = body.creatorName || null;
       state.games = Array.isArray(body.games) ? body.games : state.games;
       await route.fulfill({
@@ -133,8 +153,9 @@ async function mockV3Apis(page: Page) {
         contentType: "application/json",
         body: JSON.stringify({
           ok: true,
+          kind: state.kind,
           shareId: SHARE_ID,
-          shareUrl: `http://localhost:3000/s/${SHARE_ID}`,
+          shareUrl: `http://localhost:3000/${state.kind}/s/${SHARE_ID}`,
         }),
       });
       return;
@@ -154,11 +175,12 @@ async function mockV3Apis(page: Page) {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        ok: true,
-        shareId: SHARE_ID,
-        creatorName: state.creatorName,
-        games: state.games,
+        body: JSON.stringify({
+          ok: true,
+          kind: state.kind,
+          shareId: SHARE_ID,
+          creatorName: state.creatorName,
+          games: state.games,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         lastViewedAt: Date.now(),
@@ -196,6 +218,7 @@ async function fillSlot(page: Page, slot: number, query: string) {
   const searchInput = page.getByPlaceholder("输入游戏名");
   await searchInput.fill(query);
   await searchInput.press("Enter");
+  await expect(page.locator("#search-results-list button").first()).toBeVisible();
   await searchInput.press("Enter");
   await expect(page.getByText(`已填入第 ${slot} 格`)).toBeVisible();
 }
@@ -208,8 +231,15 @@ test.describe("v3 interaction", () => {
     await mockV3Apis(page);
   });
 
-  test("首页初始态按钮与文案正确", async ({ page }) => {
+  test("首页显示类型选择并可进入填写页", async ({ page }) => {
+    test.setTimeout(120_000);
     await page.goto("/");
+    await expect(page.getByRole("heading", { name: "构成我的九部" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "游戏" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "动画" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "开始填写！" })).toBeVisible();
+    await page.getByRole("link", { name: "开始填写！" }).click();
+    await expect(page).toHaveURL("/game", { timeout: 30_000 });
     await expect(page.getByText("0 / 9 已选择")).toBeVisible();
     await expect(page.getByRole("button", { name: "撤销" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "清空" })).toBeDisabled();
@@ -220,18 +250,22 @@ test.describe("v3 interaction", () => {
   });
 
   test("搜索键盘选择、重复去重与评论剧透折叠生效", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/game");
 
     await page.getByLabel("选择第 1 格游戏").click();
-    await page.getByPlaceholder("输入游戏名").fill("zelda");
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("Enter");
+    const firstSearchInput = page.getByPlaceholder("输入游戏名");
+    await firstSearchInput.fill("zelda");
+    await firstSearchInput.press("Enter");
+    await expect(page.locator("#search-results-list button").first()).toBeVisible();
+    await firstSearchInput.press("Enter");
     await expect(page.getByText("已填入第 1 格")).toBeVisible();
 
     await page.getByLabel("选择第 2 格游戏").click();
-    await page.getByPlaceholder("输入游戏名").fill("zelda");
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("Enter");
+    const secondSearchInput = page.getByPlaceholder("输入游戏名");
+    await secondSearchInput.fill("zelda");
+    await secondSearchInput.press("Enter");
+    await expect(page.locator("#search-results-list button").first()).toBeVisible();
+    await secondSearchInput.press("Enter");
     await expect(page.getByText("《塞尔达传说》已在第 1 格选中")).toBeVisible();
     await expect(page.getByText("已填入第 2 格")).not.toBeVisible();
     await page.getByRole("button", { name: "关闭搜索弹窗" }).click();
@@ -245,13 +279,45 @@ test.describe("v3 interaction", () => {
     await expect(page.getByText("终局剧情神作")).toBeVisible();
   });
 
+  test("回车提交搜索后不会自动选中首项", async ({ page }) => {
+    await page.goto("/game");
+
+    await page.getByLabel("选择第 1 格游戏").click();
+    const searchInput = page.getByPlaceholder("输入游戏名");
+    await searchInput.fill("zelda");
+    await searchInput.press("Enter");
+
+    await expect(page.locator("#search-results-list button").first()).toBeVisible();
+    await expect(page.getByText("已填入第 1 格")).toHaveCount(0);
+    await expect(page.getByText("0 / 9 已选择")).toBeVisible();
+  });
+
+  test("重新打开搜索窗口时保留上次搜索结果", async ({ page }) => {
+    await page.goto("/game");
+
+    await page.getByLabel("选择第 1 格游戏").click();
+    const firstSearchInput = page.getByPlaceholder("输入游戏名");
+    await firstSearchInput.fill("zelda");
+    await firstSearchInput.press("Enter");
+    await expect(page.locator("#search-results-list button").first()).toBeVisible();
+    await expect(page.locator("#search-results-list").getByText("塞尔达传说")).toBeVisible();
+    await page.getByRole("button", { name: "关闭搜索弹窗" }).click();
+
+    await page.getByLabel("选择第 2 格游戏").click();
+    const reopenedSearchInput = page.getByPlaceholder("输入游戏名");
+    await expect(reopenedSearchInput).toHaveValue("zelda");
+    await expect(page.locator("#search-results-list").getByText("塞尔达传说")).toBeVisible();
+  });
+
   test("填写页刷新后保留本地缓存草稿", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/game");
     await page.getByPlaceholder("输入你的昵称").fill("缓存玩家");
     await page.getByLabel("选择第 1 格游戏").click();
-    await page.getByPlaceholder("输入游戏名").fill("zelda");
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("Enter");
+    const searchInput = page.getByPlaceholder("输入游戏名");
+    await searchInput.fill("zelda");
+    await searchInput.press("Enter");
+    await expect(page.locator("#search-results-list button").first()).toBeVisible();
+    await searchInput.press("Enter");
     await expect(page.getByText("已填入第 1 格")).toBeVisible();
 
     await page.reload();
@@ -262,7 +328,7 @@ test.describe("v3 interaction", () => {
   });
 
   test("未填满可点击保存，需单次确认", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/game");
     await fillSlot(page, 1, "zelda");
 
     let dialogIndex = 0;
@@ -272,20 +338,20 @@ test.describe("v3 interaction", () => {
     });
 
     await page.getByRole("button", { name: "还差 8 个可保存" }).click();
-    await expect(page).toHaveURL(`/s/${SHARE_ID}`, { timeout: 30_000 });
+    await expect(page).toHaveURL(`/${DEFAULT_KIND}/s/${SHARE_ID}`, { timeout: 30_000 });
     expect(dialogIndex).toBe(1);
   });
 
   test("9/9 保存后跳只读页，且只读操作锁定", async ({ page }) => {
     test.setTimeout(120_000);
-    await page.goto("/");
+    await page.goto("/game");
     for (let slot = 1; slot <= 9; slot += 1) {
       await fillSlot(page, slot, `q${slot}`);
     }
     await expect(page.getByRole("button", { name: "保存页面" })).toBeEnabled();
     await page.getByRole("button", { name: "保存页面" }).click();
     await expect(page.getByRole("button", { name: "保存中..." })).toBeVisible();
-    await expect(page).toHaveURL(`/s/${SHARE_ID}`, { timeout: 30_000 });
+    await expect(page).toHaveURL(`/${DEFAULT_KIND}/s/${SHARE_ID}`, { timeout: 30_000 });
 
     await expect(page.getByText("这是共享页面（只读）")).toBeVisible();
     await expect(page.getByRole("button", { name: "撤销" })).toHaveCount(0);
@@ -296,7 +362,7 @@ test.describe("v3 interaction", () => {
   });
 
   test("只读页仅保留分享链接/分享图片，复制与导图可用", async ({ page }) => {
-    await page.goto(`/s/${SHARE_ID}`);
+    await page.goto(`/${DEFAULT_KIND}/s/${SHARE_ID}`);
     await expect(page.getByText("正在加载共享页面...")).not.toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByRole("button", { name: "生成分享链接" })).toBeVisible();
@@ -313,7 +379,7 @@ test.describe("v3 interaction", () => {
       const g = window as typeof window & { __clipboardWrites?: string[] };
       return g.__clipboardWrites || [];
     });
-    expect(copied.some((item) => item.endsWith(`/s/${SHARE_ID}`))).toBeTruthy();
+    expect(copied.some((item) => item.endsWith(`/${DEFAULT_KIND}/s/${SHARE_ID}`))).toBeTruthy();
 
     await page.evaluate(() => {
       const g = window as typeof window & { __clipboardFail?: boolean };
@@ -363,5 +429,19 @@ test.describe("v3 interaction", () => {
         URL.createObjectURL = g.__ORIGIN_CREATE_OBJECT_URL__;
       }
     });
+  });
+
+  test("不同类型草稿隔离保存", async ({ page }) => {
+    await page.goto("/anime");
+    await page.getByPlaceholder("输入你的昵称").fill("动画玩家");
+
+    await page.goto("/game");
+    await page.getByPlaceholder("输入你的昵称").fill("游戏玩家");
+
+    await page.goto("/anime");
+    await expect(page.getByPlaceholder("输入你的昵称")).toHaveValue("动画玩家");
+
+    await page.goto("/game");
+    await expect(page.getByPlaceholder("输入你的昵称")).toHaveValue("游戏玩家");
   });
 });

@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import { ImageResponse } from "next/og";
+import { getSubjectKindMeta } from "@/lib/subject-kind";
 import { StoredShareV1 } from "@/lib/share/types";
 
 export const SHARE_IMAGE_VERSION = "2026-03-05-1";
@@ -18,6 +19,7 @@ function gameName(game: StoredShareV1["games"][number]) {
 export function createShareImageResponse(params: { share: StoredShareV1 }) {
   const { share } = params;
   const creator = displayName(share.creatorName);
+  const kindMeta = getSubjectKindMeta(share.kind);
 
   return new ImageResponse(
     (
@@ -41,7 +43,7 @@ export function createShareImageResponse(params: { share: StoredShareV1 }) {
             marginBottom: "18px",
           }}
         >
-          <div style={{ fontSize: "52px", fontWeight: 800 }}>构成我的9款游戏</div>
+          <div style={{ fontSize: "52px", fontWeight: 800 }}>构成我的九部{kindMeta.label}</div>
           <div style={{ fontSize: "26px", color: "#475569" }}>@{creator}</div>
         </div>
 
@@ -144,7 +146,7 @@ export function createShareImageResponse(params: { share: StoredShareV1 }) {
           }}
         >
           <span>My9 v3</span>
-          <span>share/{share.shareId}</span>
+          <span>{share.kind}/s/{share.shareId}</span>
         </div>
       </div>
     ),

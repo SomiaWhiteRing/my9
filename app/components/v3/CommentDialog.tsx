@@ -49,7 +49,7 @@ export function CommentDialog({
         <div className="mb-3 flex items-start justify-between gap-4">
           <div className="space-y-1">
             <h2 className="text-xl font-bold">编辑评论</h2>
-            <p className="text-sm text-slate-600">评论最多 140 字，可设置为剧透折叠。</p>
+            <p className="text-sm text-slate-600">查看你分享的链接的人可以看到这些评论。</p>
           </div>
           <button
             type="button"

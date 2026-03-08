@@ -4,7 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { SubjectKind, SUBJECT_KIND_ORDER, getSubjectKindMeta } from "@/lib/subject-kind";
 import type { TrendResponse, TrendPeriod, TrendView } from "@/lib/share/types";
 
 type TrendsApiResponse = TrendResponse & { ok: boolean };
@@ -29,11 +31,13 @@ function formatDateTime(value: number | null) {
 }
 
 export default function TrendsPage() {
+  const [kind, setKind] = useState<SubjectKind>("game");
   const [period, setPeriod] = useState<TrendPeriod>("90d");
   const [view, setView] = useState<TrendView>("overall");
   const [data, setData] = useState<TrendResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const kindMeta = useMemo(() => getSubjectKindMeta(kind), [kind]);
 
   useEffect(() => {
     let active = true;
@@ -44,7 +48,7 @@ export default function TrendsPage() {
 
       try {
         const response = await fetch(
-          `/api/trends?period=${encodeURIComponent(period)}&view=${encodeURIComponent(view)}`,
+          `/api/trends?kind=${encodeURIComponent(kind)}&period=${encodeURIComponent(period)}&view=${encodeURIComponent(view)}`,
           { cache: "no-store" }
         );
         const json = (await response.json()) as Partial<TrendsApiResponse> & { error?: string };
@@ -80,7 +84,7 @@ export default function TrendsPage() {
     return () => {
       active = false;
     };
-  }, [period, view]);
+  }, [kind, period, view]);
 
   const hasInsufficientSamples = (data?.sampleCount ?? 0) < 30;
 
@@ -104,17 +108,39 @@ export default function TrendsPage() {
 
           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-slate-500">社区聚合</p>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-800">大家的 9 本趋势榜 β</h1>
+              <p className="text-xs font-semibold text-slate-500">社区聚合{kindMeta.trendLabel}</p>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-800">大家的九部趋势榜 β</h1>
               <p className="text-sm text-slate-600">{topCardSummary}</p>
               <p className="text-xs text-slate-500">
-                样本数：{data?.sampleCount ?? "-"} · 集计区间：
+                样本数：{data?.sampleCount ?? "-"}，集计区间：
                 {formatDateTime(data?.range.from ?? null)} ～ {formatDateTime(data?.range.to ?? null)}
               </p>
               <p className="text-xs text-slate-500">最后更新：{formatDateTime(data?.lastUpdatedAt ?? null)}</p>
             </div>
 
             <div className="flex flex-wrap gap-2">
+              {SUBJECT_KIND_ORDER.map((option) => {
+                const optionMeta = getSubjectKindMeta(option);
+                return (
+                  <Button
+                    key={option}
+                    size="sm"
+                    variant={option === kind ? "default" : "outline"}
+                    className={
+                      option === kind
+                        ? "rounded-full border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
+                        : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    }
+                    onClick={() => setKind(option)}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      <SubjectKindIcon kind={option} className="h-3.5 w-3.5" />
+                      {optionMeta.label}
+                    </span>
+                  </Button>
+                );
+              })}
+
               {PERIOD_OPTIONS.map((option) => (
                 <Button
                   key={option.value}

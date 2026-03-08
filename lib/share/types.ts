@@ -1,6 +1,8 @@
+import type { SubjectKind } from "@/lib/subject-kind";
+
 export type GameTypeId = 0 | 1 | 2 | 3 | 4 | 8 | 9 | 10 | 11;
 
-export interface ShareGame {
+export interface ShareSubject {
   id: number | string;
   name: string;
   localizedName?: string;
@@ -12,21 +14,29 @@ export interface ShareGame {
   storeUrls?: Record<string, string>;
   comment?: string;
   spoiler?: boolean;
+  subjectType?: number;
+  subjectPlatform?: string | null;
 }
 
-export interface GameSearchResponse {
+export type ShareGame = ShareSubject;
+
+export interface SubjectSearchResponse {
   ok: boolean;
   source: "bangumi";
-  items: ShareGame[];
+  kind: SubjectKind;
+  items: ShareSubject[];
   topPickIds: Array<string | number>;
   suggestions: string[];
   noResultQuery: string | null;
 }
 
+export type GameSearchResponse = SubjectSearchResponse;
+
 export interface StoredShareV1 {
   shareId: string;
+  kind: SubjectKind;
   creatorName: string | null;
-  games: Array<ShareGame | null>;
+  games: Array<ShareSubject | null>;
   createdAt: number;
   updatedAt: number;
   lastViewedAt: number;

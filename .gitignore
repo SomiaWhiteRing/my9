@@ -35,4 +35,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# test
+/.next-e2e/
+/screenshot/
+/test-results/
+
 yarn.lock

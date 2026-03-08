@@ -18,12 +18,14 @@ import {
   generateStandardShareImageBlob,
   generateEnhancedShareImageBlob,
 } from "@/utils/image/exportShareImage";
+import { SubjectKind } from "@/lib/subject-kind";
 
 type NoticeKind = "success" | "error" | "info";
 
 interface ShareImagePreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  kind: SubjectKind;
   shareId: string;
   title: string;
   games: Array<ShareGame | null>;
@@ -32,13 +34,14 @@ interface ShareImagePreviewDialogProps {
 }
 
 function buildFileName(title: string, withQr: boolean) {
-  const suffix = withQr ? "分享图-二维码版" : "分享图";
-  return `${title || "构成我的9款游戏"}-${suffix}.png`;
+  const suffix = withQr ? "分享图二维码版" : "分享图";
+  return `${title || "构成我的九部"}${suffix}.png`;
 }
 
 export function ShareImagePreviewDialog({
   open,
   onOpenChange,
+  kind,
   shareId,
   title,
   games,
@@ -75,7 +78,7 @@ export function ShareImagePreviewDialog({
       setPreviewError("");
       try {
         const blob = withQr
-          ? await generateEnhancedShareImageBlob({ shareId, title, games, creatorName })
+          ? await generateEnhancedShareImageBlob({ kind, shareId, title, games, creatorName })
           : await generateStandardShareImageBlob({ games, creatorName });
 
         if (requestId !== requestIdRef.current) return;
@@ -101,14 +104,14 @@ export function ShareImagePreviewDialog({
     }
 
     loadPreview();
-  }, [creatorName, games, open, shareId, title, withQr]);
+  }, [creatorName, games, kind, open, shareId, title, withQr]);
 
   async function handleDownload() {
     try {
       const blob =
         previewBlob ||
         (withQr
-          ? await generateEnhancedShareImageBlob({ shareId, title, games, creatorName })
+          ? await generateEnhancedShareImageBlob({ kind, shareId, title, games, creatorName })
           : await generateStandardShareImageBlob({ games, creatorName }));
       downloadBlob(blob, buildFileName(title, withQr));
     } catch {
@@ -121,9 +124,6 @@ export function ShareImagePreviewDialog({
       <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>生成分享图片</DialogTitle>
-          <DialogDescription>
-            可长按预览图保存。开启增强模式后，会追加二维码和提示文案。
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -152,7 +152,7 @@ export function ShareImagePreviewDialog({
 
           <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
             <div className="pr-3">
-              <p className="text-sm font-semibold text-slate-800">附带二维码和提示文案（推荐）</p>
+              <p className="text-sm font-semibold text-slate-800">附带分享链接</p>
               <p className="text-xs text-slate-500">
                 {withQr ? "已开启：底部追加扫码区与文案" : "已关闭：仅保留基础分享图"}
               </p>
@@ -161,7 +161,7 @@ export function ShareImagePreviewDialog({
               type="button"
               role="switch"
               aria-checked={withQr}
-              aria-label="附带二维码和提示文案"
+              aria-label="附带分享链接"
               onClick={() => setWithQr((value) => !value)}
               className={cn(
                 "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",

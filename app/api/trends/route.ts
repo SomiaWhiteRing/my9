@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listSharesByPeriod, getTrendsCache, setTrendsCache } from "@/lib/share/storage";
 import { buildTrendResponse } from "@/lib/share/trends";
 import { TrendPeriod, TrendView } from "@/lib/share/types";
+import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 
 const VALID_PERIODS: TrendPeriod[] = ["30d", "90d", "180d", "all"];
 const VALID_VIEWS: TrendView[] = ["overall", "genre", "decade", "year"];
@@ -20,12 +21,17 @@ function parseView(value: string | null): TrendView {
   return "overall";
 }
 
+function parseKind(value: string | null): SubjectKind {
+  return parseSubjectKind(value) ?? DEFAULT_SUBJECT_KIND;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const period = parsePeriod(searchParams.get("period"));
   const view = parseView(searchParams.get("view"));
+  const kind = parseKind(searchParams.get("kind"));
 
-  const cached = await getTrendsCache(period, view);
+  const cached = await getTrendsCache(period, view, kind);
   if (cached) {
     return NextResponse.json({
       ok: true,
@@ -33,7 +39,7 @@ export async function GET(request: Request) {
     });
   }
 
-  const shares = await listSharesByPeriod(period);
+  const shares = (await listSharesByPeriod(period)).filter((item) => item.kind === kind);
   const response = buildTrendResponse({
     period,
     view,
@@ -47,7 +53,7 @@ export async function GET(request: Request) {
         }
       : response;
 
-  await setTrendsCache(period, view, normalizedResponse, 600);
+  await setTrendsCache(period, view, kind, normalizedResponse, 600);
 
   return NextResponse.json({
     ok: true,

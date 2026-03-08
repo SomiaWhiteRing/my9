@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import Image from "next/image";
-import { AlertCircle, Gamepad2, Loader2, RefreshCw, Search, X } from "lucide-react";
+import { AlertCircle, Loader2, RefreshCw, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,10 +12,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
+import { SubjectKind } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
 import { cn } from "@/lib/utils";
 
 interface SearchDialogProps {
+  kind: SubjectKind;
+  subjectLabel: string;
+  dialogTitle: string;
+  inputPlaceholder: string;
+  idleHint: string;
+  committedQuery: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   query: string;
@@ -43,6 +51,12 @@ function toIdKey(value: string | number) {
 }
 
 export function SearchDialog({
+  kind,
+  subjectLabel,
+  dialogTitle,
+  inputPlaceholder,
+  idleHint,
+  committedQuery,
   open,
   onOpenChange,
   query,
@@ -58,7 +72,6 @@ export function SearchDialog({
   onSubmitSearch,
   onPickGame,
 }: SearchDialogProps) {
-  const pendingConfirmRef = useRef(false);
   const trimmedQuery = query.trim();
 
   const orderedResults = useMemo(() => {
@@ -91,13 +104,6 @@ export function SearchDialog({
   }, [error, loading, noResultQuery, orderedResults.length, trimmedQuery]);
 
   useEffect(() => {
-    if (!open) {
-      pendingConfirmRef.current = false;
-      return;
-    }
-  }, [open]);
-
-  useEffect(() => {
     if (!open) return;
 
     if (orderedResults.length === 0) {
@@ -112,23 +118,12 @@ export function SearchDialog({
     }
   }, [activeIndex, onActiveIndexChange, open, orderedResults.length]);
 
-  useEffect(() => {
-    if (!open || !pendingConfirmRef.current || orderedResults.length === 0) {
-      return;
-    }
-
-    pendingConfirmRef.current = false;
-    const targetIndex =
-      activeIndex >= 0 && activeIndex < orderedResults.length ? activeIndex : 0;
-    onPickGame(orderedResults[targetIndex]);
-  }, [activeIndex, onPickGame, open, orderedResults]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto sm:max-w-md md:max-w-lg lg:max-w-xl [&>button]:hidden">
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
-            <DialogTitle>搜索游戏</DialogTitle>
+            <DialogTitle>{dialogTitle}</DialogTitle>
             <button
               type="button"
               onClick={() => onOpenChange(false)}
@@ -141,7 +136,6 @@ export function SearchDialog({
         </DialogHeader>
 
         <div className="mb-4">
-          <p className="mb-2 text-sm text-gray-500">来源：Bangumi</p>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Input
@@ -149,8 +143,8 @@ export function SearchDialog({
                 role="combobox"
                 aria-expanded={open}
                 aria-controls="search-results-list"
-                aria-label="游戏搜索输入框"
-                placeholder="输入游戏名"
+                aria-label={`${subjectLabel}搜索输入框`}
+                placeholder={inputPlaceholder}
                 onChange={(event) => onQueryChange(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "ArrowDown") {
@@ -171,15 +165,22 @@ export function SearchDialog({
 
                   if (event.key === "Enter") {
                     event.preventDefault();
-                    if (activeIndex >= 0 && orderedResults[activeIndex]) {
-                      pendingConfirmRef.current = false;
+                    if (loading) {
+                      return;
+                    }
+                    const resultsMatchCurrentQuery =
+                      committedQuery.trim().length > 0 && committedQuery.trim() === trimmedQuery;
+                    if (
+                      resultsMatchCurrentQuery &&
+                      activeIndex >= 0 &&
+                      orderedResults[activeIndex]
+                    ) {
                       onPickGame(orderedResults[activeIndex]);
                       return;
                     }
                     if (trimmedQuery.length >= 2) {
-                      pendingConfirmRef.current = true;
+                      onSubmitSearch();
                     }
-                    onSubmitSearch();
                     return;
                   }
 
@@ -250,7 +251,7 @@ export function SearchDialog({
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Gamepad2 className="h-7 w-7 text-gray-400" />
+                        <SubjectKindIcon kind={kind} className="h-7 w-7 text-gray-400" />
                       </div>
                     )}
                   </div>
@@ -260,6 +261,9 @@ export function SearchDialog({
             </div>
           ) : (
             <SearchStatus
+              kind={kind}
+              subjectLabel={subjectLabel}
+              idleHint={idleHint}
               state={state}
               error={error}
               loading={loading}
@@ -289,6 +293,9 @@ export function SearchDialog({
 }
 
 function SearchStatus(props: {
+  kind: SubjectKind;
+  subjectLabel: string;
+  idleHint: string;
   state: Exclude<ViewState, "success">;
   error: string;
   loading: boolean;
@@ -296,7 +303,17 @@ function SearchStatus(props: {
   suggestions: string[];
   onRetry: () => void;
 }) {
-  const { state, error, loading, noResultQuery, suggestions, onRetry } = props;
+  const {
+    kind,
+    subjectLabel,
+    idleHint,
+    state,
+    error,
+    loading,
+    noResultQuery,
+    suggestions,
+    onRetry,
+  } = props;
 
   if (state === "searching") {
     return (
@@ -323,8 +340,8 @@ function SearchStatus(props: {
   if (state === "no-results") {
     return (
       <div className="flex flex-col items-center justify-center py-10 text-gray-500" aria-live="polite">
-        <Gamepad2 className="mb-2 h-8 w-8 opacity-50" />
-        <p>{noResultQuery ? `未找到“${noResultQuery}”` : "未找到相关游戏"}</p>
+        <SubjectKindIcon kind={kind} className="mb-2 h-8 w-8 opacity-50" />
+        <p>{noResultQuery ? `未找到“${noResultQuery}”` : `未找到相关${subjectLabel}`}</p>
         <p className="mt-2 text-sm">{(suggestions[0] || "尝试更换关键词后重试").replace(/^[\-•]\s*/, "")}</p>
       </div>
     );
@@ -333,7 +350,7 @@ function SearchStatus(props: {
   return (
     <div className="flex flex-col items-center justify-center py-10 text-gray-500" aria-live="polite">
       <Search className="mb-2 h-12 w-12 opacity-30" />
-      <p>输入游戏名称开始搜索</p>
+      <p>{idleHint}</p>
     </div>
   );
 }

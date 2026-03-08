@@ -6,6 +6,8 @@ import { ShareGame } from "@/lib/share/types";
 
 interface SelectedGamesListProps {
   games: Array<ShareGame | null>;
+  subjectLabel: string;
+  bangumiSearchCat?: number;
   readOnly: boolean;
   spoilerExpandedSet: Set<number>;
   onToggleSpoiler: (index: number) => void;
@@ -16,17 +18,22 @@ function displayName(game: ShareGame): string {
   return game.localizedName?.trim() || game.name;
 }
 
-function bangumiLink(game: ShareGame): string {
+function bangumiLink(game: ShareGame, cat?: number): string {
   const id = String(game.id || "").trim();
   if (/^\d+$/.test(id)) {
     return `https://bgm.tv/subject/${id}`;
   }
   const query = encodeURIComponent(displayName(game));
-  return `https://bgm.tv/subject_search/${query}?cat=4`;
+  if (typeof cat === "number") {
+    return `https://bgm.tv/subject_search/${query}?cat=${cat}`;
+  }
+  return `https://bgm.tv/subject_search/${query}`;
 }
 
 export function SelectedGamesList({
   games,
+  subjectLabel,
+  bangumiSearchCat,
   readOnly,
   spoilerExpandedSet,
   onToggleSpoiler,
@@ -38,13 +45,13 @@ export function SelectedGamesList({
 
   return (
     <section className="w-full max-w-2xl px-1 sm:px-4">
-      <div className="mb-6 border-b border-gray-100 pb-3">
-        <h2 className="text-lg font-bold text-gray-800">选择的游戏</h2>
+      <div className="border-b border-gray-100 pb-3">
+        <h2 className="text-lg font-bold text-gray-800">选择的{subjectLabel}</h2>
       </div>
 
       <div className="space-y-6">
         {selected.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-400">还没有选择任何游戏。</p>
+          <p className="py-8 text-center text-sm text-gray-400">还没有选择任何{subjectLabel}。</p>
         ) : null}
 
         {selected.map(({ index, game }) => {
@@ -109,7 +116,7 @@ export function SelectedGamesList({
 
                 <div className="-mt-0.5 flex flex-col items-center gap-1 self-start sm:-mt-1">
                   <a
-                    href={bangumiLink(game)}
+                    href={bangumiLink(game, bangumiSearchCat)}
                     target="_blank"
                     rel="noopener noreferrer"
                     title="在 Bangumi 查看"

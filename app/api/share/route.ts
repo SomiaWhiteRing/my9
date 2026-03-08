@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createShareId, normalizeShareId } from "@/lib/share/id";
 import { saveShare, getShare } from "@/lib/share/storage";
 import { GameTypeId, ShareGame, StoredShareV1 } from "@/lib/share/types";
+import { parseSubjectKind } from "@/lib/subject-kind";
 
 const MAX_CREATOR_LENGTH = 40;
 const MAX_COMMENT_LENGTH = 140;
@@ -96,6 +97,18 @@ function parseGames(input: unknown): Array<ShareGame | null> | null {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const kind = parseSubjectKind(body?.kind);
+    if (!kind) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "kind 参数无效",
+          code: "invalid_kind",
+        },
+        { status: 400 }
+      );
+    }
+
     const creatorNameRaw = sanitizeString(body?.creatorName);
     const creatorName = creatorNameRaw ? creatorNameRaw.slice(0, MAX_CREATOR_LENGTH) : null;
     const games = parseGames(body?.games);
@@ -115,6 +128,7 @@ export async function POST(request: Request) {
     const now = Date.now();
     const record: StoredShareV1 = {
       shareId,
+      kind,
       creatorName,
       games,
       createdAt: now,
@@ -124,11 +138,12 @@ export async function POST(request: Request) {
 
     await saveShare(record);
     const origin = new URL(request.url).origin;
-    const shareUrl = `${origin}/s/${shareId}`;
+    const shareUrl = `${origin}/${kind}/s/${shareId}`;
 
     return NextResponse.json({
       ok: true,
       shareId,
+      kind,
       shareUrl,
     });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { kv } from "@vercel/kv";
 import { StoredShareV1, TrendPeriod, TrendResponse, TrendView } from "@/lib/share/types";
+import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 
 const SHARE_KEY_PREFIX = "share:";
 const SHARE_IDS_KEY = "share:index:ids";
@@ -16,6 +17,13 @@ type MemoryStore = {
   trendCache: Map<string, { value: TrendResponse; expiresAt: number }>;
 };
 
+function normalizeStoredShare(input: StoredShareV1): StoredShareV1 {
+  return {
+    ...input,
+    kind: parseSubjectKind(input.kind) ?? DEFAULT_SUBJECT_KIND,
+  };
+}
+
 function getMemoryStore(): MemoryStore {
   const g = globalThis as typeof globalThis & {
     __MY9_SHARE_MEMORY__?: MemoryStore;
@@ -30,8 +38,8 @@ function getMemoryStore(): MemoryStore {
   return g.__MY9_SHARE_MEMORY__;
 }
 
-function trendCacheKey(period: TrendPeriod, view: TrendView) {
-  return `${TRENDS_CACHE_PREFIX}${period}:${view}`;
+function trendCacheKey(period: TrendPeriod, view: TrendView, kind: SubjectKind) {
+  return `${TRENDS_CACHE_PREFIX}${period}:${view}:${kind}`;
 }
 
 async function safeKvGet<T>(key: string): Promise<T | null> {
@@ -43,39 +51,42 @@ async function safeKvGet<T>(key: string): Promise<T | null> {
 }
 
 export async function saveShare(record: StoredShareV1): Promise<void> {
+  const normalizedRecord = normalizeStoredShare(record);
   if (!KV_ENABLED) {
-    getMemoryStore().shares.set(record.shareId, record);
+    getMemoryStore().shares.set(normalizedRecord.shareId, normalizedRecord);
     return;
   }
 
-  const key = `${SHARE_KEY_PREFIX}${record.shareId}`;
+  const key = `${SHARE_KEY_PREFIX}${normalizedRecord.shareId}`;
   try {
-    await kv.set(key, record);
-    await kv.sadd(SHARE_IDS_KEY, record.shareId);
+    await kv.set(key, normalizedRecord);
+    await kv.sadd(SHARE_IDS_KEY, normalizedRecord.shareId);
     await kv.zadd(SHARE_INDEX_CREATED_KEY, {
-      score: record.createdAt,
-      member: record.shareId,
+      score: normalizedRecord.createdAt,
+      member: normalizedRecord.shareId,
     });
     await kv.zadd(SHARE_INDEX_UPDATED_KEY, {
-      score: record.updatedAt,
-      member: record.shareId,
+      score: normalizedRecord.updatedAt,
+      member: normalizedRecord.shareId,
     });
   } catch {
-    getMemoryStore().shares.set(record.shareId, record);
+    getMemoryStore().shares.set(normalizedRecord.shareId, normalizedRecord);
   }
 }
 
 export async function getShare(shareId: string): Promise<StoredShareV1 | null> {
   if (!KV_ENABLED) {
-    return getMemoryStore().shares.get(shareId) ?? null;
+    const fromMemory = getMemoryStore().shares.get(shareId);
+    return fromMemory ? normalizeStoredShare(fromMemory) : null;
   }
 
   const key = `${SHARE_KEY_PREFIX}${shareId}`;
-  const fromKv = await safeKvGet<StoredShareV1>(key);
+  const fromKv = await safeKvGet<StoredShareV1 | (Omit<StoredShareV1, "kind"> & { kind?: unknown })>(key);
   if (fromKv) {
-    return fromKv;
+    return normalizeStoredShare(fromKv as StoredShareV1);
   }
-  return getMemoryStore().shares.get(shareId) ?? null;
+  const fromMemory = getMemoryStore().shares.get(shareId);
+  return fromMemory ? normalizeStoredShare(fromMemory) : null;
 }
 
 export async function touchShare(shareId: string, now = Date.now()): Promise<boolean> {
@@ -107,19 +118,23 @@ async function getAllShareIdsFromKv(): Promise<string[]> {
 
 export async function listAllShares(): Promise<StoredShareV1[]> {
   if (!KV_ENABLED) {
-    return Array.from(getMemoryStore().shares.values());
+    return Array.from(getMemoryStore().shares.values()).map((item) =>
+      normalizeStoredShare(item)
+    );
   }
 
   const ids = await getAllShareIdsFromKv();
   if (ids.length === 0) {
-    return Array.from(getMemoryStore().shares.values());
+    return Array.from(getMemoryStore().shares.values()).map((item) =>
+      normalizeStoredShare(item)
+    );
   }
 
   const results: StoredShareV1[] = [];
   for (const shareId of ids) {
     const record = await safeKvGet<StoredShareV1>(`${SHARE_KEY_PREFIX}${shareId}`);
     if (record) {
-      results.push(record);
+      results.push(normalizeStoredShare(record));
     }
   }
   return results;
@@ -147,9 +162,10 @@ export async function listSharesByPeriod(period: TrendPeriod): Promise<StoredSha
 
 export async function getTrendsCache(
   period: TrendPeriod,
-  view: TrendView
+  view: TrendView,
+  kind: SubjectKind
 ): Promise<TrendResponse | null> {
-  const key = trendCacheKey(period, view);
+  const key = trendCacheKey(period, view, kind);
   if (!KV_ENABLED) {
     const item = getMemoryStore().trendCache.get(key);
     if (!item) return null;
@@ -177,10 +193,11 @@ export async function getTrendsCache(
 export async function setTrendsCache(
   period: TrendPeriod,
   view: TrendView,
+  kind: SubjectKind,
   value: TrendResponse,
   ttlSeconds = 600
 ): Promise<void> {
-  const key = trendCacheKey(period, view);
+  const key = trendCacheKey(period, view, kind);
   getMemoryStore().trendCache.set(key, {
     value,
     expiresAt: Date.now() + ttlSeconds * 1000,

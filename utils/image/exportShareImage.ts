@@ -1,6 +1,7 @@
 "use client";
 
 import QRCode from "qrcode";
+import { SubjectKind, getSubjectKindMeta } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
 
 const CANVAS_WIDTH = 1080;
@@ -267,6 +268,7 @@ export async function generateStandardShareImageBlob(options: {
 }
 
 export async function generateEnhancedShareImageBlob(options: {
+  kind: SubjectKind;
   shareId: string;
   title: string;
   games: Array<ShareGame | null>;
@@ -274,7 +276,7 @@ export async function generateEnhancedShareImageBlob(options: {
   origin?: string;
 }) {
   const origin = options.origin ?? window.location.origin;
-  const shareUrl = `${origin}/s/${options.shareId}`;
+  const shareUrl = `${origin}/${options.kind}/s/${options.shareId}`;
 
   const canvas = await createBoardCanvas({
     games: options.games,
@@ -292,13 +294,14 @@ export async function generateEnhancedShareImageBlob(options: {
     margin: 1,
   });
   const qrImage = await dataUrlToImage(qrDataUrl);
+  const kindMeta = getSubjectKindMeta(options.kind);
 
   const userName = displayUserName(options.creatorName);
   const reviewCount = options.games.filter(
     (game) => Boolean(game?.comment && game.comment.trim().length > 0)
   ).length;
 
-  const line1 = `构成${userName}的9款游戏`;
+  const line1 = `构成${userName}的九部${kindMeta.label}`;
   const line2 =
     reviewCount > 0
       ? `扫码查看${userName}的${reviewCount}条评价`
@@ -354,6 +357,7 @@ export function downloadBlob(blob: Blob, filename: string) {
 }
 
 export async function exportEnhancedShareImage(options: {
+  kind: SubjectKind;
   shareId: string;
   title: string;
   games: Array<ShareGame | null>;
@@ -361,6 +365,6 @@ export async function exportEnhancedShareImage(options: {
   origin?: string;
 }) {
   const blob = await generateEnhancedShareImageBlob(options);
-  const fileName = `${options.title || "构成我的9款游戏"}-分享图-增强版.png`;
+  const fileName = `${options.title || "构成我的九部"}分享图增强版.png`;
   downloadBlob(blob, fileName);
 }

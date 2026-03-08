@@ -3,11 +3,13 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ShareImagePreviewDialog } from "@/components/share/ShareImagePreviewDialog";
+import { SubjectKind, getSubjectKindMeta } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
 
 type NoticeKind = "success" | "error" | "info";
 
 interface SharePlatformActionsProps {
+  kind: SubjectKind;
   shareId: string | null;
   games: Array<ShareGame | null>;
   creatorName?: string | null;
@@ -32,23 +34,25 @@ async function copyText(value: string) {
 }
 
 export function SharePlatformActions({
+  kind,
   shareId,
   games,
   creatorName,
   onNotice,
 }: SharePlatformActionsProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const kindMeta = getSubjectKindMeta(kind);
   const shareUrl = useMemo(() => {
     if (!shareId) return null;
     if (typeof window === "undefined") return null;
-    return `${window.location.origin}/s/${shareId}`;
-  }, [shareId]);
+    return `${window.location.origin}/${kind}/s/${shareId}`;
+  }, [kind, shareId]);
 
   const shareTitle = useMemo(() => {
     const name = creatorName?.trim();
-    if (!name) return "构成我的9款游戏";
-    return `构成我的9款游戏｜${name}`;
-  }, [creatorName]);
+    if (!name) return kindMeta.shareTitle;
+    return `${name}的${kindMeta.shareTitle}`;
+  }, [creatorName, kindMeta.shareTitle]);
 
   const disabled = !shareId;
 
@@ -92,6 +96,7 @@ export function SharePlatformActions({
         <ShareImagePreviewDialog
           open={previewOpen}
           onOpenChange={setPreviewOpen}
+          kind={kind}
           shareId={shareId}
           title={shareTitle}
           games={games}

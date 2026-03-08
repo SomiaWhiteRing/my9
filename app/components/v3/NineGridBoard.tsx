@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 interface NineGridBoardProps {
   games: Array<ShareGame | null>;
+  subjectLabel: string;
   readOnly: boolean;
   onSelectSlot: (index: number) => void;
   onRemoveSlot: (index: number) => void;
@@ -19,19 +20,20 @@ function displayTitle(game: ShareGame) {
 
 export function NineGridBoard({
   games,
+  subjectLabel,
   readOnly,
   onSelectSlot,
   onRemoveSlot,
   onOpenComment,
 }: NineGridBoardProps) {
   return (
-    <div className="mx-auto grid grid-cols-3 gap-3">
+    <div className="w-full grid grid-cols-3 gap-2 sm:gap-3">
       {games.map((game, index) => (
-        <div key={index} className="group relative">
+        <div key={index} className="relative">
           <div
             role={readOnly ? undefined : "button"}
             tabIndex={readOnly ? undefined : 0}
-            aria-label={readOnly ? undefined : `选择第 ${index + 1} 格游戏`}
+            aria-label={readOnly ? undefined : `选择第 ${index + 1} 格${subjectLabel}`}
             onClick={() => {
               if (readOnly) return;
               onSelectSlot(index);
@@ -44,7 +46,7 @@ export function NineGridBoard({
               }
             }}
             className={cn(
-              "relative flex aspect-[3/4] w-24 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 transition-colors sm:w-32 md:w-36",
+              "relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 transition-colors",
               !readOnly && "cursor-pointer hover:border-sky-200"
             )}
           >
@@ -55,7 +57,7 @@ export function NineGridBoard({
                 fill
                 unoptimized
                 className="absolute inset-0 object-cover"
-                sizes="(max-width: 640px) 96px, (max-width: 768px) 128px, 144px"
+                sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 180px"
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-xs font-medium text-gray-400">
@@ -70,7 +72,7 @@ export function NineGridBoard({
           </div>
 
           {game && !readOnly ? (
-            <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
               <button
                 type="button"
                 aria-label={`编辑第 ${index + 1} 格评论`}
@@ -78,9 +80,9 @@ export function NineGridBoard({
                   event.stopPropagation();
                   onOpenComment(index);
                 }}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-sky-600"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
               >
-                <MessageSquare className="h-3 w-3" />
+                <MessageSquare className="h-4 w-4" />
               </button>
               <button
                 type="button"
@@ -89,9 +91,9 @@ export function NineGridBoard({
                   event.stopPropagation();
                   onRemoveSlot(index);
                 }}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-rose-600"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
               >
-                <X className="h-3 w-3" />
+                <X className="h-4 w-4" />
               </button>
             </div>
           ) : null}

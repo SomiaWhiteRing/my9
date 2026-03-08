@@ -1,16 +1,24 @@
 import { NextResponse } from "next/server";
-import { buildBangumiSearchResponse, searchBangumiGames } from "@/lib/bangumi/search";
+import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
+import { buildBangumiSearchResponse, searchBangumiSubjects } from "@/lib/bangumi/search";
 
-export async function handleBangumiSearchRequest(request: Request) {
+export async function handleBangumiSearchRequest(
+  request: Request,
+  options?: {
+    forcedKind?: SubjectKind;
+  }
+) {
   const { searchParams } = new URL(request.url);
   const query = (searchParams.get("q") || "").trim();
+  const requestedKind = parseSubjectKind(searchParams.get("kind"));
+  const kind = options?.forcedKind ?? requestedKind ?? DEFAULT_SUBJECT_KIND;
 
   if (!query) {
-    return NextResponse.json(buildBangumiSearchResponse("", []));
+    return NextResponse.json(buildBangumiSearchResponse({ query: "", kind, items: [] }));
   }
 
   if (query.length < 2) {
-    const payload = buildBangumiSearchResponse(query, []);
+    const payload = buildBangumiSearchResponse({ query, kind, items: [] });
     return NextResponse.json(
       {
         ...payload,
@@ -22,10 +30,10 @@ export async function handleBangumiSearchRequest(request: Request) {
   }
 
   try {
-    const items = await searchBangumiGames(query);
-    return NextResponse.json(buildBangumiSearchResponse(query, items));
+    const items = await searchBangumiSubjects({ query, kind });
+    return NextResponse.json(buildBangumiSearchResponse({ query, kind, items }));
   } catch (error) {
-    const payload = buildBangumiSearchResponse(query, []);
+    const payload = buildBangumiSearchResponse({ query, kind, items: [] });
     return NextResponse.json(
       {
         ...payload,
