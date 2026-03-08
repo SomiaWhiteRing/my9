@@ -56,6 +56,8 @@ function cloneGames(games: Array<ShareGame | null>) {
   return games.map((item) => (item ? { ...item } : null));
 }
 
+const CREATOR_STORAGE_KEY = "my-nine-creator:v1";
+
 interface My9V3AppProps {
   kind: SubjectKind;
   initialShareId?: string | null;
@@ -174,6 +176,8 @@ export default function My9V3App({
 
     try {
       const raw = localStorage.getItem(draftStorageKey);
+      const creatorRaw = localStorage.getItem(CREATOR_STORAGE_KEY);
+      let legacyCreatorName = "";
       if (raw) {
         const parsed = JSON.parse(raw);
         const savedGames = Array.isArray(parsed?.games) ? parsed.games : null;
@@ -181,10 +185,19 @@ export default function My9V3App({
           setGames(savedGames);
         }
         if (typeof parsed?.creatorName === "string") {
-          setCreatorName(parsed.creatorName);
+          legacyCreatorName = parsed.creatorName;
         }
       } else {
         setGames(createEmptyGames());
+      }
+
+      if (typeof creatorRaw === "string") {
+        setCreatorName(creatorRaw);
+      } else if (legacyCreatorName) {
+        // Migrate creator name from legacy per-kind draft into global creator storage.
+        setCreatorName(legacyCreatorName);
+        localStorage.setItem(CREATOR_STORAGE_KEY, legacyCreatorName);
+      } else {
         setCreatorName("");
       }
     } catch {
@@ -201,9 +214,9 @@ export default function My9V3App({
         draftStorageKey,
         JSON.stringify({
           games,
-          creatorName,
         })
       );
+      localStorage.setItem(CREATOR_STORAGE_KEY, creatorName);
     } catch {
       // ignore write errors
     }
@@ -491,7 +504,11 @@ export default function My9V3App({
           <p className="text-sm text-gray-500">{kindMeta.subtitle}</p>
         </header>
 
-        {toast ? <InlineToast kind={toast.kind} message={toast.message} /> : null}
+        {toast ? (
+          <div className="pointer-events-none fixed -left-[200vw] top-0 opacity-0" aria-live="polite">
+            <InlineToast kind={toast.kind} message={toast.message} />
+          </div>
+        ) : null}
 
         {isReadonly ? (
           <div className="flex flex-col items-center gap-2">

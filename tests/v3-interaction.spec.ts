@@ -528,18 +528,26 @@ test.describe("v3 interaction", () => {
     });
   });
 
-  test("不同类型草稿隔离保存", async ({ page }) => {
+  test("不同类型表格草稿隔离，创作者全局共享", async ({ page }) => {
     await page.goto("/anime");
-    await page.getByPlaceholder("输入你的昵称").fill("动画玩家");
+    await page.getByPlaceholder("输入你的昵称").fill("全局玩家A");
+    await page.getByLabel("选择第 1 格动画").click();
+    const animeSearchInput = page.getByPlaceholder("输入动画名称");
+    await animeSearchInput.fill("q1");
+    await animeSearchInput.press("Enter");
+    await expect(page.locator("#search-results-list button").first()).toBeVisible();
+    await animeSearchInput.press("Enter");
+    await expect(page.getByText("已填入第 1 格")).toBeVisible();
 
     await page.goto("/game");
-    await page.getByPlaceholder("输入你的昵称").fill("游戏玩家");
+    await expect(page.getByPlaceholder("输入你的昵称")).toHaveValue("全局玩家A");
+    await expect(page.getByText("0 / 9 已选择")).toBeVisible();
+    await page.getByPlaceholder("输入你的昵称").fill("全局玩家B");
 
     await page.goto("/anime");
-    await expect(page.getByPlaceholder("输入你的昵称")).toHaveValue("动画玩家");
+    await expect(page.getByPlaceholder("输入你的昵称")).toHaveValue("全局玩家B");
+    await expect(page.getByText("1 / 9 已选择")).toBeVisible();
 
-    await page.goto("/game");
-    await expect(page.getByPlaceholder("输入你的昵称")).toHaveValue("游戏玩家");
   });
 
   test("移动端分享按钮顺序为图片在上链接在下", async ({ page }) => {
