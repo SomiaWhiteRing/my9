@@ -137,7 +137,7 @@ export default function HomeKindEntry() {
               asChild
               className="inline-flex h-auto w-full max-w-sm items-center justify-center rounded-full bg-sky-600 px-4 py-3 text-sm font-bold text-white shadow-sm shadow-sky-200 transition-all hover:bg-sky-700"
             >
-              <Link href={`/${kind}`}>开始填写！</Link>
+              <Link href={`/${kind}`} prefetch={false}>开始填写！</Link>
             </Button>
           </div>
         </section>

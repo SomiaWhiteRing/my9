@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import My9V3App from "@/app/components/My9V3App";
+import My9ReadonlyApp, { type InitialReadonlyShareData } from "@/app/components/My9ReadonlyApp";
 import { normalizeShareId } from "@/lib/share/id";
 import { getShare } from "@/lib/share/storage";
-import type { ShareGame } from "@/lib/share/types";
-import { getSubjectKindMeta, parseSubjectKind, type SubjectKind } from "@/lib/subject-kind";
+import { getSubjectKindMeta, parseSubjectKind } from "@/lib/subject-kind";
 
 export function generateMetadata({
   params,
@@ -33,12 +32,7 @@ export default async function ShareReadonlyPage({
     notFound();
   }
 
-  let initialShareData: {
-    shareId: string;
-    kind: SubjectKind;
-    creatorName: string | null;
-    games: Array<ShareGame | null>;
-  } | null = null;
+  let initialShareData: InitialReadonlyShareData | null = null;
 
   try {
     const share = await getShare(shareId);
@@ -60,11 +54,10 @@ export default async function ShareReadonlyPage({
   }
 
   return (
-    <My9V3App
+    <My9ReadonlyApp
       kind={kind}
       initialShareId={shareId}
       initialShareData={initialShareData}
-      readOnlyShare
     />
   );
 }

@@ -6,6 +6,9 @@ const SEARCH_CDN_TTL_SECONDS = 900;
 const SEARCH_STALE_TTL_SECONDS = 86400;
 const SEARCH_MEMORY_TTL_MS = 3 * 60 * 1000;
 const SEARCH_MEMORY_CACHE_MAX = 256;
+const SEARCH_RATE_LIMIT_WINDOW_MS = 10 * 1000;
+const SEARCH_RATE_LIMIT_MAX_REQUESTS = 12;
+const SEARCH_RATE_LIMIT_STORE_MAX = 20000;
 
 const SEARCH_CACHE_CONTROL_VALUE = `public, max-age=0, s-maxage=${SEARCH_CDN_TTL_SECONDS}, stale-while-revalidate=${SEARCH_STALE_TTL_SECONDS}`;
 const NO_STORE_HEADERS = {
@@ -16,6 +19,7 @@ type SearchItems = Awaited<ReturnType<typeof searchBangumiSubjects>>;
 type SearchMemoryStore = {
   resultCache: Map<string, { expiresAt: number; items: SearchItems }>;
   inflight: Map<string, Promise<SearchItems>>;
+  rateLimit: Map<string, { windowStart: number; count: number }>;
 };
 
 function getSearchMemoryStore(): SearchMemoryStore {
@@ -27,6 +31,7 @@ function getSearchMemoryStore(): SearchMemoryStore {
     g.__MY9_BANGUMI_SEARCH_MEMORY__ = {
       resultCache: new Map<string, { expiresAt: number; items: SearchItems }>(),
       inflight: new Map<string, Promise<SearchItems>>(),
+      rateLimit: new Map<string, { windowStart: number; count: number }>(),
     };
   }
 
@@ -43,6 +48,108 @@ function trimSearchMemoryCache(cache: Map<string, { expiresAt: number; items: Se
 
 function toSearchCacheKey(kind: SubjectKind, query: string) {
   return `${kind}:${query.trim().toLocaleLowerCase()}`;
+}
+
+function toRateLimitKey(kind: SubjectKind, ip: string) {
+  return `${kind}:${ip}`;
+}
+
+function parseForwardedFor(value: string): string | null {
+  const first = value
+    .split(",")
+    .map((part) => part.trim())
+    .find((part) => part.length > 0);
+  return first || null;
+}
+
+function getClientIp(request: Request): string | null {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return parseForwardedFor(forwarded);
+  }
+
+  const direct =
+    request.headers.get("x-real-ip") ||
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-vercel-forwarded-for") ||
+    request.headers.get("x-client-ip");
+
+  if (!direct) return null;
+  const trimmed = direct.trim();
+  return trimmed || null;
+}
+
+function trimRateLimitStore(
+  rateLimit: Map<string, { windowStart: number; count: number }>,
+  now: number
+) {
+  const expiredKeys: string[] = [];
+  rateLimit.forEach((value, key) => {
+    if (now - value.windowStart >= SEARCH_RATE_LIMIT_WINDOW_MS) {
+      expiredKeys.push(key);
+    }
+  });
+
+  for (const key of expiredKeys) {
+    rateLimit.delete(key);
+  }
+
+  while (rateLimit.size > SEARCH_RATE_LIMIT_STORE_MAX) {
+    const firstKey = rateLimit.keys().next().value;
+    if (!firstKey) return;
+    rateLimit.delete(firstKey);
+  }
+}
+
+function checkSearchRateLimit(request: Request, kind: SubjectKind): {
+  limited: boolean;
+  retryAfterSeconds: number;
+} {
+  const ip = getClientIp(request);
+  if (!ip) {
+    return {
+      limited: false,
+      retryAfterSeconds: 0,
+    };
+  }
+
+  const now = Date.now();
+  const memory = getSearchMemoryStore();
+  const key = toRateLimitKey(kind, ip);
+  const existing = memory.rateLimit.get(key);
+
+  if (!existing || now - existing.windowStart >= SEARCH_RATE_LIMIT_WINDOW_MS) {
+    memory.rateLimit.set(key, {
+      windowStart: now,
+      count: 1,
+    });
+    trimRateLimitStore(memory.rateLimit, now);
+    return {
+      limited: false,
+      retryAfterSeconds: 0,
+    };
+  }
+
+  if (existing.count >= SEARCH_RATE_LIMIT_MAX_REQUESTS) {
+    trimRateLimitStore(memory.rateLimit, now);
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil((SEARCH_RATE_LIMIT_WINDOW_MS - (now - existing.windowStart)) / 1000)
+    );
+    return {
+      limited: true,
+      retryAfterSeconds,
+    };
+  }
+
+  existing.count += 1;
+  memory.rateLimit.set(key, existing);
+  trimRateLimitStore(memory.rateLimit, now);
+
+  return {
+    limited: false,
+    retryAfterSeconds: 0,
+  };
 }
 
 function createSearchCacheHeaders() {
@@ -118,6 +225,27 @@ export async function handleBangumiSearchRequest(
       {
         status: 400,
         headers: NO_STORE_HEADERS,
+      }
+    );
+  }
+
+  const rateLimit = checkSearchRateLimit(request, kind);
+  if (rateLimit.limited) {
+    const payload = buildBangumiSearchResponse({ query, kind, items: [] });
+    return NextResponse.json(
+      {
+        ...payload,
+        ok: false,
+        error: "请求过于频繁，请稍后再试",
+      },
+      {
+        status: 429,
+        headers: {
+          ...NO_STORE_HEADERS,
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+          "X-RateLimit-Limit": String(SEARCH_RATE_LIMIT_MAX_REQUESTS),
+          "X-RateLimit-Window": String(Math.ceil(SEARCH_RATE_LIMIT_WINDOW_MS / 1000)),
+        },
       }
     );
   }
