@@ -6,6 +6,17 @@ import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subje
 
 const VALID_PERIODS: TrendPeriod[] = ["30d", "90d", "180d", "all"];
 const VALID_VIEWS: TrendView[] = ["overall", "genre", "decade", "year"];
+const TRENDS_CDN_TTL_SECONDS = 600;
+const TRENDS_STALE_TTL_SECONDS = 86400;
+const TRENDS_CACHE_CONTROL_VALUE = `public, max-age=0, s-maxage=${TRENDS_CDN_TTL_SECONDS}, stale-while-revalidate=${TRENDS_STALE_TTL_SECONDS}`;
+
+function createTrendsCacheHeaders() {
+  return {
+    "Cache-Control": TRENDS_CACHE_CONTROL_VALUE,
+    "CDN-Cache-Control": TRENDS_CACHE_CONTROL_VALUE,
+    "Vercel-CDN-Cache-Control": TRENDS_CACHE_CONTROL_VALUE,
+  };
+}
 
 function parsePeriod(value: string | null): TrendPeriod {
   if (value && VALID_PERIODS.includes(value as TrendPeriod)) {
@@ -36,6 +47,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       ...cached,
+    }, {
+      headers: createTrendsCacheHeaders(),
     });
   }
 
@@ -58,5 +71,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     ok: true,
     ...normalizedResponse,
+  }, {
+    headers: createTrendsCacheHeaders(),
   });
 }

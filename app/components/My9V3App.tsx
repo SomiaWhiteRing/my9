@@ -40,6 +40,13 @@ type SearchMeta = {
   noResultQuery: string | null;
 };
 
+type InitialReadonlyShareData = {
+  shareId: string;
+  kind: SubjectKind;
+  creatorName: string | null;
+  games: Array<ShareGame | null>;
+};
+
 function createSearchMeta(suggestions: string[], noResultQuery: string | null = null): SearchMeta {
   return {
     topPickIds: [],
@@ -54,6 +61,13 @@ function createEmptyGames() {
 
 function cloneGames(games: Array<ShareGame | null>) {
   return games.map((item) => (item ? { ...item } : null));
+}
+
+function normalizeGamesForState(games?: Array<ShareGame | null>) {
+  if (!Array.isArray(games) || games.length !== 9) {
+    return createEmptyGames();
+  }
+  return cloneGames(games);
 }
 
 const CREATOR_STORAGE_KEY = "my-nine-creator:v1";
@@ -80,21 +94,25 @@ function trimSearchClientCache(cache: Map<string, SearchClientCacheEntry>) {
 interface My9V3AppProps {
   kind: SubjectKind;
   initialShareId?: string | null;
+  initialShareData?: InitialReadonlyShareData | null;
   readOnlyShare?: boolean;
 }
 
 export default function My9V3App({
   kind,
   initialShareId = null,
+  initialShareData = null,
   readOnlyShare = false,
 }: My9V3AppProps) {
   const router = useRouter();
   const kindMeta = useMemo(() => getSubjectKindMeta(kind), [kind]);
 
-  const [games, setGames] = useState<Array<ShareGame | null>>(createEmptyGames());
-  const [creatorName, setCreatorName] = useState("");
-  const [shareId, setShareId] = useState<string | null>(initialShareId);
-  const [loadingShare, setLoadingShare] = useState(Boolean(initialShareId));
+  const [games, setGames] = useState<Array<ShareGame | null>>(() =>
+    normalizeGamesForState(initialShareData?.games)
+  );
+  const [creatorName, setCreatorName] = useState(initialShareData?.creatorName || "");
+  const [shareId, setShareId] = useState<string | null>(initialShareData?.shareId || initialShareId);
+  const [loadingShare, setLoadingShare] = useState(Boolean(initialShareId) && !initialShareData);
   const [savingShare, setSavingShare] = useState(false);
   const [draftHydrated, setDraftHydrated] = useState(false);
   const [kindPickerOpen, setKindPickerOpen] = useState(false);
@@ -142,7 +160,18 @@ export default function My9V3App({
   }, [defaultSuggestions]);
 
   useEffect(() => {
+    if (!initialShareData) return;
+    if (initialShareData.kind !== kind) return;
+
+    setGames(normalizeGamesForState(initialShareData.games));
+    setCreatorName(initialShareData.creatorName || "");
+    setShareId(initialShareData.shareId);
+    setLoadingShare(false);
+  }, [initialShareData, kind]);
+
+  useEffect(() => {
     if (!initialShareId) return;
+    if (initialShareData) return;
     const currentShareId: string = initialShareId;
     let active = true;
 
@@ -184,7 +213,7 @@ export default function My9V3App({
     return () => {
       active = false;
     };
-  }, [initialShareId, kind, router]);
+  }, [initialShareData, initialShareId, kind, router]);
 
   useEffect(() => {
     if (isReadonly || initialShareId) {

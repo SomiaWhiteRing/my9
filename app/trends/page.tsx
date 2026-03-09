@@ -48,8 +48,7 @@ export default function TrendsPage() {
 
       try {
         const response = await fetch(
-          `/api/trends?kind=${encodeURIComponent(kind)}&period=${encodeURIComponent(period)}&view=${encodeURIComponent(view)}`,
-          { cache: "no-store" }
+          `/api/trends?kind=${encodeURIComponent(kind)}&period=${encodeURIComponent(period)}&view=${encodeURIComponent(view)}`
         );
         const json = (await response.json()) as Partial<TrendsApiResponse> & { error?: string };
 

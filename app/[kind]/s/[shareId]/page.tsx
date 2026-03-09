@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import My9V3App from "@/app/components/My9V3App";
 import { normalizeShareId } from "@/lib/share/id";
-import { getSubjectKindMeta, parseSubjectKind } from "@/lib/subject-kind";
+import { getShare } from "@/lib/share/storage";
+import type { ShareGame } from "@/lib/share/types";
+import { getSubjectKindMeta, parseSubjectKind, type SubjectKind } from "@/lib/subject-kind";
 
 export function generateMetadata({
   params,
@@ -20,7 +22,7 @@ export function generateMetadata({
   };
 }
 
-export default function ShareReadonlyPage({
+export default async function ShareReadonlyPage({
   params,
 }: {
   params: { kind: string; shareId: string };
@@ -31,5 +33,38 @@ export default function ShareReadonlyPage({
     notFound();
   }
 
-  return <My9V3App kind={kind} initialShareId={shareId} readOnlyShare />;
+  let initialShareData: {
+    shareId: string;
+    kind: SubjectKind;
+    creatorName: string | null;
+    games: Array<ShareGame | null>;
+  } | null = null;
+
+  try {
+    const share = await getShare(shareId);
+    if (share) {
+      const shareKind = parseSubjectKind(share.kind) ?? kind;
+      if (shareKind !== kind) {
+        redirect(`/${shareKind}/s/${share.shareId}`);
+      }
+
+      initialShareData = {
+        shareId: share.shareId,
+        kind: shareKind,
+        creatorName: share.creatorName,
+        games: share.games,
+      };
+    }
+  } catch {
+    initialShareData = null;
+  }
+
+  return (
+    <My9V3App
+      kind={kind}
+      initialShareId={shareId}
+      initialShareData={initialShareData}
+      readOnlyShare
+    />
+  );
 }
