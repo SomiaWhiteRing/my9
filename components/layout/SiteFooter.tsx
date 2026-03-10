@@ -24,6 +24,11 @@ const donationAcknowledgements: Array<{
 }> = [
   {
     date: "2026-03-10",
+    amount: "50",
+    message: "虽然今天不是星期四但是看起来已经足够疯狂了",
+  },
+  {
+    date: "2026-03-10",
     amount: "79.2",
     message: "",
   },
