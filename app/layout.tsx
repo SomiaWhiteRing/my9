@@ -7,6 +7,21 @@ import "./globals.css";
 
 const ENABLE_VERCEL_ANALYTICS = process.env.NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS === "1";
 const ENABLE_VERCEL_SPEED_INSIGHTS = process.env.NEXT_PUBLIC_ENABLE_VERCEL_SPEED_INSIGHTS === "1";
+const SYSTEM_THEME_INIT_SCRIPT = `
+(() => {
+  const root = document.documentElement;
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const applyTheme = () => root.classList.toggle("dark", mediaQuery.matches);
+  applyTheme();
+  if (typeof mediaQuery.addEventListener === "function") {
+    mediaQuery.addEventListener("change", applyTheme);
+    return;
+  }
+  if (typeof mediaQuery.addListener === "function") {
+    mediaQuery.addListener(applyTheme);
+  }
+})();
+`;
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://my9.shatranj.space"),
@@ -39,8 +54,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: SYSTEM_THEME_INIT_SCRIPT }} />
         <GoogleAnalytics />
       </head>
       <body>

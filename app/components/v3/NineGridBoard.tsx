@@ -79,7 +79,7 @@ function GridCell({
           }
         }}
         className={cn(
-          "relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 transition-colors",
+          "relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-muted transition-colors",
           !readOnly && "cursor-pointer hover:border-sky-200",
           isDragSource && "opacity-40 ring-2 ring-sky-400 rounded-lg"
         )}
@@ -94,13 +94,13 @@ function GridCell({
             sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 180px"
           />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-xs font-medium text-gray-400">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground">
             <Plus className="h-4 w-4" />
             <span>选择</span>
           </div>
         )}
 
-        <div className="absolute left-1.5 top-1 text-[10px] font-semibold text-gray-300">
+        <div className="absolute left-1.5 top-1 text-[10px] font-semibold text-muted-foreground/70">
           {index + 1}
         </div>
       </div>

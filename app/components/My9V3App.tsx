@@ -693,35 +693,35 @@ export default function My9V3App({
   }
 
   return (
-    <main className="min-h-screen bg-[#f3f6fb] px-4 py-16 text-gray-800">
+    <main className="min-h-screen bg-background px-4 py-16 text-foreground">
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
         <header className="space-y-3 text-center">
           <div className="inline-flex items-center gap-2 sm:gap-3">
-            <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-gray-800 sm:text-4xl">
+            <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
               构成我的九部{kindMeta.label}
             </h1>
             {!isReadonly ? (
               <button
                 type="button"
                 onClick={() => setKindPickerOpen(true)}
-                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:px-3 sm:py-1.5 sm:text-sm"
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:px-3 sm:py-1.5 sm:text-sm"
                 aria-label="切换填写类型"
               >
-                <ChevronsUpDown className="h-3.5 w-3.5 text-slate-500" />
+                <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
                 切换
               </button>
             ) : null}
           </div>
-          <p className="text-sm text-gray-500">{kindMeta.subtitle}</p>
+          <p className="text-sm text-muted-foreground">{kindMeta.subtitle}</p>
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100"
+            className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60"
             onClick={() => router.push(`/trends?kind=${kind}`)}
           >
             大家的构成
             <span className="text-red-500">(New!)</span>
           </button>
-          <p className="text-sm text-yellow-500">3月11日16时56分开始的服务器崩溃已于17时38分修复！如果途中遭遇炸服可重新尝试生成。</p>
+          <p className="text-sm text-amber-600 dark:text-amber-400">3月11日16时56分开始的服务器崩溃已于17时38分修复！如果途中遭遇炸服可重新尝试生成。</p>
           <SupportButton/>
         </header>
 
@@ -733,13 +733,13 @@ export default function My9V3App({
 
         {isReadonly ? (
           <div className="flex flex-col items-center gap-2">
-            <p className="rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-semibold text-amber-700">
+            <p className="rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-semibold text-amber-700 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
               这是共享页面（只读）
             </p>
-            <p className="text-sm text-gray-600">创作者: {creatorName.trim() || "匿名"}</p>
+            <p className="text-sm text-muted-foreground">创作者: {creatorName.trim() || "匿名"}</p>
             <button
               type="button"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-2 text-sm font-bold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               onClick={() => router.push(`/${kind}`)}
             >
               前往填写页面
@@ -747,21 +747,21 @@ export default function My9V3App({
           </div>
         ) : (
           <div className="w-full max-w-xl">
-            <label className="mb-2 block text-sm font-semibold text-gray-700">创作者（推荐填写）</label>
+            <label className="mb-2 block text-sm font-semibold text-foreground">创作者（推荐填写）</label>
             <Input
               value={creatorName}
               onChange={(event) => setCreatorName(event.target.value.slice(0, 40))}
               placeholder="输入你的昵称"
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus-visible:ring-sky-200"
+              className="w-full rounded-xl border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-sky-200 dark:focus-visible:ring-sky-900"
             />
-            <p className="mt-1 text-right text-xs text-gray-400">{creatorName.length}/40</p>
+            <p className="mt-1 text-right text-xs text-muted-foreground">{creatorName.length}/40</p>
           </div>
         )}
 
         {loadingShare ? (
-          <p className="text-sm text-gray-500">正在加载共享页面...</p>
+          <p className="text-sm text-muted-foreground">正在加载共享页面...</p>
         ) : (
-          <div className="mx-auto w-full rounded-xl border-4 border-white bg-white p-1 sm:p-4 shadow-2xl ring-1 ring-gray-100">
+          <div className="mx-auto w-full rounded-xl border-4 border-background bg-card p-1 shadow-2xl ring-1 ring-border/70 sm:p-4">
             <NineGridBoard
               games={games}
               subjectLabel={kindMeta.label}
@@ -879,7 +879,7 @@ export default function My9V3App({
                   onClick={() => switchKind(item)}
                   className={cn(
                     "h-auto justify-start gap-3 rounded-xl px-4 py-3 text-left",
-                    active && "border-sky-300 bg-sky-50 text-sky-700"
+                    active && "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200"
                   )}
                 >
                   <SubjectKindIcon kind={item} className="h-4 w-4" />

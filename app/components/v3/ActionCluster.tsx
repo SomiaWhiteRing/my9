@@ -36,7 +36,7 @@ export function ActionCluster({
 
   return (
     <section className="flex w-full flex-col items-center gap-3">
-      <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm font-semibold text-gray-700">
+      <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-semibold text-card-foreground">
         <span>{filledCount} / 9 已选择</span>
         {!readOnly && filledCount < 9 ? (
           <span className="text-xs font-bold text-orange-500">还差{9 - filledCount}个</span>
@@ -49,7 +49,7 @@ export function ActionCluster({
             <Button
               type="button"
               variant="outline"
-              className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-border bg-card px-4 py-3 text-sm font-bold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
               disabled={!canUndo}
               onClick={onUndo}
             >
@@ -58,7 +58,7 @@ export function ActionCluster({
             <Button
               type="button"
               variant="outline"
-              className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-red-500 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-border bg-card px-4 py-3 text-sm font-bold text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={!canClear}
               onClick={onClear}
             >

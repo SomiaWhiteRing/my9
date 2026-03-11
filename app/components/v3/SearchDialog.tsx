@@ -199,7 +199,7 @@ export function SearchDialog({
                     onQueryChange("");
                     onActiveIndexChange(-1);
                   }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                 >
                   ✕
                 </button>
@@ -237,12 +237,12 @@ export function SearchDialog({
                   className={cn(
                     "cursor-pointer rounded border p-1 transition-colors sm:p-2",
                     index === activeIndex
-                      ? "border-sky-300 bg-sky-50"
-                      : "border-gray-200 hover:bg-gray-50"
+                      ? "border-sky-300 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/40"
+                      : "border-border hover:bg-accent"
                   )}
                   title={displayName(game)}
                 >
-                  <div className="relative h-0 w-full overflow-hidden rounded bg-gray-100 pb-[133.33%]">
+                  <div className="relative h-0 w-full overflow-hidden rounded bg-muted pb-[133.33%]">
                     {game.cover ? (
                       <Image
                         src={game.cover}
@@ -254,7 +254,7 @@ export function SearchDialog({
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <SubjectKindIcon kind={kind} className="h-7 w-7 text-gray-400" />
+                        <SubjectKindIcon kind={kind} className="h-7 w-7 text-muted-foreground" />
                       </div>
                     )}
                   </div>
@@ -278,7 +278,7 @@ export function SearchDialog({
         </div>
 
         <DialogFooter className="mt-2 flex flex-col justify-between border-t pt-2 sm:flex-row sm:justify-between">
-          <div className="mb-2 text-xs text-gray-500 sm:mb-0">
+          <div className="mb-2 text-xs text-muted-foreground sm:mb-0">
             {orderedResults.length > 0 ? `共 ${orderedResults.length} 条结果` : ""}
           </div>
           <Button
@@ -320,7 +320,7 @@ function SearchStatus(props: {
 
   if (state === "searching") {
     return (
-      <div className="flex flex-col items-center justify-center py-10 text-gray-500" aria-live="polite">
+      <div className="flex flex-col items-center justify-center py-10 text-muted-foreground" aria-live="polite">
         <Loader2 className="mb-2 h-8 w-8 animate-spin" />
         <p>正在搜索...</p>
       </div>
@@ -342,7 +342,7 @@ function SearchStatus(props: {
 
   if (state === "no-results") {
     return (
-      <div className="flex flex-col items-center justify-center py-10 text-gray-500" aria-live="polite">
+      <div className="flex flex-col items-center justify-center py-10 text-muted-foreground" aria-live="polite">
         <SubjectKindIcon kind={kind} className="mb-2 h-8 w-8 opacity-50" />
         <p>{noResultQuery ? `未找到“${noResultQuery}”` : `未找到相关${subjectLabel}`}</p>
         <p className="mt-2 text-sm">{(suggestions[0] || "尝试更换关键词后重试").replace(/^[\-•]\s*/, "")}</p>
@@ -351,7 +351,7 @@ function SearchStatus(props: {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center py-10 text-gray-500" aria-live="polite">
+    <div className="flex flex-col items-center justify-center py-10 text-muted-foreground" aria-live="polite">
       <Search className="mb-2 h-12 w-12 opacity-30" />
       <p>{idleHint}</p>
     </div>

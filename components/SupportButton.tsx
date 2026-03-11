@@ -17,6 +17,8 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-12", name: "csan", amount: "10", message: "好全的作品库！" },
+  { date: "2026-03-12", name: "梁亮", amount: "1", message: "" },
   { date: "2026-03-11", name: "鸽", amount: "1", message: "" },
   { date: "2026-03-11", name: "NW.哈托客", amount: "20", message: "回想作品时，与之相关的点滴就接连浮现在脑海中，令人怀念……" },
   { date: "2026-03-11", name: "晚漪", amount: "10", message: "助力！" },
@@ -61,7 +63,7 @@ export function SupportButton() {
       <DialogTrigger asChild>
         <button
           type="button"
-          className="bg-transparent p-0 text-red-600 text-sm transition-colors hover:text-slate-800 hover:underline"
+          className="bg-transparent p-0 text-sm text-red-600 transition-colors hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 hover:underline"
         >
           支援开发者
         </button>
@@ -69,7 +71,7 @@ export function SupportButton() {
       <DialogContent className="w-[calc(100vw-1rem)] max-w-xl max-h-[88dvh] overflow-y-auto rounded-2xl p-4 md:w-[92vw] md:max-h-[85vh] md:p-5">
         <DialogHeader className="text-left">
           <DialogTitle>感谢支持</DialogTitle>
-          <DialogDescription className="space-y-1.5 text-slate-600">
+          <DialogDescription className="space-y-1.5 text-muted-foreground">
             <span className="block">
               本项目上线至今已经建构了{" "}
               <span className="font-semibold text-sky-600">
@@ -89,7 +91,7 @@ export function SupportButton() {
                 href="https://github.com/SomiaWhiteRing/my9"
                 target="_blank"
                 rel="noreferrer"
-                className="font-semibold text-sky-600 underline decoration-sky-300 underline-offset-2 hover:text-sky-700"
+                className="font-semibold text-sky-600 underline decoration-sky-300 underline-offset-2 hover:text-sky-700 dark:text-sky-400 dark:decoration-sky-500 dark:hover:text-sky-300"
               >
                 在 GitHub 点 Star
               </a>
@@ -103,7 +105,7 @@ export function SupportButton() {
             <img
               src={wechatPayQrSrc}
               alt="微信赞赏码"
-              className="h-48 w-48 rounded-lg border border-slate-200 object-contain md:h-60 md:w-60"
+              className="h-48 w-48 rounded-lg border border-border object-contain md:h-60 md:w-60"
               onError={() => {
                 setWechatPayQrSrc((current) =>
                   current === fallbackWechatPayQrUrl ? current : fallbackWechatPayQrUrl
@@ -112,42 +114,42 @@ export function SupportButton() {
             />
           </div>
         ) : (
-          <p className="mt-3 text-left text-sm text-slate-500">
+          <p className="mt-3 text-left text-sm text-muted-foreground">
             暂未配置微信赞赏码。请在 <code>.env.local</code> 设置
             <code> NEXT_PUBLIC_WECHAT_PAY_QR_URL</code>。
           </p>
         )}
-        <section className="mt-5 border-t border-slate-200 pt-4">
-          <h3 className="text-sm font-semibold text-slate-700">鸣谢名单</h3>
-          <p className="mt-1 text-sm text-slate-500">
+        <section className="mt-5 border-t border-border pt-4">
+          <h3 className="text-sm font-semibold text-foreground">鸣谢名单</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
             非常非常非常感谢以下各位的支持让站点能够运营下来……（排序从新到旧）
           </p>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             各位的支持会成为站点存续的基石和我更新维护的动力！
           </p>
           <div className="mt-3 space-y-2 md:hidden">
             {donationAcknowledgements.map((item, index) => (
               <article
                 key={`${item.date}-${item.amount}-${index}`}
-                className="rounded-lg border border-slate-200 bg-white p-3"
+                className="rounded-lg border border-border bg-card p-3"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-800">{item.name}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">{item.date}</p>
+                    <p className="truncate text-sm font-semibold text-card-foreground">{item.name}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{item.date}</p>
                   </div>
-                  <p className="shrink-0 text-sm font-bold text-slate-700">¥{item.amount}</p>
+                  <p className="shrink-0 text-sm font-bold text-foreground">¥{item.amount}</p>
                 </div>
                 {item.message ? (
-                  <p className="mt-2 text-xs leading-5 text-slate-600 break-words">{item.message}</p>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground break-words">{item.message}</p>
                 ) : null}
               </article>
             ))}
           </div>
 
-          <div className="mt-3 hidden overflow-hidden rounded-lg border border-slate-200 md:block">
-            <table className="w-full table-fixed text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-[11px] font-semibold text-slate-500">
+          <div className="mt-3 hidden overflow-hidden rounded-lg border border-border md:block">
+            <table className="w-full table-fixed text-left text-xs text-muted-foreground">
+              <thead className="bg-muted text-[11px] font-semibold text-muted-foreground">
                 <tr>
                   <th className="w-20 px-3 py-2">打赏日期</th>
                   <th className="w-32 px-3 py-2">打赏人</th>
@@ -159,7 +161,7 @@ export function SupportButton() {
                 {donationAcknowledgements.map((item, index) => (
                   <tr
                     key={`${item.date}-${item.amount}-${index}`}
-                    className="border-t border-slate-100"
+                    className="border-t border-border/70"
                   >
                     <td className="px-3 py-2 align-top whitespace-nowrap font-medium">
                       {item.date}

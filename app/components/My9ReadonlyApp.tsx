@@ -149,16 +149,16 @@ export default function My9ReadonlyApp({
   }
 
   return (
-    <main className="min-h-screen bg-[#f3f6fb] px-4 py-16 text-gray-800">
+    <main className="min-h-screen bg-background px-4 py-16 text-foreground">
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
         <header className="space-y-3 text-center">
-          <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-gray-800 sm:text-4xl">
+          <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
             构成我的九部{kindMeta.label}
           </h1>
-          <p className="text-sm text-gray-500">{kindMeta.subtitle}</p>
+          <p className="text-sm text-muted-foreground">{kindMeta.subtitle}</p>
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100"
+            className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60"
             onClick={() => router.push(`/trends?kind=${kind}`)}
           >
             大家的构成
@@ -173,13 +173,13 @@ export default function My9ReadonlyApp({
         ) : null}
 
         <div className="flex flex-col items-center gap-2">
-          <p className="rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-semibold text-amber-700">
+          <p className="rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-semibold text-amber-700 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
             这是共享页面（只读）
           </p>
-          <p className="text-sm text-gray-600">创作者: {creatorName.trim() || "匿名"}</p>
+          <p className="text-sm text-muted-foreground">创作者: {creatorName.trim() || "匿名"}</p>
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-2 text-sm font-bold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             onClick={() => router.push(`/${kind}`)}
           >
             前往填写页面
@@ -187,9 +187,9 @@ export default function My9ReadonlyApp({
         </div>
 
         {loadingShare ? (
-          <p className="text-sm text-gray-500">正在加载共享页面...</p>
+          <p className="text-sm text-muted-foreground">正在加载共享页面...</p>
         ) : (
-          <div className="mx-auto w-full rounded-xl border-4 border-white bg-white p-1 sm:p-4 shadow-2xl ring-1 ring-gray-100">
+          <div className="mx-auto w-full rounded-xl border-4 border-background bg-card p-1 shadow-2xl ring-1 ring-border/70 sm:p-4">
             <NineGridBoard
               games={games}
               subjectLabel={kindMeta.label}

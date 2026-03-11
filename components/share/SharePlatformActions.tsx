@@ -42,13 +42,13 @@ export function SharePlatformActions({
   const disabled = !shareId;
 
   const baseClass =
-    "inline-flex items-center justify-center gap-2 rounded-full border px-6 py-3 font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-45 bg-white border-gray-200 text-gray-700 hover:bg-gray-50";
+    "inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 font-bold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-45";
 
   return (
     <div className="grid w-full max-w-[42rem] grid-cols-1 gap-3 sm:grid-cols-2">
       <Button
         variant="default"
-        className="order-1 inline-flex items-center justify-center gap-2 rounded-full bg-gray-900 px-6 py-3 font-bold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-45 sm:order-2"
+        className="order-1 inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3 font-bold text-background transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45 sm:order-2"
         data-testid="share-generate-image"
         disabled={disabled}
         onClick={() => {
