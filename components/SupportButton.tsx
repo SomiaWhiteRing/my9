@@ -17,6 +17,7 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-11", name: "匿名", amount: "5", message: "" },
   { date: "2026-03-11", name: "Eren", amount: "5", message: "2026加油" },
   { date: "2026-03-11", name: "my", amount: "1", message: "天才来的吧！想法太棒了！" },
   { date: "2026-03-11", name: "一哥酱", amount: "1", message: "能不能加一个电影hhh超爱的（开发者注：因为项目和bangumi强绑定可能短期内没办法呢……）" },
