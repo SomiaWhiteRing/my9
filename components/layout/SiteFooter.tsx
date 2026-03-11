@@ -24,11 +24,6 @@ const donationAcknowledgements: Array<{
 }> = [
   {
     date: "2026-03-11",
-    amount: "20",
-    message: "可惜保存图片失效了",
-  },
-  {
-    date: "2026-03-11",
     amount: "52",
     message: "Love explosions！",
   },
