@@ -714,7 +714,6 @@ export default function My9V3App({
             大家的构成
             <span className="text-red-500">(New!)</span>
           </button>
-          <p className="text-sm text-red-500">由于使用人数过多服务器爆炸了生成图片功能暂时不可用，紧急修复中……</p>
         </header>
 
         {toast ? (
