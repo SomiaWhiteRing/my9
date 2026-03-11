@@ -408,7 +408,7 @@ export default function TrendsClientPage({
               <h1 className="text-3xl font-bold tracking-tight text-slate-800">大家的构成</h1>
               <p className="text-sm text-slate-600">{topCardSummary}</p>
               <p className="text-xs text-yellow-500">
-                作品分类和最近24小时的统计问题已修复！每小时更新。
+                作品分类和最近24小时的统计问题已修复！每小时30分更新。
               </p>
               <SupportButton/>
               <p className="text-xs text-slate-500">

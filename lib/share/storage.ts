@@ -38,6 +38,7 @@ const OVERALL_TREND_PAGE_SIZE = 20;
 const GROUPED_BUCKET_LIMIT = 20;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
+const HALF_HOUR_MS = 30 * 60 * 1000;
 const BEIJING_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
 const TREND_CACHE_COMPAT_TTL_MS = 60 * 60 * 1000;
 const SHARES_V2_KIND_CREATED_IDX = `${SHARES_V2_TABLE}_kind_created_idx`;
@@ -445,6 +446,11 @@ function toBeijingHourBucket(timestampMs: number): number {
   return Math.floor((timestampMs + BEIJING_TZ_OFFSET_MS) / HOUR_MS);
 }
 
+function toBeijingTrendRefreshBucket(timestampMs: number): number {
+  // Shift +30m so refresh boundaries move from xx:00 to xx:30 (Beijing time).
+  return Math.floor((timestampMs + BEIJING_TZ_OFFSET_MS + HALF_HOUR_MS) / HOUR_MS);
+}
+
 function resolveTrendCacheUpdatedAt(expiresAt: number, updatedAt: unknown): number {
   if (typeof updatedAt === "number" && Number.isFinite(updatedAt) && updatedAt > 0) {
     return Math.trunc(updatedAt);
@@ -460,7 +466,7 @@ function isTrendCacheExpired(expiresAt: number, updatedAt: number, nowMs: number
   if (nowMs > expiresAt) {
     return true;
   }
-  return toBeijingHourBucket(nowMs) !== toBeijingHourBucket(updatedAt);
+  return toBeijingTrendRefreshBucket(nowMs) !== toBeijingTrendRefreshBucket(updatedAt);
 }
 
 function getMemoryTrendCache(key: string, allowExpired = false): TrendResponse | null {
