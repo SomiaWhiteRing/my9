@@ -217,6 +217,8 @@ test.describe("v3 interaction", () => {
     await expect(page.getByRole("heading", { name: "构成我的九部" })).toBeVisible();
     await expect(page.getByRole("button", { name: "游戏" })).toBeVisible();
     await expect(page.getByRole("button", { name: "动画" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "电视剧" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "电影" })).toBeVisible();
     await expect(page.getByRole("link", { name: "开始填写！" })).toBeVisible();
     await page.getByRole("link", { name: "开始填写！" }).click();
     await expect(page).toHaveURL("/game", { timeout: 30_000 });
