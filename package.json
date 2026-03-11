@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "dev:test": "node -e \"require('fs').rmSync('.next', { recursive: true, force: true })\" && next dev",
+    "share-count:snapshot": "node scripts/write-share-count-snapshot.mjs",
+    "prebuild": "npm run share-count:snapshot",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
