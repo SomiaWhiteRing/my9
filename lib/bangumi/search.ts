@@ -4,6 +4,10 @@ import { ShareSubject, SubjectSearchResponse } from "@/lib/share/types";
 const BANGUMI_API_BASE_URL = "https://api.bgm.tv";
 const BANGUMI_ACCESS_TOKEN = process.env.BANGUMI_ACCESS_TOKEN;
 const BANGUMI_USER_AGENT = process.env.BANGUMI_USER_AGENT;
+const BANGUMI_EXACT_KEYWORD_OVERRIDES: Record<string, string> = {
+  // Bangumi API currently misses this query under simplified Chinese.
+  仙剑奇侠传: "仙劍奇俠傳",
+};
 
 type BangumiV0Tag = {
   name?: string;
@@ -111,6 +115,10 @@ export function buildBangumiSearchResponse(
   };
 }
 
+function toBangumiKeyword(query: string): string {
+  return BANGUMI_EXACT_KEYWORD_OVERRIDES[query] || query;
+}
+
 function toShareSubject(item: BangumiV0Subject): ShareSubject {
   const cover =
     item.images?.large ||
@@ -153,6 +161,7 @@ export async function searchBangumiSubjects(
   if (!q) {
     return [];
   }
+  const keyword = toBangumiKeyword(q);
 
   const kindMeta = getSubjectKindMeta(kind);
   const requestBody: {
@@ -162,7 +171,7 @@ export async function searchBangumiSubjects(
       type?: number[];
     };
   } = {
-    keyword: q,
+    keyword,
     sort: "match",
     filter: {},
   };
