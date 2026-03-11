@@ -46,7 +46,7 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
     >
       <p>
         由{" "}
-        {kind === "tv" ? (
+        {kind === "tv" || kind === "movie" ? (
           <a
             href="https://www.themoviedb.org/"
             target="_blank"
