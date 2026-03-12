@@ -3,13 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { SUBJECT_KIND_ORDER, SubjectKind, getSubjectKindMeta } from "@/lib/subject-kind";
+import { SUBJECT_KIND_ORDER, SubjectKind, getSubjectKindMeta, getSubjectKindShareTitle } from "@/lib/subject-kind";
 import { cn } from "@/lib/utils";
 
 export default function HomeKindEntry() {
   const [kind, setKind] = useState<SubjectKind>("game");
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const scrollRafRef = useRef<number | null>(null);
+  const kindMeta = getSubjectKindMeta(kind);
+  const shareTitle = getSubjectKindShareTitle(kind);
+  const titlePrefix = `构成我的九${kindMeta.selectionUnit}`;
   const optionRefs = useRef<Record<SubjectKind, HTMLButtonElement | null>>({
     game: null,
     anime: null,
@@ -17,6 +20,8 @@ export default function HomeKindEntry() {
     movie: null,
     manga: null,
     lightnovel: null,
+    song: null,
+    album: null,
     work: null,
   });
 
@@ -83,9 +88,8 @@ export default function HomeKindEntry() {
   }, []);
 
   useEffect(() => {
-    const { label } = getSubjectKindMeta(kind);
-    document.title = `构成我的九部${label}`;
-  }, [kind]);
+    document.title = shareTitle;
+  }, [shareTitle]);
 
   return (
     <main className="min-h-screen bg-background px-4 py-10 text-foreground sm:px-6 sm:py-14">
@@ -94,7 +98,7 @@ export default function HomeKindEntry() {
           <div className="flex flex-col items-center gap-6 sm:gap-8">
             <div className="inline-flex items-center">
               <h1 className="whitespace-nowrap pr-2 text-[2.08rem] font-black leading-none tracking-tight text-foreground sm:pr-3 sm:text-[3.3rem]">
-                构成我的九部
+                {titlePrefix}
               </h1>
 
               <div className="relative border-x-2 border-foreground px-2 sm:px-3">

@@ -45,13 +45,27 @@ function tmdbMovieLink(game: ShareGame): string {
   return `https://www.themoviedb.org/search/movie?query=${query}`;
 }
 
+function appleMusicLink(game: ShareGame): string {
+  if (game.storeUrls?.apple) {
+    return game.storeUrls.apple;
+  }
+  const query = encodeURIComponent(displayName(game));
+  return `https://music.apple.com/cn/search?term=${query}`;
+}
+
 function subjectLink(game: ShareGame, kind?: SubjectKind, cat?: number): string {
+  if (kind === "song" || kind === "album") {
+    return appleMusicLink(game);
+  }
   if (kind === "tv") return tmdbTvLink(game);
   if (kind === "movie") return tmdbMovieLink(game);
   return bangumiLink(game, cat);
 }
 
 function subjectSourceLabel(kind?: SubjectKind): string {
+  if (kind === "song" || kind === "album") {
+    return "Apple Music";
+  }
   if (kind === "tv" || kind === "movie") {
     return "TMDB";
   }

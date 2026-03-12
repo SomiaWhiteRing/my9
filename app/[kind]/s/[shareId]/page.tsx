@@ -4,7 +4,7 @@ import My9ReadonlyApp from "@/app/components/My9ReadonlyApp";
 import My9ReadonlyPage, { type InitialReadonlyShareData } from "@/app/components/My9ReadonlyPage";
 import { isCanonicalShareId, normalizeShareId } from "@/lib/share/id";
 import { getShare } from "@/lib/share/storage";
-import { getSubjectKindMeta, parseSubjectKind } from "@/lib/subject-kind";
+import { getSubjectKindShareTitle, parseSubjectKind } from "@/lib/subject-kind";
 
 export function generateMetadata({
   params,
@@ -16,9 +16,8 @@ export function generateMetadata({
     return { title: "页面不存在" };
   }
 
-  const meta = getSubjectKindMeta(kind);
   return {
-    title: `${meta.shareTitle}分享页`,
+    title: `${getSubjectKindShareTitle(kind)}分享页`,
   };
 }
 

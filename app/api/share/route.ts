@@ -23,6 +23,23 @@ function sanitizeString(value: unknown): string {
   return value.trim();
 }
 
+function sanitizeHttpUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== "http:" && protocol !== "https:") {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 function toRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object") return null;
   return value as Record<string, unknown>;
@@ -59,6 +76,17 @@ function sanitizeGame(input: unknown): ShareGame | null {
         .slice(0, 5)
     : undefined;
 
+  const storeUrlsRaw = game.storeUrls;
+  const storeUrls =
+    storeUrlsRaw && typeof storeUrlsRaw === "object"
+      ? (Object.fromEntries(
+          Object.entries(storeUrlsRaw)
+            .filter(([k]) => typeof k === "string")
+            .map(([k, v]) => [k, sanitizeHttpUrl(v)])
+            .filter((entry): entry is [string, string] => Boolean(entry[1]))
+        ) as Record<string, string>)
+      : undefined;
+
   return {
     id,
     name,
@@ -66,6 +94,7 @@ function sanitizeGame(input: unknown): ShareGame | null {
     cover,
     releaseYear,
     genres,
+    storeUrls: storeUrls && Object.keys(storeUrls).length > 0 ? storeUrls : undefined,
     comment,
     spoiler,
   };

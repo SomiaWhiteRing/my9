@@ -22,7 +22,7 @@ export type ShareGame = ShareSubject;
 
 export interface SubjectSearchResponse {
   ok: boolean;
-  source: "bangumi" | "tmdb";
+  source: "bangumi" | "tmdb" | "itunes";
   kind: SubjectKind;
   items: ShareSubject[];
   topPickIds: Array<string | number>;

@@ -20,6 +20,7 @@ import {
   SUBJECT_KIND_ORDER,
   SubjectKind,
   getSubjectKindMeta,
+  getSubjectKindShareTitle,
   parseSubjectKind,
 } from "@/lib/subject-kind";
 import { normalizeSearchQuery } from "@/lib/search/query";
@@ -207,6 +208,8 @@ export default function My9V3App({
   const isReadonly = readOnlyShare;
 
   const draftStorageKey = kindMeta.draftStorageKey;
+  const selectionUnit = kindMeta.selectionUnit;
+  const shareTitle = getSubjectKindShareTitle(kind);
   const defaultSuggestions = useMemo(
     () => [`可尝试${kindMeta.label}正式名或别名`, "中日英名称切换检索通常更有效", "减少关键词，仅保留核心词"],
     [kindMeta.label]
@@ -501,7 +504,12 @@ export default function My9V3App({
 
       const nextResponse: SubjectSearchResponse = {
         ok: true,
-        source: json.source === "tmdb" ? "tmdb" : "bangumi",
+        source:
+          json.source === "tmdb"
+            ? "tmdb"
+            : json.source === "itunes"
+              ? "itunes"
+              : "bangumi",
         kind,
         items: Array.isArray(json.items) ? json.items : [],
         topPickIds: Array.isArray(json.topPickIds) ? json.topPickIds : [],
@@ -614,7 +622,7 @@ export default function My9V3App({
     if (guardReadonly()) return;
     if (!allSelected) {
       const confirmed = window.confirm(
-        `当前仅选择了 ${filledCount}/9 个${kindMeta.label}，确认继续保存吗？`
+        `当前仅选择了 ${filledCount}/9${selectionUnit}${kindMeta.label}，确认继续保存吗？`
       );
       if (!confirmed) return;
     }
@@ -628,6 +636,7 @@ export default function My9V3App({
         cover: game.cover,
         releaseYear: game.releaseYear,
         genres: game.genres,
+        storeUrls: game.storeUrls,
         comment: game.comment,
         spoiler: game.spoiler,
       };
@@ -712,7 +721,7 @@ export default function My9V3App({
         <header className="space-y-3 text-center">
           <div className="inline-flex items-center gap-2 sm:gap-3">
             <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
-              构成我的九部{kindMeta.label}
+              {shareTitle}
             </h1>
             {!isReadonly ? (
               <button
@@ -794,6 +803,7 @@ export default function My9V3App({
         {!isReadonly ? (
           <ActionCluster
             filledCount={filledCount}
+            remainingUnit={selectionUnit}
             readOnly={isReadonly}
             saving={savingShare}
             canUndo={Boolean(singleUndoSnapshot)}

@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { SubjectKind, getSubjectKindMeta } from "@/lib/subject-kind";
+import { SubjectKind, getSubjectKindShareTitle } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
 
 const ShareImagePreviewDialog = dynamic(
@@ -32,7 +32,6 @@ export function SharePlatformActions({
 }: SharePlatformActionsProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
-  const kindMeta = getSubjectKindMeta(kind);
   const shareUrl = useMemo(() => {
     if (!shareId) return null;
     if (typeof window === "undefined") return null;
@@ -40,10 +39,11 @@ export function SharePlatformActions({
   }, [kind, shareId]);
 
   const shareTitle = useMemo(() => {
+    const defaultTitle = getSubjectKindShareTitle(kind);
     const name = creatorName?.trim();
-    if (!name) return kindMeta.shareTitle;
-    return kindMeta.shareTitle.replace("我", name);
-  }, [creatorName, kindMeta.shareTitle]);
+    if (!name) return defaultTitle;
+    return defaultTitle.replace("我", name);
+  }, [creatorName, kind]);
 
   function handleNotice(kindValue: NoticeKind, message: string) {
     onNotice?.(kindValue, message);

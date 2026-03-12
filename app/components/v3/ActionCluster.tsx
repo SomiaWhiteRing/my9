@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 interface ActionClusterProps {
   filledCount: number;
+  remainingUnit?: string;
   readOnly: boolean;
   saving: boolean;
   canUndo: boolean;
@@ -14,15 +15,16 @@ interface ActionClusterProps {
   onSave: () => void;
 }
 
-function saveButtonLabel(params: { saving: boolean; filledCount: number }) {
-  const { saving, filledCount } = params;
+function saveButtonLabel(params: { saving: boolean; filledCount: number; remainingUnit: string }) {
+  const { saving, filledCount, remainingUnit } = params;
   if (saving) return "保存中...";
-  if (filledCount < 9) return `还差 ${9 - filledCount} 个可保存`;
+  if (filledCount < 9) return `还差 ${9 - filledCount} ${remainingUnit}可保存`;
   return "保存页面";
 }
 
 export function ActionCluster({
   filledCount,
+  remainingUnit = "个",
   readOnly,
   saving,
   canUndo,
@@ -39,7 +41,7 @@ export function ActionCluster({
       <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-semibold text-card-foreground">
         <span>{filledCount} / 9 已选择</span>
         {!readOnly && filledCount < 9 ? (
-          <span className="text-xs font-bold text-orange-500">还差{9 - filledCount}个</span>
+          <span className="text-xs font-bold text-orange-500">还差{9 - filledCount}{remainingUnit}</span>
         ) : null}
       </div>
 
@@ -76,7 +78,7 @@ export function ActionCluster({
             disabled={saveDisabled}
             onClick={onSave}
           >
-            {saveButtonLabel({ saving, filledCount })}
+            {saveButtonLabel({ saving, filledCount, remainingUnit })}
           </Button>
         </div>
       ) : null}

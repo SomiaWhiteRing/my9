@@ -5,6 +5,7 @@ export type CompactShareSlot = {
   sid: string;
   c?: string;
   s?: 1;
+  u?: Record<string, string>;
 };
 
 export type CompactSharePayload = Array<CompactShareSlot | null>;
@@ -44,6 +45,31 @@ function normalizeReleaseYear(value: unknown): number | undefined {
     return Math.trunc(value);
   }
   return undefined;
+}
+
+function sanitizeHttpUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== "http:" && protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function normalizeStoreUrls(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const normalized = Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .map(([key, raw]) => [sanitizeText(key), sanitizeHttpUrl(raw)] as const)
+      .filter((entry): entry is [string, string] => Boolean(entry[0]) && Boolean(entry[1]))
+  );
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
 function toNumericIdIfSafe(subjectId: string): string | number {
@@ -98,6 +124,7 @@ export function toCompactSharePayload(games: Array<ShareSubject | null>): {
     const subjectId = normalizeSubjectId(item.id, name);
     const comment = sanitizeText(item.comment);
     const spoiler = Boolean(item.spoiler);
+    const storeUrls = normalizeStoreUrls(item.storeUrls);
 
     const slot: CompactShareSlot = { sid: subjectId };
     if (comment) {
@@ -105,6 +132,9 @@ export function toCompactSharePayload(games: Array<ShareSubject | null>): {
     }
     if (spoiler) {
       slot.s = 1;
+    }
+    if (storeUrls) {
+      slot.u = storeUrls;
     }
     payload[index] = slot;
 
@@ -160,6 +190,7 @@ export function compactPayloadToGames(params: {
 
     const snapshot = params.subjectSnapshots.get(slot.sid);
     const name = snapshot?.name || slot.sid;
+    const storeUrls = normalizeStoreUrls(slot.u);
 
     const game: ShareSubject = {
       id: toNumericIdIfSafe(slot.sid),
@@ -168,6 +199,7 @@ export function compactPayloadToGames(params: {
       cover: snapshot?.cover ?? null,
       releaseYear: snapshot?.releaseYear,
       genres: snapshot?.genres,
+      storeUrls,
       comment: slot.c,
       spoiler: Boolean(slot.s),
     };
@@ -197,11 +229,13 @@ export function normalizeCompactPayload(value: unknown): CompactSharePayload | n
 
     const comment = sanitizeText((slot as Record<string, unknown>).c);
     const spoiler = Boolean((slot as Record<string, unknown>).s);
+    const storeUrls = normalizeStoreUrls((slot as Record<string, unknown>).u);
 
     payload[index] = {
       sid,
       c: comment || undefined,
       s: spoiler ? 1 : undefined,
+      u: storeUrls,
     };
   }
 

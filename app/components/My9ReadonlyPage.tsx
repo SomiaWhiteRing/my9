@@ -3,7 +3,7 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
 import { ReadonlyNineGridBoard } from "@/app/components/v3/ReadonlyNineGridBoard";
 import { ReadonlySelectedGamesList } from "@/app/components/v3/ReadonlySelectedGamesList";
-import { SubjectKind, getSubjectKindMeta } from "@/lib/subject-kind";
+import { SubjectKind, getSubjectKindMeta, getSubjectKindShareTitle } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
 
 export type InitialReadonlyShareData = {
@@ -21,6 +21,7 @@ interface My9ReadonlyPageProps {
 
 export default function My9ReadonlyPage({ kind, shareId, initialShareData }: My9ReadonlyPageProps) {
   const kindMeta = getSubjectKindMeta(kind);
+  const shareTitle = getSubjectKindShareTitle(kind);
   const games = initialShareData.games;
   const creatorName = initialShareData.creatorName || "";
   const finalShareId = initialShareData.shareId || shareId;
@@ -30,7 +31,7 @@ export default function My9ReadonlyPage({ kind, shareId, initialShareData }: My9
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
         <header className="space-y-3 text-center">
           <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
-            构成我的九部{kindMeta.label}
+            {shareTitle}
           </h1>
           <p className="text-sm text-muted-foreground">{kindMeta.subtitle}</p>
           <Link

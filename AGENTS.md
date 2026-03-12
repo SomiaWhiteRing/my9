@@ -13,7 +13,7 @@
 - `components/`：跨页面复用组件（`layout/`、`share/`、`subject/`、`ui/`）。
 - `lib/`：领域逻辑与工具（Bangumi 搜索、分享存储、`subject-kind` 等）。
 - `tests/`：Playwright E2E 用例（当前为 `*.spec.ts`）。
-- `docs/`：运维与排障文档（含分享存储 v2 操作手册）。
+- `docs/`：运维与排障文档（含分享存储 v2 操作手册、内容源接入指南）。
 - `scripts/`：迁移/归档/校验脚本。
 - `scripts/playwright-webserver.cjs`：E2E 专用构建与 3001 服务脚本。
 - `screenshot/`：验收截图产物。
@@ -84,3 +84,7 @@
 ## 提交与 PR 建议
 - 提交信息简短、祈使/现在时，聚焦单一改动。
 - PR 说明建议包含：改动范围、复现/验证步骤、必要截图、环境变量变更。
+
+## 新增内容源贡献（必读）
+- 以 iTunes 接入（`verify/pr-6-merge`）为样本，新增内容源时统一遵循 `docs/content-source-contribution.md`。
+- 涉及新增/切换内容源的 PR，说明中至少要覆盖：kind 与 source 路由关系、搜索实现、分享存储兼容、前端外链与归因、测试结果。

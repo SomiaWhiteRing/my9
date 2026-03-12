@@ -341,7 +341,7 @@ export async function generateEnhancedShareImageBlob(options: {
     (game) => Boolean(game?.comment && game.comment.trim().length > 0)
   ).length;
 
-  const line1 = `构成${userName}的九部${kindMeta.label}`;
+  const line1 = `构成${userName}的九${kindMeta.selectionUnit}${kindMeta.label}`;
   const line2 =
     reviewCount > 0
       ? `扫码查看${userName}的${reviewCount}条评价`

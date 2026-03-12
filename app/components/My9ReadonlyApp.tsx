@@ -7,7 +7,7 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { InlineToast, ToastKind } from "@/app/components/v3/InlineToast";
 import { NineGridBoard } from "@/app/components/v3/NineGridBoard";
 import { SelectedGamesList } from "@/app/components/v3/SelectedGamesList";
-import { SubjectKind, getSubjectKindMeta, parseSubjectKind } from "@/lib/subject-kind";
+import { SubjectKind, getSubjectKindMeta, getSubjectKindShareTitle, parseSubjectKind } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
 
 type ToastState = {
@@ -50,6 +50,7 @@ export default function My9ReadonlyApp({
 }: My9ReadonlyAppProps) {
   const router = useRouter();
   const kindMeta = useMemo(() => getSubjectKindMeta(kind), [kind]);
+  const shareTitle = useMemo(() => getSubjectKindShareTitle(kind), [kind]);
   const [games, setGames] = useState<Array<ShareGame | null>>(() =>
     normalizeGamesForState(initialShareData?.games)
   );
@@ -153,7 +154,7 @@ export default function My9ReadonlyApp({
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
         <header className="space-y-3 text-center">
           <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
-            构成我的九部{kindMeta.label}
+            {shareTitle}
           </h1>
           <p className="text-sm text-muted-foreground">{kindMeta.subtitle}</p>
           <button
