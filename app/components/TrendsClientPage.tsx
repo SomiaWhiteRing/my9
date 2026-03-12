@@ -253,10 +253,10 @@ interface TrendGameMiniCardProps {
 }
 
 function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear = true }: TrendGameMiniCardProps) {
-  const subjectUrl = game ? toSubjectLink(kind, game.id, game.name) : null;
-  const sourceLabel = subjectSourceLabel(kind);
   const coverUrl = game ? toTrendsCoverUrl(game.cover) : null;
   const title = game ? game.localizedName || game.name : "暂无条目";
+  const subjectUrl = game ? toSubjectLink(kind, game.id, title) : null;
+  const sourceLabel = subjectSourceLabel(kind);
   const subtitle = game && game.localizedName && game.localizedName !== game.name ? game.name : null;
 
   return (
