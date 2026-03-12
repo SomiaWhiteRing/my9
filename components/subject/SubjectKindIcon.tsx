@@ -1,6 +1,6 @@
 "use client";
 
-import { Gamepad2, Tv, Film, BookOpen, BookText, Library } from "lucide-react";
+import { Gamepad2, Tv, Film, BookOpen, BookText, Library, Music, Disc3 } from "lucide-react";
 import { SubjectKind } from "@/lib/subject-kind";
 
 export function SubjectKindIcon({
@@ -23,6 +23,10 @@ export function SubjectKindIcon({
       return <BookOpen className={className} />;
     case "lightnovel":
       return <BookText className={className} />;
+    case "song":
+      return <Music className={className} />;
+    case "album":
+      return <Disc3 className={className} />;
     case "work":
     default:
       return <Library className={className} />;
