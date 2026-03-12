@@ -46,6 +46,8 @@ const OVERALL_PAGE_COUNT = 5;
 const GROUPED_BUCKET_LIMIT = 20;
 const GROUPED_GAMES_PER_BUCKET = 5;
 const BANGUMI_TRENDS_COVER_WIDTH = 100;
+const TMDB_TRENDS_COVER_WIDTH = "w92";
+const APPLE_MUSIC_TRENDS_COVER_EDGE = 120;
 const TOP_FAB_SHOW_AFTER_PX = 360;
 const TOP_FAB_DIRECTION_EPSILON_PX = 2;
 const TRENDS_CLIENT_CACHE_TTL_MS = 2 * 60 * 1000;
@@ -153,14 +155,29 @@ function toTrendsCoverUrl(cover: string | null | undefined): string | null {
   if (!trimmed) return null;
 
   try {
-    const parsed = new URL(trimmed);
-    if (parsed.hostname !== "lain.bgm.tv") {
-      return trimmed;
+    const normalized = trimmed.startsWith("//") ? `https:${trimmed}` : trimmed;
+    const parsed = new URL(normalized);
+
+    if (parsed.hostname === "lain.bgm.tv") {
+      const normalizedPath = parsed.pathname.replace(/^\/+/, "");
+      const pathWithoutResize = normalizedPath.replace(/^r\/\d+\//, "");
+      parsed.pathname = `/r/${BANGUMI_TRENDS_COVER_WIDTH}/${pathWithoutResize}`;
+      return parsed.toString();
     }
 
-    const normalizedPath = parsed.pathname.replace(/^\/+/, "");
-    const pathWithoutResize = normalizedPath.replace(/^r\/\d+\//, "");
-    parsed.pathname = `/r/${BANGUMI_TRENDS_COVER_WIDTH}/${pathWithoutResize}`;
+    if (parsed.hostname === "image.tmdb.org") {
+      parsed.pathname = parsed.pathname.replace(/^\/t\/p\/[^/]+\//, `/t/p/${TMDB_TRENDS_COVER_WIDTH}/`);
+      return parsed.toString();
+    }
+
+    if (parsed.hostname.endsWith("mzstatic.com")) {
+      parsed.pathname = parsed.pathname.replace(
+        /\/\d+x\d+([a-z]*)\.(jpg|jpeg|png|webp)$/i,
+        `/${APPLE_MUSIC_TRENDS_COVER_EDGE}x${APPLE_MUSIC_TRENDS_COVER_EDGE}$1.$2`
+      );
+      return parsed.toString();
+    }
+
     return parsed.toString();
   } catch {
     return trimmed;
