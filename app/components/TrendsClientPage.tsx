@@ -557,10 +557,17 @@ export default function TrendsClientPage({
   const overallRankOffset = view === "overall" ? (overallPage - 1) * OVERALL_PAGE_SIZE : 0;
   const showOverallPagination = Boolean(view === "overall" && !error && data && !hasInsufficientSamples);
   const showYearPagination = Boolean(view === "year" && !error && data && !hasInsufficientSamples);
+  const trendsTitle = useMemo(() => {
+    return `构成大家的${getSubjectKindMeta(kind).trendLabel}`;
+  }, [kind]);
 
   const topCardSummary = useMemo(() => {
     return `目标周期：${formatPeriodLabel(data?.period ?? period)}`;
   }, [data?.period, period]);
+
+  useEffect(() => {
+    document.title = trendsTitle;
+  }, [trendsTitle]);
 
   function handleBackToTop() {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -582,7 +589,7 @@ export default function TrendsClientPage({
               <h1 className="text-3xl font-bold tracking-tight text-foreground">大家的构成</h1>
               <p className="text-sm text-muted-foreground">{topCardSummary}</p>
               <p className="text-xs text-amber-600 dark:text-amber-400">
-                作品分类和最近24小时的统计问题已修复！每小时30分更新。
+                每小时30分更新。
               </p>
               <SupportButton/>
               <p className="text-xs text-muted-foreground">

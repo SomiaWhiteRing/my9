@@ -17,6 +17,12 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-12", name: "游戏者幻游", amount: "3", message: "6" },
+  { date: "2026-03-12", name: "Mason", amount: "3", message: "" },
+  { date: "2026-03-12", name: "匿名", amount: "6", message: "用来做记录真的太好了🥹" },
+  { date: "2026-03-12", name: "J3rry", amount: "88", message: "" },
+  { date: "2026-03-12", name: "Raving", amount: "6", message: "希望多加些经典小说和电影，我也让我爸填填" },
+  { date: "2026-03-12", name: "World Collide", amount: "6", message: "感谢这么好的网站！可不可以再加个音乐剧Hamilton哇" },
   { date: "2026-03-12", name: "不想起床bot", amount: "10", message: "居然有妄想症赏10元" },
   { date: "2026-03-12", name: "💿", amount: "6", message: "加油呀" },
   { date: "2026-03-12", name: "17", amount: "5.2", message: "感谢老师带我回忆了一次童年过往的美好" },

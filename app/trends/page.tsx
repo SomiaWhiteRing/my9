@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import TrendsClientPage from "@/app/components/TrendsClientPage";
 import { unstable_cache } from "next/cache";
 import type { TrendResponse } from "@/lib/share/types";
+import { getSubjectKindMeta } from "@/lib/subject-kind";
 import {
   parseTrendKind,
   parseTrendOverallPage,
@@ -39,16 +41,29 @@ function resolveSearchParam(
   return value ?? null;
 }
 
+type TrendsSearchParams = {
+  kind?: string | string[];
+  period?: string | string[];
+  view?: string | string[];
+  overallPage?: string | string[];
+  yearPage?: string | string[];
+};
+
+export function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: TrendsSearchParams;
+}): Metadata {
+  const kind = parseTrendKind(resolveSearchParam(searchParams?.kind));
+  return {
+    title: `构成大家的${getSubjectKindMeta(kind).trendLabel}`,
+  };
+}
+
 export default async function TrendsPage({
   searchParams,
 }: {
-  searchParams?: {
-    kind?: string | string[];
-    period?: string | string[];
-    view?: string | string[];
-    overallPage?: string | string[];
-    yearPage?: string | string[];
-  };
+  searchParams?: TrendsSearchParams;
 }) {
   const initialKind = parseTrendKind(resolveSearchParam(searchParams?.kind));
   const initialPeriod = parseTrendPeriod(resolveSearchParam(searchParams?.period));
