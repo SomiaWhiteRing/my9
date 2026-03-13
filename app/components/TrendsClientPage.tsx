@@ -868,7 +868,7 @@ export default function TrendsClientPage({
           <DialogHeader>
             <DialogTitle>切换观测类别</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
             {SUBJECT_KIND_ORDER.map((item) => {
               const meta = getSubjectKindMeta(item);
               const active = item === kind;
