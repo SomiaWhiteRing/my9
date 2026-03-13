@@ -17,6 +17,8 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-14", name: "咒怨", amount: "10", message: "" },
+  { date: "2026-03-14", name: "蜃気楼", amount: "5.2", message: "" },
   { date: "2026-03-13", name: "孔睦瑞", amount: "1", message: "云吸猫" },
   { date: "2026-03-13", name: "yoj1pR", amount: "10", message: "辛苦了——" },
   { date: "2026-03-13", name: "匿名", amount: "3", message: "音乐很多小众专辑缺失，后续可以支持让用户自行添加图片和文字" },
