@@ -11,6 +11,7 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SupportButton } from "@/components/SupportButton";
 import { SubjectKind, SUBJECT_KIND_ORDER, getSubjectKindMeta } from "@/lib/subject-kind";
 import type { TrendGameItem, TrendResponse, TrendPeriod, TrendView, TrendYearPage } from "@/lib/share/types";
+import { resolveSubjectLink } from "@/lib/subject-source";
 import { cn } from "@/lib/utils";
 
 type TrendsApiResponse = TrendResponse & { ok: boolean };
@@ -88,78 +89,6 @@ function formatPeriodLabel(period: TrendPeriod): string {
     default:
       return "全周期";
   }
-}
-
-function toBangumiLink(subjectId: string | undefined, name: string): string {
-  const normalizedId = String(subjectId || "").trim();
-  if (/^\d+$/.test(normalizedId)) {
-    return `https://bgm.tv/subject/${normalizedId}`;
-  }
-
-  const query = encodeURIComponent(name.trim());
-  return `https://bgm.tv/subject_search/${query}`;
-}
-
-function toBangumiCharacterLink(subjectId: string | undefined): string {
-  return `https://bgm.tv/character/${String(subjectId || "").trim()}`;
-}
-
-function toBangumiPersonLink(subjectId: string | undefined): string {
-  return `https://bgm.tv/person/${String(subjectId || "").trim()}`;
-}
-
-function toTmdbTvLink(subjectId: string | undefined, name: string): string {
-  const normalizedId = String(subjectId || "").trim();
-  if (/^\d+$/.test(normalizedId)) {
-    return `https://www.themoviedb.org/tv/${normalizedId}`;
-  }
-
-  const query = encodeURIComponent(name.trim());
-  return `https://www.themoviedb.org/search/tv?query=${query}`;
-}
-
-function toTmdbMovieLink(subjectId: string | undefined, name: string): string {
-  const normalizedId = String(subjectId || "").trim();
-  if (/^\d+$/.test(normalizedId)) {
-    return `https://www.themoviedb.org/movie/${normalizedId}`;
-  }
-
-  const query = encodeURIComponent(name.trim());
-  return `https://www.themoviedb.org/search/movie?query=${query}`;
-}
-
-function toAppleMusicSearchLink(name: string): string {
-  const query = encodeURIComponent(name.trim());
-  return `https://music.apple.com/cn/search?term=${query}`;
-}
-
-function toSubjectLink(kind: SubjectKind, subjectId: string | undefined, name: string): string {
-  if (kind === "song" || kind === "album") {
-    return toAppleMusicSearchLink(name);
-  }
-  if (kind === "tv") {
-    return toTmdbTvLink(subjectId, name);
-  }
-  if (kind === "movie") {
-    return toTmdbMovieLink(subjectId, name);
-  }
-  if (kind === "character") {
-    return toBangumiCharacterLink(subjectId);
-  }
-  if (kind === "person") {
-    return toBangumiPersonLink(subjectId);
-  }
-  return toBangumiLink(subjectId, name);
-}
-
-function subjectSourceLabel(kind: SubjectKind): string {
-  if (kind === "song" || kind === "album") {
-    return "Apple Music";
-  }
-  if (kind === "tv" || kind === "movie") {
-    return "TMDB";
-  }
-  return "Bangumi";
 }
 
 function shouldTopCropCover(kind: SubjectKind) {
@@ -291,8 +220,18 @@ interface TrendGameMiniCardProps {
 function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear = true }: TrendGameMiniCardProps) {
   const coverUrl = game ? toTrendsCoverUrl(game.cover) : null;
   const title = game ? game.localizedName || game.name : "暂无条目";
-  const subjectUrl = game ? toSubjectLink(kind, game.id, title) : null;
-  const sourceLabel = subjectSourceLabel(kind);
+  const subjectResolution = game
+    ? resolveSubjectLink({
+        kind,
+        subject: {
+          id: game.id,
+          name: game.name,
+          localizedName: game.localizedName,
+        },
+      })
+    : null;
+  const subjectUrl = subjectResolution?.url ?? null;
+  const sourceLabel = subjectResolution?.sourceLabel ?? "Bangumi";
   const subtitle = game && game.localizedName && game.localizedName !== game.name ? game.name : null;
 
   return (
