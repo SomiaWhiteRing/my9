@@ -49,12 +49,18 @@ type BangumiV0CharacterImages = {
   grid?: string;
 };
 
+type BangumiV0InfoboxItem = {
+  key?: string;
+  value?: unknown;
+};
+
 type BangumiV0Character = {
   id: number;
   name: string;
   type?: number;
   images?: BangumiV0CharacterImages | null;
   short_summary?: string;
+  infobox?: BangumiV0InfoboxItem[];
 };
 
 type BangumiV0PagedCharacter = {
@@ -78,6 +84,7 @@ type BangumiV0Person = {
   images?: BangumiV0PersonImages | null;
   short_summary?: string;
   career?: string[];
+  infobox?: BangumiV0InfoboxItem[];
 };
 
 type BangumiV0PagedPerson = {
@@ -305,6 +312,53 @@ function toBangumiRequestHeaders() {
   };
 }
 
+const BANGUMI_LOCALIZED_NAME_INFOBOX_KEYS = new Set(["简体中文名", "中文名"]);
+
+function toNonEmptyString(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || undefined;
+  }
+  if (typeof value === "number") {
+    return String(value);
+  }
+  return undefined;
+}
+
+function extractLocalizedNameFromInfobox(infobox?: BangumiV0InfoboxItem[]): string | undefined {
+  if (!Array.isArray(infobox) || infobox.length === 0) {
+    return undefined;
+  }
+
+  for (const item of infobox) {
+    const key = toNonEmptyString(item?.key);
+    if (!key || !BANGUMI_LOCALIZED_NAME_INFOBOX_KEYS.has(key)) {
+      continue;
+    }
+
+    const directValue = toNonEmptyString(item?.value);
+    if (directValue) {
+      return directValue;
+    }
+
+    if (!Array.isArray(item?.value)) {
+      continue;
+    }
+
+    for (const candidate of item.value) {
+      const nestedValue =
+        (typeof candidate === "object" && candidate !== null
+          ? toNonEmptyString((candidate as { v?: unknown }).v)
+          : undefined) || toNonEmptyString(candidate);
+      if (nestedValue) {
+        return nestedValue;
+      }
+    }
+  }
+
+  return undefined;
+}
+
 function toShareSubjectFromCharacter(item: BangumiV0Character): ShareSubject {
   const cover =
     item.images?.large ||
@@ -315,7 +369,7 @@ function toShareSubjectFromCharacter(item: BangumiV0Character): ShareSubject {
   return {
     id: item.id,
     name: item.name,
-    localizedName: undefined,
+    localizedName: extractLocalizedNameFromInfobox(item.infobox),
     cover,
     subjectType: item.type,
   };
@@ -331,7 +385,7 @@ function toShareSubjectFromPerson(item: BangumiV0Person): ShareSubject {
   return {
     id: item.id,
     name: item.name,
-    localizedName: undefined,
+    localizedName: extractLocalizedNameFromInfobox(item.infobox),
     cover,
     genres: Array.isArray(item.career) ? item.career.slice(0, 3) : [],
     subjectType: item.type,
