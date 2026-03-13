@@ -17,6 +17,11 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-13", name: "匿名", amount: "1", message: "" },
+  { date: "2026-03-13", name: "公子小白", amount: "3", message: "保存完居然不知道要分享给谁了" },
+  { date: "2026-03-13", name: "圆圆", amount: "3", message: "加油" },
+  { date: "2026-03-13", name: "麦高芬", amount: "10", message: "好厉害" },
+  { date: "2026-03-13", name: "最脆弱之人", amount: "10", message: "玩的很开心捏 许愿一个构成的角色" },
   { date: "2026-03-13", name: "玮鸿", amount: "8.88", message: "感谢作者赞美作者！前两天刚留言说想要电影和音乐的九宫格" },
   { date: "2026-03-12", name: "游戏者幻游", amount: "3", message: "6" },
   { date: "2026-03-12", name: "Mason", amount: "3", message: "" },
@@ -245,6 +250,18 @@ export function SupportButton() {
                   @wanshuai12138
                 </a>{" "}
                 贡献单曲/专辑查询功能。
+              </li>
+              <li>
+                感谢{" "}
+                <a
+                  href="https://github.com/AlanWanco"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-sky-600 underline decoration-sky-300 underline-offset-2 hover:text-sky-700 dark:text-sky-400 dark:decoration-sky-500 dark:hover:text-sky-300"
+                >
+                  @AlanWanco
+                </a>{" "}
+                贡献角色/人物查询功能。
               </li>
             </ul>
           </div>

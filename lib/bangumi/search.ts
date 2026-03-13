@@ -7,6 +7,8 @@ const BANGUMI_USER_AGENT = process.env.BANGUMI_USER_AGENT;
 const BANGUMI_EXACT_KEYWORD_OVERRIDES: Record<string, string> = {
   // Bangumi API currently misses this query under simplified Chinese.
   仙剑奇侠传: "仙劍奇俠傳",
+  哆啦A梦: "ドラえもん",
+  哆啦a梦: "ドラえもん",
 };
 const BANGUMI_BLOCKED_SUBJECT_TITLES = new Set(["devil lover"]);
 
