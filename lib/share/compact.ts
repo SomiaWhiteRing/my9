@@ -83,7 +83,7 @@ function toNumericIdIfSafe(subjectId: string): string | number {
   return parsed;
 }
 
-export function normalizeSubjectId(value: unknown, fallbackName: string): string {
+export function normalizeSubjectId(value: unknown): string | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return String(Math.trunc(value));
   }
@@ -91,8 +91,7 @@ export function normalizeSubjectId(value: unknown, fallbackName: string): string
     const trimmed = value.trim();
     if (trimmed) return trimmed;
   }
-  const normalizedFallback = fallbackName.trim().toLowerCase() || "unknown";
-  return `name:${normalizedFallback}`;
+  return null;
 }
 
 function mergeSubjectSnapshot(existing: SubjectSnapshot, next: SubjectSnapshot): SubjectSnapshot {
@@ -121,7 +120,11 @@ export function toCompactSharePayload(games: Array<ShareSubject | null>): {
     }
 
     const name = sanitizeText(item.name) || "untitled";
-    const subjectId = normalizeSubjectId(item.id, name);
+    const subjectId = normalizeSubjectId(item.id);
+    if (!subjectId) {
+      payload[index] = null;
+      continue;
+    }
     const comment = sanitizeText(item.comment);
     const spoiler = Boolean(item.spoiler);
     const storeUrls = normalizeStoreUrls(item.storeUrls);

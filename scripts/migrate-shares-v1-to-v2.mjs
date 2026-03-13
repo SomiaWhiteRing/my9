@@ -83,10 +83,10 @@ function normalizeGenres(value) {
   return Array.from(new Set(cleaned));
 }
 
-function normalizeSubjectId(value, fallbackName) {
+function normalizeSubjectId(value) {
   if (typeof value === "number" && Number.isFinite(value)) return String(Math.trunc(value));
   if (typeof value === "string" && value.trim()) return value.trim();
-  return `name:${fallbackName.trim().toLowerCase() || "unknown"}`;
+  return null;
 }
 
 const BEIJING_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
@@ -113,7 +113,8 @@ function toCompactAndSubjects(games) {
     if (!item || typeof item !== "object") continue;
 
     const name = sanitizeText(item.name) || "untitled";
-    const sid = normalizeSubjectId(item.id, name);
+    const sid = normalizeSubjectId(item.id);
+    if (!sid) continue;
     const comment = sanitizeText(item.comment);
     const spoiler = Boolean(item.spoiler);
 
