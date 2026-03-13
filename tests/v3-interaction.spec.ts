@@ -27,108 +27,6 @@ function createFilledGames() {
 }
 
 function buildSearchResponse(query: string, kind = DEFAULT_KIND) {
-  if (kind === "work") {
-    if (query.toLowerCase() === "work-tmdb-movie") {
-      return {
-        ok: true,
-        source: "mixed",
-        kind,
-        items: [
-          {
-            id: "tmdb:movie:550",
-            name: "Fight Club",
-            localizedName: "搏击俱乐部",
-            cover: "https://image.tmdb.org/t/p/w500/fight-club.jpg",
-            releaseYear: 1999,
-            genres: ["剧情"],
-          },
-        ],
-        noResultQuery: null,
-      };
-    }
-
-    if (query.toLowerCase() === "work-itunes-song") {
-      return {
-        ok: true,
-        source: "mixed",
-        kind,
-        items: [
-          {
-            id: "itunes:song:909253",
-            name: "Taylor Swift",
-            localizedName: "Love Story",
-            cover: "https://is1-ssl.mzstatic.com/image/thumb/Music123/v4/mock/cover/100x100bb.jpg",
-            releaseYear: 2008,
-            genres: ["Pop"],
-            storeUrls: {
-              apple: "https://music.apple.com/cn/album/love-story/123456?i=909253",
-            },
-          },
-        ],
-        noResultQuery: null,
-      };
-    }
-
-    const hash = Array.from(query).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const id = Math.max(1000, hash + 900);
-    return {
-      ok: true,
-      source: "mixed",
-      kind,
-      items: [
-        {
-          id: `tmdb:movie:${id}`,
-          name: `Work ${query}`,
-          localizedName: `作品 ${query}`,
-          cover: `https://image.tmdb.org/t/p/w500/work-${id}.jpg`,
-          releaseYear: 2020,
-          genres: ["剧情"],
-        },
-      ],
-      noResultQuery: null,
-    };
-  }
-
-  if (kind === "character") {
-    return {
-      ok: true,
-      source: "bangumi",
-      kind,
-      items: [
-        {
-          id: 88001,
-          name: "アルトリア・ペンドラゴン",
-          localizedName: "阿尔托莉雅·潘德拉贡",
-          cover: "https://lain.bgm.tv/r/400/pic/crt/l/mock-character.jpg",
-          releaseYear: 2004,
-          gameTypeId: 0,
-          platforms: [],
-        },
-      ],
-      noResultQuery: null,
-    };
-  }
-
-  if (kind === "person") {
-    return {
-      ok: true,
-      source: "bangumi",
-      kind,
-      items: [
-        {
-          id: 99002,
-          name: "宮崎駿",
-          localizedName: "宫崎骏",
-          cover: "https://lain.bgm.tv/r/400/pic/crt/l/mock-person.jpg",
-          releaseYear: 1941,
-          gameTypeId: 0,
-          platforms: [],
-        },
-      ],
-      noResultQuery: null,
-    };
-  }
-
   if (query.toLowerCase() === "zelda") {
     return {
       ok: true,
@@ -328,16 +226,12 @@ async function mockTrendsApi(page: Page) {
       ? "88001"
       : kind === "person"
         ? "99002"
-        : kind === "work"
-          ? "tmdb:movie:77001"
-          : "77001";
+        : "77001";
     const trendName = kind === "character"
       ? "测试角色"
       : kind === "person"
         ? "测试人物"
-        : kind === "work"
-          ? "测试作品"
-          : "测试条目";
+        : "测试条目";
 
     await route.fulfill({
       status: 200,
@@ -741,14 +635,12 @@ test.describe("v3 interaction", () => {
         subjectLabel: "角色",
         searchPlaceholder: "输入角色名称",
         segment: "character",
-        localizedName: "阿尔托莉雅·潘德拉贡",
       },
       {
         kind: "person",
         subjectLabel: "人物",
         searchPlaceholder: "输入人物名称",
         segment: "person",
-        localizedName: "宫崎骏",
       },
     ] as const;
 
@@ -760,7 +652,6 @@ test.describe("v3 interaction", () => {
         searchPlaceholder: item.searchPlaceholder,
         query: `${item.kind}-q1`,
       });
-      await expect(page.locator("article h3", { hasText: item.localizedName }).first()).toBeVisible();
 
       page.once("dialog", async (dialog) => {
         await dialog.accept();
@@ -776,38 +667,6 @@ test.describe("v3 interaction", () => {
     }
   });
 
-  test("作品分享页条目外链会按条目来源跳转 TMDB/Apple Music", async ({ page }) => {
-    await page.goto("/work");
-
-    await fillSlotByKind(page, {
-      slot: 1,
-      subjectLabel: "作品",
-      searchPlaceholder: "输入作品名称",
-      query: "work-tmdb-movie",
-    });
-    await fillSlotByKind(page, {
-      slot: 2,
-      subjectLabel: "作品",
-      searchPlaceholder: "输入作品名称",
-      query: "work-itunes-song",
-    });
-
-    page.once("dialog", async (dialog) => {
-      await dialog.accept();
-    });
-    await page.getByRole("button", { name: /^还差 7 .可保存$/ }).click();
-    await expect(page).toHaveURL(`/work/s/${SHARE_ID}`, { timeout: 30_000 });
-
-    const tmdbLink = page.getByTitle("在 TMDB 查看").first();
-    await expect(tmdbLink).toHaveAttribute("href", "https://www.themoviedb.org/movie/550");
-
-    const appleLink = page.getByTitle("在 Apple Music 查看").first();
-    await expect(appleLink).toHaveAttribute(
-      "href",
-      "https://music.apple.com/cn/album/love-story/123456?i=909253"
-    );
-  });
-
   test("趋势页角色与人物外链分别指向 Bangumi 角色/人物页", async ({ page }) => {
     await mockTrendsApi(page);
 
@@ -821,17 +680,6 @@ test.describe("v3 interaction", () => {
 
     await page.getByRole("button", { name: "人物" }).click();
     await expect(trendLink).toHaveAttribute("href", "https://bgm.tv/person/99002", {
-      timeout: 15_000,
-    });
-  });
-
-  test("趋势页作品外链会按条目来源指向 TMDB", async ({ page }) => {
-    await mockTrendsApi(page);
-
-    await page.goto("/trends?kind=work&period=24h&view=overall");
-    await page.getByRole("button", { name: "今天" }).click();
-    const trendLink = page.locator('a[title="在 TMDB 查看"]').first();
-    await expect(trendLink).toHaveAttribute("href", "https://www.themoviedb.org/movie/77001", {
       timeout: 15_000,
     });
   });

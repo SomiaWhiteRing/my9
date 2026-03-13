@@ -491,8 +491,6 @@ export default function My9V3App({
             ? "tmdb"
             : json.source === "itunes"
               ? "itunes"
-              : json.source === "mixed"
-                ? "mixed"
               : "bangumi",
         kind,
         items: Array.isArray(json.items) ? json.items : [],

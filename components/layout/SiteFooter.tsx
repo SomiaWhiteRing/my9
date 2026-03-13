@@ -36,7 +36,6 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
     process.env.NEXT_PUBLIC_TALLY_FORM_URL?.trim() ||
     process.env.NEXT_PUBLIC_FEEDBACK_TALLY_URL?.trim();
   const tallyEmbedUrl = tallyFormUrl ? buildTallyEmbedUrl(tallyFormUrl) : "";
-  const isWorkKind = kind === "work";
   const isTmdbKind = kind === "tv" || kind === "movie";
   const isAppleMusicKind = kind === "song" || kind === "album";
 
@@ -49,36 +48,7 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
     >
       <p>
         由{" "}
-        {isWorkKind ? (
-          <>
-            <a
-              href="https://bangumi.tv/"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-sky-600 hover:underline"
-            >
-              Bangumi
-            </a>
-            {" + "}
-            <a
-              href="https://www.themoviedb.org/"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-sky-600 hover:underline"
-            >
-              TMDB
-            </a>
-            {" + "}
-            <a
-              href="https://music.apple.com/"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-sky-600 hover:underline"
-            >
-              Apple Music
-            </a>
-          </>
-        ) : isTmdbKind ? (
+        {isTmdbKind ? (
           <a
             href="https://www.themoviedb.org/"
             target="_blank"

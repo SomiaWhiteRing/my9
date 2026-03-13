@@ -4,7 +4,6 @@ import Image from "next/image";
 import { AlertTriangle, Globe, MessageCircle } from "lucide-react";
 import { ShareGame } from "@/lib/share/types";
 import type { SubjectKind } from "@/lib/subject-kind";
-import { resolveSubjectLink } from "@/lib/subject-source";
 
 interface SelectedGamesListProps {
   games: Array<ShareGame | null>;
@@ -19,6 +18,73 @@ interface SelectedGamesListProps {
 
 function displayName(game: ShareGame): string {
   return game.localizedName?.trim() || game.name;
+}
+
+function bangumiLink(game: ShareGame, cat?: number): string {
+  const id = String(game.id || "").trim();
+  if (/^\d+$/.test(id)) {
+    return `https://bgm.tv/subject/${id}`;
+  }
+  const query = encodeURIComponent(displayName(game));
+  if (typeof cat === "number") {
+    return `https://bgm.tv/subject_search/${query}?cat=${cat}`;
+  }
+  return `https://bgm.tv/subject_search/${query}`;
+}
+
+function bangumiCharacterLink(game: ShareGame): string {
+  return `https://bgm.tv/character/${String(game.id || "").trim()}`;
+}
+
+function bangumiPersonLink(game: ShareGame): string {
+  return `https://bgm.tv/person/${String(game.id || "").trim()}`;
+}
+
+function tmdbTvLink(game: ShareGame): string {
+  const id = String(game.id || "").trim();
+  if (/^\d+$/.test(id)) {
+    return `https://www.themoviedb.org/tv/${id}`;
+  }
+  const query = encodeURIComponent(displayName(game));
+  return `https://www.themoviedb.org/search/tv?query=${query}`;
+}
+
+function tmdbMovieLink(game: ShareGame): string {
+  const id = String(game.id || "").trim();
+  if (/^\d+$/.test(id)) {
+    return `https://www.themoviedb.org/movie/${id}`;
+  }
+  const query = encodeURIComponent(displayName(game));
+  return `https://www.themoviedb.org/search/movie?query=${query}`;
+}
+
+function appleMusicLink(game: ShareGame): string {
+  if (game.storeUrls?.apple) {
+    return game.storeUrls.apple;
+  }
+  const query = encodeURIComponent(displayName(game));
+  return `https://music.apple.com/cn/search?term=${query}`;
+}
+
+function subjectLink(game: ShareGame, kind?: SubjectKind, cat?: number): string {
+  if (kind === "song" || kind === "album") {
+    return appleMusicLink(game);
+  }
+  if (kind === "tv") return tmdbTvLink(game);
+  if (kind === "movie") return tmdbMovieLink(game);
+  if (kind === "character") return bangumiCharacterLink(game);
+  if (kind === "person") return bangumiPersonLink(game);
+  return bangumiLink(game, cat);
+}
+
+function subjectSourceLabel(kind?: SubjectKind): string {
+  if (kind === "song" || kind === "album") {
+    return "Apple Music";
+  }
+  if (kind === "tv" || kind === "movie") {
+    return "TMDB";
+  }
+  return "Bangumi";
 }
 
 export function SelectedGamesList({
@@ -48,11 +114,6 @@ export function SelectedGamesList({
 
         {selected.map(({ index, game }) => {
           const spoilerCollapsed = Boolean(game.spoiler) && !spoilerExpandedSet.has(index);
-          const subjectLink = resolveSubjectLink({
-            kind,
-            subject: game,
-            bangumiSearchCat,
-          });
           return (
             <article
               key={`${String(game.id)}-${index}`}
@@ -113,10 +174,10 @@ export function SelectedGamesList({
 
                 <div className="-mt-0.5 flex flex-col items-center gap-1 self-start sm:-mt-1">
                   <a
-                    href={subjectLink.url}
+                    href={subjectLink(game, kind, bangumiSearchCat)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    title={`在 ${subjectLink.sourceLabel} 查看`}
+                    title={`在 ${subjectSourceLabel(kind)} 查看`}
                     className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
                     <Globe className="h-4 w-4" />
