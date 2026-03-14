@@ -163,11 +163,13 @@ export function SupportButton() {
             />
           </div>
         ) : (
+          <div className="mt-3 flex justify-center">
             <img
               src={fallbackWechatPayQrUrl}
               alt="微信赞赏码"
               className="h-48 w-48 rounded-lg border border-border object-contain md:h-60 md:w-60"
             />
+          </div>
         )}
         <section className="mt-5 border-t border-border pt-4">
           <h3 className="text-sm font-semibold text-foreground">鸣谢名单</h3>
