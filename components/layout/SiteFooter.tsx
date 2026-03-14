@@ -13,6 +13,7 @@ import { FaWeibo, FaGithub } from "react-icons/fa";
 import { SiBilibili } from "react-icons/si";
 import { SupportButton } from "@/components/SupportButton";
 import type { SubjectKind } from "@/lib/subject-kind";
+import { getPublicSiteUrl, getSiteHostname } from "@/lib/site-url";
 
 interface SiteFooterProps {
   className?: string;
@@ -36,6 +37,7 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
     process.env.NEXT_PUBLIC_TALLY_FORM_URL?.trim() ||
     process.env.NEXT_PUBLIC_FEEDBACK_TALLY_URL?.trim();
   const tallyEmbedUrl = tallyFormUrl ? buildTallyEmbedUrl(tallyFormUrl) : "";
+  const hitsHost = getSiteHostname(getPublicSiteUrl());
   const isWorkKind = kind === "work";
   const isTmdbKind = kind === "tv" || kind === "movie";
   const isAppleMusicKind = kind === "song" || kind === "album";
@@ -147,7 +149,7 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
       </div>
       <div className="mt-3 flex flex-nowrap items-center justify-center gap-2 text-xs text-muted-foreground">
         <a
-          href="https://hits.sh/my9.shatranj.space/"
+          href={`https://hits.sh/${hitsHost}/`}
           target="_blank"
           rel="noreferrer"
           aria-label="hitsh"
@@ -155,7 +157,7 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="https://hits.sh/my9.shatranj.space.svg?style=flat-square&label=visitors"
+            src={`https://hits.sh/${hitsHost}.svg?style=flat-square&label=visitors`}
             alt="hitsh badge"
           />
         </a>

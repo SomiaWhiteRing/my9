@@ -1,7 +1,9 @@
 import type React from "react";
 import type { Metadata } from "next";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import { getServerSiteUrl } from "@/lib/site-url";
 import "./globals.css";
+
 const SYSTEM_THEME_INIT_SCRIPT = `
 (() => {
   const root = document.documentElement;
@@ -18,8 +20,10 @@ const SYSTEM_THEME_INIT_SCRIPT = `
 })();
 `;
 
+const siteUrl = getServerSiteUrl();
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://my9.shatranj.space"),
+  metadataBase: new URL(siteUrl),
   title: "构成我的九部作品",
   description: "挑选 9 部最能代表你的作品，生成并分享你的「构成我的九部作品」页面。",
   alternates: {

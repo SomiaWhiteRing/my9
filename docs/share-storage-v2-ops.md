@@ -2,6 +2,8 @@
 
 ## New env vars
 
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
 - Cloudflare Worker binding: `MY9_COLD_STORAGE` (R2 bucket binding used by the runtime)
 - `R2_ENDPOINT`
 - `R2_BUCKET`
@@ -109,7 +111,7 @@ Notes:
 
 Recommended setup:
 
-1. Bind `MY9_COLD_STORAGE` in `wrangler.jsonc`.
+1. Bind `MY9_COLD_STORAGE` in `wrangler.jsonc` to the same bucket used for archive objects.
 2. Set `CRON_SECRET` in Worker secrets if you want to keep the manual route protected.
 3. Deploy so `wrangler.jsonc` cron is applied.
 4. Verify route manually once:

@@ -14,7 +14,30 @@
   "r2_buckets": [
     {
       "binding": "MY9_COLD_STORAGE",
-      "bucket_name": "my9-cold-storage"
+      "bucket_name": "my9"
     }
-  ]
+  ],
+  "env": {
+    "test": {
+      "routes": [
+        {
+          "pattern": "my9test.shatranj.space",
+          "custom_domain": true
+        }
+      ],
+      "assets": {
+        "directory": ".open-next/assets",
+        "binding": "ASSETS"
+      },
+      "r2_buckets": [
+        {
+          "binding": "MY9_COLD_STORAGE",
+          "bucket_name": "my9"
+        }
+      ],
+      "triggers": {
+        "crons": []
+      }
+    }
+  }
 }

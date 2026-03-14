@@ -23,9 +23,12 @@
 - `npm run dev`：本地开发（默认 `http://localhost:3000`）。
 - `npm run build`：生产构建。
 - `npm start`：启动生产构建产物。
+- `npm run cf:verify-access`：只读核验 Cloudflare account token、zone、Workers routes 与 R2 bucket 对齐情况。
 - `npm run cf:build`：执行 OpenNext Cloudflare 构建（输出 `.open-next/`）。
+- `npm run cf:build:test`：按 `wrangler.jsonc` 的 `env.test` 生成测试域部署产物。
 - `npm run cf:preview`：先构建，再通过 Wrangler 本地预览 Worker。
 - `npm run cf:deploy`：先构建，再部署到 Cloudflare Workers。
+- `npm run cf:deploy:test`：构建并部署到 `my9test.shatranj.space` 对应的 Cloudflare Worker 环境。
 - `npm run lint`：运行 ESLint。
 - `npm run test:e2e`：运行 Playwright E2E。
 - `node scripts/migrate-shares-v1-to-v2.mjs`：将 `my9_shares_v1` 迁移到 v2 存储模型（支持 checkpoint）。
@@ -57,6 +60,8 @@
 
 ## 环境变量与外部服务
 - 在 `.env.local`（勿提交）中配置：
+  - `CLOUDFLARE_API_TOKEN`
+  - `CLOUDFLARE_ACCOUNT_ID`
   - `BANGUMI_ACCESS_TOKEN`
   - `BANGUMI_USER_AGENT`
   - `NEON_DATABASE_PGHOST_UNPOOLED`（或 `NEON_DATABASE_PGHOST`）
@@ -74,9 +79,12 @@
   - 可选：`MY9_ARCHIVE_BATCH_SIZE`（默认 `500`）
   - 可选：`MY9_ARCHIVE_CLEANUP_TREND_DAYS`（默认 `190`，勿低于 `180`，否则影响 `180d` 趋势）
   - 可选：`NEXT_PUBLIC_GA_ID`
+  - 可选：`NEXT_PUBLIC_SITE_URL`（测试域部署时需设为 `https://my9test.shatranj.space`）
+  - 可选：`SITE_URL`（服务端覆盖；未设置时回退到 `NEXT_PUBLIC_SITE_URL`）
 - Cloudflare Workers 生产部署还需在 `wrangler.jsonc` 中绑定：
   - `MY9_COLD_STORAGE`（R2）
   - `ASSETS`（静态资源）
+- Cloudflare 部署认证统一使用 account token，不再使用全局 `CLOUDFLARE_API_KEY`。
 - 分享图封面当前通过 `wsrv.nl` 在前端拉取并绘制；修改该链路时需评估跨域与流量成本影响。
 - 严禁提交任何真实密钥（Neon/R2/CRON）。若误泄露，必须立即旋转并更新环境变量。
 - OpenNext Cloudflare 当前不建议把原生 Windows PowerShell 作为正式构建/部署环境；发布前至少在 Linux CI 或 WSL2 上验证一次 `npm run cf:build`。
