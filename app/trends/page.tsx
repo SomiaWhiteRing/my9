@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import TrendsClientPage from "@/app/components/TrendsClientPage";
-import { unstable_cache } from "next/cache";
 import type { TrendResponse } from "@/lib/share/types";
 import { getSubjectKindMeta } from "@/lib/subject-kind";
 import {
@@ -12,28 +11,6 @@ import {
   resolveTrendViewByKind,
   resolveTrendResponse,
 } from "@/lib/share/trends-query";
-
-const TRENDS_PAGE_ISR_TTL_SECONDS = 300;
-
-const resolveTrendResponseCached = unstable_cache(
-  async (
-    kind: string,
-    period: string,
-    view: string,
-    overallPage: number,
-    yearPage: string
-  ) => {
-    return resolveTrendResponse({
-      kind: parseTrendKind(kind),
-      period: parseTrendPeriod(period),
-      view: parseTrendView(view),
-      overallPage: parseTrendOverallPage(String(overallPage)),
-      yearPage: parseTrendYearPage(yearPage),
-    });
-  },
-  ["trends-page-response-v1"],
-  { revalidate: TRENDS_PAGE_ISR_TTL_SECONDS }
-);
 
 function resolveSearchParam(
   value: string | string[] | undefined
@@ -83,19 +60,7 @@ export default async function TrendsPage({
   let initialError = "";
 
   try {
-    // Keep `today` requests uncached at the page layer so low-sample recovery can
-    // run on every request after the midnight seed window.
-    if (initialParams.period === "today") {
-      initialData = await resolveTrendResponse(initialParams);
-    } else {
-      initialData = await resolveTrendResponseCached(
-        initialParams.kind,
-        initialParams.period,
-        initialParams.view,
-        initialParams.overallPage,
-        initialParams.yearPage
-      );
-    }
+    initialData = await resolveTrendResponse(initialParams);
   } catch {
     initialError = "趋势数据加载失败";
   }

@@ -25,7 +25,6 @@ function createTrendsCacheHeaders(cdnTtlSeconds: number) {
   return {
     "Cache-Control": cacheControlValue,
     "CDN-Cache-Control": cacheControlValue,
-    "Vercel-CDN-Cache-Control": cacheControlValue,
   };
 }
 

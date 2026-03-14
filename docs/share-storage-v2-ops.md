@@ -2,13 +2,14 @@
 
 ## New env vars
 
+- Cloudflare Worker binding: `MY9_COLD_STORAGE` (R2 bucket binding used by the runtime)
 - `R2_ENDPOINT`
 - `R2_BUCKET`
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
 - Optional: `R2_REGION` (default: `auto`)
 - Optional: `MY9_ENABLE_V1_FALLBACK=0` (default keeps `my9_shares_v1` read fallback)
-- Optional: `CRON_SECRET` (recommended in production, used by Vercel Cron Authorization header)
+- Optional: `CRON_SECRET` (recommended in production, used by manual `/api/cron/archive` authorization header)
 - Optional: `MY9_ARCHIVE_OLDER_THAN_DAYS` (default `30`)
 - Optional: `MY9_ARCHIVE_BATCH_SIZE` (default `500`)
 - Optional: `MY9_ARCHIVE_CLEANUP_TREND_DAYS` (default `190`)
@@ -91,23 +92,27 @@ Useful flags:
 - `node scripts/archive-shares-cold.mjs --batch-size=500`
 - `node scripts/archive-shares-cold.mjs --cleanup-trend-days=190`
 
-## Vercel Cron (daily, Hobby-safe)
+## Cloudflare Cron (daily)
 
 - Cron route: `/api/cron/archive`
-- Config file: `vercel.json`
+- Scheduler entry: `worker.ts` `scheduled()`
+- Config file: `wrangler.jsonc`
 - Current schedule: `5 16 * * *` (UTC, Beijing `00:05`, once per day)
-- Route default behavior: archive shares older than `30` days
+- Scheduled job default behavior: archive shares older than `30` days
+- Manual route behavior: same as scheduled job, but protected by `CRON_SECRET` in production
 
-Notes from Vercel docs for Hobby:
+Notes:
 
-- Minimum cron interval on Hobby is once per day.
-- Failed runs are not retried automatically. Check logs and re-run manually when needed.
+- Runtime cold storage reads/writes use the `MY9_COLD_STORAGE` R2 binding first.
+- Existing Node scripts still use `R2_ENDPOINT` / `R2_BUCKET` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`.
+- Failed runs should be inspected in Worker logs and re-run manually when needed.
 
 Recommended setup:
 
-1. Set `CRON_SECRET` in Vercel project env.
-2. Redeploy so `vercel.json` cron is applied.
-3. Verify route manually once:
+1. Bind `MY9_COLD_STORAGE` in `wrangler.jsonc`.
+2. Set `CRON_SECRET` in Worker secrets if you want to keep the manual route protected.
+3. Deploy so `wrangler.jsonc` cron is applied.
+4. Verify route manually once:
    ```bash
    curl -H "Authorization: Bearer <CRON_SECRET>" https://<your-domain>/api/cron/archive
    ```

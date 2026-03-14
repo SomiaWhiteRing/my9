@@ -14,7 +14,6 @@ function createShareGetCacheHeaders() {
   return {
     "Cache-Control": SHARE_GET_CACHE_CONTROL_VALUE,
     "CDN-Cache-Control": SHARE_GET_CACHE_CONTROL_VALUE,
-    "Vercel-CDN-Cache-Control": SHARE_GET_CACHE_CONTROL_VALUE,
   };
 }
 

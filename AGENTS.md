@@ -23,6 +23,9 @@
 - `npm run dev`：本地开发（默认 `http://localhost:3000`）。
 - `npm run build`：生产构建。
 - `npm start`：启动生产构建产物。
+- `npm run cf:build`：执行 OpenNext Cloudflare 构建（输出 `.open-next/`）。
+- `npm run cf:preview`：先构建，再通过 Wrangler 本地预览 Worker。
+- `npm run cf:deploy`：先构建，再部署到 Cloudflare Workers。
 - `npm run lint`：运行 ESLint。
 - `npm run test:e2e`：运行 Playwright E2E。
 - `node scripts/migrate-shares-v1-to-v2.mjs`：将 `my9_shares_v1` 迁移到 v2 存储模型（支持 checkpoint）。
@@ -61,24 +64,28 @@
   - `NEON_DATABASE_PGPASSWORD`（或 `NEON_DATABASE_POSTGRES_PASSWORD`）
   - `NEON_DATABASE_PGDATABASE`（或 `NEON_DATABASE_POSTGRES_DATABASE`）
   - 可选：`NEON_DATABASE_PGPORT`、`NEON_DATABASE_PGSSLMODE`（默认 `require`）
-  - 可选：`NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS=1`（默认关闭，避免额外请求）
-  - 可选：`NEXT_PUBLIC_ENABLE_VERCEL_SPEED_INSIGHTS=1`（默认关闭，避免额外请求）
   - 生产环境默认禁用内存 fallback（数据库异常会直接报错）；可用 `MY9_ALLOW_MEMORY_FALLBACK=1` 临时放开
   - 可选：`MY9_ENABLE_V1_FALLBACK=0`（默认开启 v1 读取兜底；迁移稳定后再关闭）
   - 可选：`MY9_TRENDS_24H_SOURCE=day|hour`（默认 `day`；小时窗口初始化完成后再切 `hour`）
   - `R2_ENDPOINT`、`R2_BUCKET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`
   - 可选：`R2_REGION=auto`
-  - `CRON_SECRET`（生产环境建议必配，用于保护 `/api/cron/archive`）
+  - `CRON_SECRET`（生产环境建议必配，用于手动保护 `/api/cron/archive`）
   - 可选：`MY9_ARCHIVE_OLDER_THAN_DAYS`（默认 `30`）
   - 可选：`MY9_ARCHIVE_BATCH_SIZE`（默认 `500`）
   - 可选：`MY9_ARCHIVE_CLEANUP_TREND_DAYS`（默认 `190`，勿低于 `180`，否则影响 `180d` 趋势）
+  - 可选：`NEXT_PUBLIC_GA_ID`
+- Cloudflare Workers 生产部署还需在 `wrangler.jsonc` 中绑定：
+  - `MY9_COLD_STORAGE`（R2）
+  - `ASSETS`（静态资源）
 - 分享图封面当前通过 `wsrv.nl` 在前端拉取并绘制；修改该链路时需评估跨域与流量成本影响。
 - 严禁提交任何真实密钥（Neon/R2/CRON）。若误泄露，必须立即旋转并更新环境变量。
+- OpenNext Cloudflare 当前不建议把原生 Windows PowerShell 作为正式构建/部署环境；发布前至少在 Linux CI 或 WSL2 上验证一次 `npm run cf:build`。
 
 ## 分享存储 v2 运维
 - 迁移脚本默认读取 `my9_shares_v1`，并写入 `my9_share_registry_v2` / `my9_share_alias_v1` / `my9_subject_dim_v1` / `my9_trend_subject_*`。
 - 迁移完成后先执行 `node scripts/verify-shares-v2-migration.mjs`；仅当 `missing_count=0` 且 `orphan_alias_count=0` 才允许考虑关闭 v1 兜底。
-- 日常归档通过 `app/api/cron/archive` 触发，调度配置在 `vercel.json`（当前 `5 16 * * *`，即北京时间 `00:05`，每天一次）。
+- 日常归档由 Cloudflare Workers Cron 调度 `worker.ts` 中的 `scheduled()`，当前配置在 `wrangler.jsonc`（`5 16 * * *`，即北京时间 `00:05`，每天一次）。
+- `app/api/cron/archive` 继续保留为手动运维入口；生产环境建议始终使用 `CRON_SECRET`。
 - 生产切换顺序：`v2 优先 + v1 兜底` -> 全量迁移与校验 -> 关闭兜底 -> 稳定观察后再删除 v1 表。
 
 ## 提交与 PR 建议

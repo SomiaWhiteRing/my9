@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "my9",
+  "main": "worker.ts",
+  "compatibility_date": "2026-03-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "triggers": {
+    "crons": ["5 16 * * *"]
+  },
+  "r2_buckets": [
+    {
+      "binding": "MY9_COLD_STORAGE",
+      "bucket_name": "my9-cold-storage"
+    }
+  ]
+}

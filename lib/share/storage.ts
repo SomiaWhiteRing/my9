@@ -7,7 +7,13 @@ import {
   normalizeCompactPayload,
   toCompactSharePayload,
 } from "@/lib/share/compact";
-import { getColdSharePayload, buildColdObjectKey, isColdStorageEnabled, putColdSharePayload } from "@/lib/share/cold-storage";
+import {
+  getColdSharePayload,
+  buildColdObjectKey,
+  isColdStorageEnabled,
+  putColdSharePayload,
+  type ColdStorageBucketLike,
+} from "@/lib/share/cold-storage";
 import {
   ShareSubject,
   StoredShareV1,
@@ -2079,6 +2085,8 @@ export async function archiveHotSharesToColdStorage(params?: {
   olderThanDays?: number;
   batchSize?: number;
   cleanupTrendDays?: number;
+}, options?: {
+  coldStorageBucket?: ColdStorageBucketLike | null;
 }): Promise<{ processed: number; archived: number; skipped: number; cleanedTrendRows: number }> {
   const olderThanDays = params?.olderThanDays ?? 30;
   const batchSize = params?.batchSize ?? 500;
@@ -2110,16 +2118,19 @@ export async function archiveHotSharesToColdStorage(params?: {
 
   let archived = 0;
   let skipped = 0;
+  const coldStorageEnabled = await isColdStorageEnabled(options?.coldStorageBucket);
 
   for (const row of rows) {
     const payload = normalizeCompactPayload(row.hot_payload);
-    if (!payload || !isColdStorageEnabled()) {
+    if (!payload || !coldStorageEnabled) {
       skipped += 1;
       continue;
     }
 
     const objectKey = buildColdObjectKey(row.share_id);
-    const uploaded = await putColdSharePayload(objectKey, payload);
+    const uploaded = await putColdSharePayload(objectKey, payload, {
+      bucket: options?.coldStorageBucket ?? null,
+    });
     if (!uploaded) {
       skipped += 1;
       continue;

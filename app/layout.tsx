@@ -1,12 +1,7 @@
 import type React from "react";
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import "./globals.css";
-
-const ENABLE_VERCEL_ANALYTICS = process.env.NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS === "1";
-const ENABLE_VERCEL_SPEED_INSIGHTS = process.env.NEXT_PUBLIC_ENABLE_VERCEL_SPEED_INSIGHTS === "1";
 const SYSTEM_THEME_INIT_SCRIPT = `
 (() => {
   const root = document.documentElement;
@@ -60,8 +55,6 @@ export default function RootLayout({
         <GoogleAnalytics />
       </head>
       <body>
-        {ENABLE_VERCEL_ANALYTICS ? <Analytics /> : null}
-        {ENABLE_VERCEL_SPEED_INSIGHTS ? <SpeedInsights /> : null}
         {children}
       </body>
     </html>

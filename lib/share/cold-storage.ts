@@ -1,6 +1,26 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { CompactSharePayload, normalizeCompactPayload } from "@/lib/share/compact";
+
+type S3Module = typeof import("@aws-sdk/client-s3");
+
+type ColdStorageReadResultLike = {
+  arrayBuffer(): Promise<ArrayBuffer>;
+};
+
+export type ColdStorageBucketLike = {
+  get(key: string): Promise<ColdStorageReadResultLike | null>;
+  put(
+    key: string,
+    value: Uint8Array | ArrayBuffer | string,
+    options?: {
+      httpMetadata?: {
+        contentType?: string;
+        contentEncoding?: string;
+      };
+    }
+  ): Promise<unknown>;
+};
 
 function readEnv(...names: string[]): string | null {
   for (const name of names) {
@@ -18,30 +38,50 @@ const R2_ACCESS_KEY_ID = readEnv("R2_ACCESS_KEY_ID");
 const R2_SECRET_ACCESS_KEY = readEnv("R2_SECRET_ACCESS_KEY");
 const R2_REGION = readEnv("R2_REGION") ?? "auto";
 
-const COLD_STORAGE_ENABLED = Boolean(
+const S3_FALLBACK_ENABLED = Boolean(
   R2_ENDPOINT && R2_BUCKET && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY
 );
 
-let s3Client: S3Client | null = null;
+let s3ModulePromise: Promise<S3Module> | null = null;
+let s3ClientPromise: Promise<InstanceType<S3Module["S3Client"]> | null> | null = null;
 
-function getS3Client(): S3Client | null {
-  if (!COLD_STORAGE_ENABLED) {
+async function getS3Module(): Promise<S3Module> {
+  if (!s3ModulePromise) {
+    s3ModulePromise = import("@aws-sdk/client-s3");
+  }
+  return s3ModulePromise;
+}
+
+async function getS3Client(): Promise<InstanceType<S3Module["S3Client"]> | null> {
+  if (!S3_FALLBACK_ENABLED) {
     return null;
   }
 
-  if (!s3Client) {
-    s3Client = new S3Client({
-      endpoint: R2_ENDPOINT!,
-      region: R2_REGION,
-      forcePathStyle: true,
-      credentials: {
-        accessKeyId: R2_ACCESS_KEY_ID!,
-        secretAccessKey: R2_SECRET_ACCESS_KEY!,
-      },
-    });
+  if (!s3ClientPromise) {
+    s3ClientPromise = (async () => {
+      const { S3Client } = await getS3Module();
+      return new S3Client({
+        endpoint: R2_ENDPOINT!,
+        region: R2_REGION,
+        forcePathStyle: true,
+        credentials: {
+          accessKeyId: R2_ACCESS_KEY_ID!,
+          secretAccessKey: R2_SECRET_ACCESS_KEY!,
+        },
+      });
+    })();
   }
 
-  return s3Client;
+  return s3ClientPromise;
+}
+
+async function getCloudflareColdStorageBucket(): Promise<ColdStorageBucketLike | null> {
+  try {
+    const { env } = await getCloudflareContext({ async: true });
+    return env.MY9_COLD_STORAGE ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function bodyToBuffer(body: unknown): Promise<Buffer> {
@@ -74,8 +114,20 @@ async function bodyToBuffer(body: unknown): Promise<Buffer> {
   throw new Error("unsupported object body type");
 }
 
-export function isColdStorageEnabled(): boolean {
-  return COLD_STORAGE_ENABLED;
+async function resolveColdStorageBucket(
+  bucket?: ColdStorageBucketLike | null
+): Promise<ColdStorageBucketLike | null> {
+  if (bucket) {
+    return bucket;
+  }
+  return getCloudflareColdStorageBucket();
+}
+
+export async function isColdStorageEnabled(bucket?: ColdStorageBucketLike | null): Promise<boolean> {
+  if (await resolveColdStorageBucket(bucket)) {
+    return true;
+  }
+  return Boolean(await getS3Client());
 }
 
 export function buildColdObjectKey(shareId: string): string {
@@ -84,15 +136,35 @@ export function buildColdObjectKey(shareId: string): string {
 
 export async function putColdSharePayload(
   objectKey: string,
-  payload: CompactSharePayload
+  payload: CompactSharePayload,
+  options?: {
+    bucket?: ColdStorageBucketLike | null;
+  }
 ): Promise<boolean> {
-  const client = getS3Client();
+  const body = gzipSync(Buffer.from(JSON.stringify(payload), "utf8"));
+  const bucket = await resolveColdStorageBucket(options?.bucket);
+
+  if (bucket) {
+    try {
+      await bucket.put(objectKey, body, {
+        httpMetadata: {
+          contentType: "application/json",
+          contentEncoding: "gzip",
+        },
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const client = await getS3Client();
   if (!client || !R2_BUCKET) {
     return false;
   }
 
   try {
-    const body = gzipSync(Buffer.from(JSON.stringify(payload), "utf8"));
+    const { PutObjectCommand } = await getS3Module();
     await client.send(
       new PutObjectCommand({
         Bucket: R2_BUCKET,
@@ -108,13 +180,35 @@ export async function putColdSharePayload(
   }
 }
 
-export async function getColdSharePayload(objectKey: string): Promise<CompactSharePayload | null> {
-  const client = getS3Client();
+export async function getColdSharePayload(
+  objectKey: string,
+  options?: {
+    bucket?: ColdStorageBucketLike | null;
+  }
+): Promise<CompactSharePayload | null> {
+  const bucket = await resolveColdStorageBucket(options?.bucket);
+
+  if (bucket) {
+    try {
+      const response = await bucket.get(objectKey);
+      if (!response) {
+        return null;
+      }
+      const body = Buffer.from(await response.arrayBuffer());
+      const raw = gunzipSync(body).toString("utf8");
+      return normalizeCompactPayload(JSON.parse(raw));
+    } catch {
+      return null;
+    }
+  }
+
+  const client = await getS3Client();
   if (!client || !R2_BUCKET) {
     return null;
   }
 
   try {
+    const { GetObjectCommand } = await getS3Module();
     const response = await client.send(
       new GetObjectCommand({
         Bucket: R2_BUCKET,
@@ -123,8 +217,7 @@ export async function getColdSharePayload(objectKey: string): Promise<CompactSha
     );
     const body = await bodyToBuffer(response.Body);
     const raw = gunzipSync(body).toString("utf8");
-    const parsed = JSON.parse(raw);
-    return normalizeCompactPayload(parsed);
+    return normalizeCompactPayload(JSON.parse(raw));
   } catch {
     return null;
   }

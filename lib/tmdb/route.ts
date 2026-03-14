@@ -75,7 +75,6 @@ function getClientIp(request: Request): string | null {
   const direct =
     request.headers.get("x-real-ip") ||
     request.headers.get("cf-connecting-ip") ||
-    request.headers.get("x-vercel-forwarded-for") ||
     request.headers.get("x-client-ip");
 
   if (!direct) return null;
@@ -166,7 +165,6 @@ function createSearchCacheHeaders() {
   return {
     "Cache-Control": SEARCH_CACHE_CONTROL_VALUE,
     "CDN-Cache-Control": SEARCH_CACHE_CONTROL_VALUE,
-    "Vercel-CDN-Cache-Control": SEARCH_CACHE_CONTROL_VALUE,
   };
 }
 

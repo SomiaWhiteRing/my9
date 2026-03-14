@@ -1,8 +1,8 @@
-# Vercel WAF Edge Request Playbook
+# Cloudflare WAF Edge Request Playbook
 
 ## Goal
 
-Use Vercel WAF to reduce obvious noise before requests reach Next.js runtime.
+Use Cloudflare WAF and rate limiting to reduce obvious noise before requests reach the Next.js runtime.
 
 ## Recommended Rules
 
@@ -35,6 +35,6 @@ Use Vercel WAF to reduce obvious noise before requests reach Next.js runtime.
 ## Rollout
 
 1. Enable all rules in `log` mode.
-2. Observe Vercel firewall logs for at least 24h.
+2. Observe Cloudflare security events for at least 24h.
 3. Switch Rule 1 and Rule 2 to `block`.
 4. Keep Rule 3 in rate-limit mode and adjust by error budget.
