@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 
 const DEFAULT_ZONE_NAME = "shatranj.space";
 const DEFAULT_TEST_DOMAIN = "my9test.shatranj.space";
+const DEFAULT_PRODUCTION_DOMAIN = "my9.shatranj.space";
 
 function loadLocalEnvFiles() {
   const candidates = [".env.local", ".env"];
@@ -62,6 +63,8 @@ async function main() {
   const accountId = readEnv("CLOUDFLARE_ACCOUNT_ID");
   const zoneName = readEnv("CLOUDFLARE_ZONE_NAME") ?? DEFAULT_ZONE_NAME;
   const testDomain = readEnv("CLOUDFLARE_TEST_DOMAIN") ?? DEFAULT_TEST_DOMAIN;
+  const productionDomain =
+    readEnv("CLOUDFLARE_PRODUCTION_DOMAIN") ?? DEFAULT_PRODUCTION_DOMAIN;
 
   if (!token || !accountId) {
     throw new Error("CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required");
@@ -70,8 +73,10 @@ async function main() {
   const wranglerConfig = await readJsonConfig("wrangler.jsonc");
   const defaultBucketName = wranglerConfig.r2_buckets?.[0]?.bucket_name ?? null;
   const testBucketName = wranglerConfig.env?.test?.r2_buckets?.[0]?.bucket_name ?? null;
-  const testRoutePattern = wranglerConfig.env?.test?.routes?.[0]?.pattern ?? null;
+  const testDomainPattern = wranglerConfig.env?.test?.routes?.[0]?.pattern ?? null;
+  const productionDomainPattern = wranglerConfig.routes?.[0]?.pattern ?? null;
   const envBucketName = readEnv("R2_BUCKET");
+  const testWorkerName = `${wranglerConfig.name}-test`;
 
   const tokenResult = await cfFetch(`/accounts/${accountId}/tokens/verify`, token);
   printCheck("account token", true, `status=${tokenResult.status}`);
@@ -90,18 +95,39 @@ async function main() {
   printCheck("zone access", true, `${zone.name} (${zone.id})`);
   printCheck("zone permissions", true, (zone.permissions ?? []).join(", "));
 
-  const routesResult = await cfFetch(`/zones/${zone.id}/workers/routes`, token);
-  const matchingRoute = routesResult.find((route) => route.pattern === testDomain || route.pattern === `${testDomain}/*`);
-  printCheck("workers routes read", true, `${routesResult.length} routes visible`);
+  const domainsResult = await cfFetch(`/accounts/${accountId}/workers/domains?zone_id=${zone.id}`, token);
+  const testDomainBinding = domainsResult.find((domain) => domain.hostname === testDomain) ?? null;
+  const productionDomainBinding =
+    domainsResult.find((domain) => domain.hostname === productionDomain) ?? null;
+  printCheck("workers custom domains read", true, `${domainsResult.length} custom domains visible`);
   printCheck(
-    "test domain route",
-    Boolean(testRoutePattern),
-    testRoutePattern ? `configured in wrangler as ${testRoutePattern}` : "missing from wrangler env.test.routes"
+    "test domain config",
+    Boolean(testDomainPattern),
+    testDomainPattern ? `configured in wrangler as ${testDomainPattern}` : "missing from wrangler env.test.routes"
   );
   printCheck(
-    "existing zone route",
-    Boolean(matchingRoute),
-    matchingRoute ? `${matchingRoute.pattern} -> ${matchingRoute.script}` : `${testDomain} is not attached yet`
+    "test domain binding",
+    Boolean(testDomainBinding),
+    testDomainBinding ? `${testDomainBinding.hostname} -> ${testDomainBinding.service}` : `${testDomain} is not attached yet`
+  );
+  printCheck(
+    "production domain config",
+    Boolean(productionDomainPattern),
+    productionDomainPattern
+      ? `configured in wrangler as ${productionDomainPattern}`
+      : "missing from wrangler routes"
+  );
+  printCheck(
+    "production domain binding",
+    Boolean(productionDomainBinding),
+    productionDomainBinding
+      ? `${productionDomainBinding.hostname} -> ${productionDomainBinding.service}`
+      : `${productionDomain} is not attached yet`
+  );
+  printCheck(
+    "test domain worker match",
+    Boolean(testDomainBinding?.service === testWorkerName),
+    testDomainBinding ? `${testDomainBinding.service} vs ${testWorkerName}` : `${testWorkerName} not bound`
   );
 
   const bucketsResult = await cfFetch(`/accounts/${accountId}/r2/buckets`, token);
@@ -126,8 +152,12 @@ async function main() {
   console.log("");
   console.log("Manual follow-up still required:");
   console.log("- Confirm the token policy in the Cloudflare dashboard includes Worker deploy, route/custom domain edit, and secret write.");
-  console.log("- Set NEXT_PUBLIC_SITE_URL and optionally SITE_URL in the build environment before deploying to test.");
-  console.log("- Provision Worker secrets separately; this script only verifies read access and config alignment.");
+  console.log("- Provision Worker secrets separately; this script only verifies read access and custom-domain alignment.");
+  if (productionDomainPattern && !productionDomainBinding) {
+    console.log(
+      "- Production cutover on an existing hostname also requires deleting the current DNS record first, or expanding the token to include Zone DNS Edit so Cloudflare can replace it."
+    );
+  }
 }
 
 main().catch((error) => {

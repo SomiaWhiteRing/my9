@@ -11,6 +11,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const snapshotFilePath = path.resolve(__dirname, "../lib/generated/share-count-snapshot.ts");
 
+function loadLocalEnvFiles() {
+  for (const file of [".env.local", ".env"]) {
+    try {
+      process.loadEnvFile(path.resolve(process.cwd(), file));
+    } catch {
+      // ignore missing env files
+    }
+  }
+}
+
 function readExistingSnapshotCount() {
   if (!existsSync(snapshotFilePath)) return null;
   try {
@@ -32,6 +42,8 @@ export const SHARE_COUNT_SNAPSHOT = ${count};
 }
 
 async function main() {
+  loadLocalEnvFiles();
+
   const fallbackCount = readExistingSnapshotCount() ?? parseShareCount(process.env.NEXT_PUBLIC_SHARE_COUNT) ?? 0;
   let nextCount = fallbackCount;
   let source = "fallback";

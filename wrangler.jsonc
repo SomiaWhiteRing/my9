@@ -4,9 +4,25 @@
   "main": "worker.js",
   "compatibility_date": "2026-03-14",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "routes": [
+    {
+      "pattern": "my9.shatranj.space",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": false
+    }
   },
   "triggers": {
     "crons": ["5 16 * * *"]
