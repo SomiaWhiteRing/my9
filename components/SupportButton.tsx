@@ -17,10 +17,15 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-14", name: "惊蟄正中央｡:.ﾟ", amount: "3", message: "辛苦了！" },
+  { date: "2026-03-14", name: "夷蹴而就", amount: "50", message: "成功的经营，希望有gal专项" },
+  { date: "2026-03-14", name: "黛雪若兮", amount: "20", message: "感谢制作，希望有更多的书籍，专辑，电影！祝你开心^_^" },
+  { date: "2026-03-14", name: "Euphoria", amount: "10", message: "作者加油鸭" },
+  { date: "2026-03-14", name: "CC(´-ι_-｀)", amount: "6", message: "" },
   { date: "2026-03-14", name: "咒怨", amount: "10", message: "" },
   { date: "2026-03-14", name: "蜃気楼", amount: "5.2", message: "" },
   { date: "2026-03-13", name: "孔睦瑞", amount: "1", message: "云吸猫" },
-  { date: "2026-03-13", name: "yoj1pR", amount: "10", message: "辛苦了——" },
+  { date: "2026-03-13", name: "γοj1pR", amount: "10", message: "辛苦了——" },
   { date: "2026-03-13", name: "匿名", amount: "3", message: "音乐很多小众专辑缺失，后续可以支持让用户自行添加图片和文字" },
   { date: "2026-03-13", name: "官官", amount: "3", message: "阿巴阿巴阿巴" },
   { date: "2026-03-13", name: "匿名", amount: "1", message: "" },
@@ -41,7 +46,7 @@ const donationAcknowledgements: Array<{
   { date: "2026-03-12", name: "Raving", amount: "6", message: "希望多加些经典小说和电影，我也让我爸填填" },
   { date: "2026-03-12", name: "World Collide", amount: "6", message: "感谢这么好的网站！可不可以再加个音乐剧Hamilton哇" },
   { date: "2026-03-12", name: "不想起床bot", amount: "10", message: "居然有妄想症赏10元" },
-  { date: "2026-03-12", name: "💿", amount: "6", message: "加油呀" },
+  { date: "2026-03-12", name: "💽", amount: "6", message: "加油呀" },
   { date: "2026-03-12", name: "17", amount: "5.2", message: "感谢老师带我回忆了一次童年过往的美好" },
   { date: "2026-03-12", name: "匿名", amount: "50", message: "太棒啦宝宝" },
   { date: "2026-03-12", name: "许喆隆", amount: "3", message: "" },
