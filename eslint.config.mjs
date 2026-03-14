@@ -8,6 +8,7 @@ const eslintConfig = [
     ignores: [
       ".next-e2e/**",
       ".open-next/**",
+      ".wrangler/**",
       "coverage/**",
       "screenshot/**",
       "test-results/**",
