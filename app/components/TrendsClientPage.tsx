@@ -3,13 +3,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowUp, ChevronsUpDown, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SupportButton } from "@/components/SupportButton";
-import { SubjectKind, SUBJECT_KIND_ORDER, getSubjectKindMeta } from "@/lib/subject-kind";
+import {
+  SubjectKind,
+  SUBJECT_KIND_ORDER,
+  getSubjectKindMeta,
+  parseSubjectKind,
+} from "@/lib/subject-kind";
 import type { TrendGameItem, TrendResponse, TrendPeriod, TrendView, TrendYearPage } from "@/lib/share/types";
 import { resolveSubjectLink } from "@/lib/subject-source";
 import { cn } from "@/lib/utils";
@@ -65,6 +71,11 @@ const YEAR_PAGE_OPTIONS: Array<{ value: TrendYearPage; label: string }> = [
   { value: "recent", label: "现代" },
   { value: "legacy", label: "经典" },
 ];
+const DEFAULT_TREND_KIND: SubjectKind = "game";
+const DEFAULT_TREND_PERIOD: TrendPeriod = "24h";
+const DEFAULT_TREND_VIEW: TrendView = "overall";
+const DEFAULT_TREND_OVERALL_PAGE = 1;
+const DEFAULT_TREND_YEAR_PAGE: TrendYearPage = "recent";
 
 function formatDateTime(value: number | null) {
   if (!value) return "暂无";
@@ -104,6 +115,36 @@ function resolveViewByKind(kind: SubjectKind, view: TrendView): TrendView {
     return "overall";
   }
   return view;
+}
+
+function parseTrendKindParam(value: string | null): SubjectKind {
+  return parseSubjectKind(value) ?? DEFAULT_TREND_KIND;
+}
+
+function parseTrendPeriodParam(value: string | null): TrendPeriod {
+  if (PERIOD_OPTIONS.some((option) => option.value === value)) {
+    return value as TrendPeriod;
+  }
+  return DEFAULT_TREND_PERIOD;
+}
+
+function parseTrendViewParam(value: string | null): TrendView {
+  if (VIEW_OPTIONS.some((option) => option.value === value)) {
+    return value as TrendView;
+  }
+  return DEFAULT_TREND_VIEW;
+}
+
+function parseTrendOverallPageParam(value: string | null): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > OVERALL_PAGE_COUNT) {
+    return DEFAULT_TREND_OVERALL_PAGE;
+  }
+  return parsed;
+}
+
+function parseTrendYearPageParam(value: string | null): TrendYearPage {
+  return value === "legacy" ? "legacy" : DEFAULT_TREND_YEAR_PAGE;
 }
 
 function toTrendsCoverUrl(cover: string | null | undefined): string | null {
@@ -316,34 +357,55 @@ function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear 
 }
 
 interface TrendsClientPageProps {
-  initialKind: SubjectKind;
-  initialPeriod: TrendPeriod;
-  initialView: TrendView;
-  initialOverallPage: number;
-  initialYearPage: TrendYearPage;
-  initialData: TrendResponse | null;
+  initialKind?: SubjectKind;
+  initialPeriod?: TrendPeriod;
+  initialView?: TrendView;
+  initialOverallPage?: number;
+  initialYearPage?: TrendYearPage;
+  initialData?: TrendResponse | null;
   initialError?: string;
 }
 
 export default function TrendsClientPage({
-  initialKind,
-  initialPeriod,
-  initialView,
-  initialOverallPage,
-  initialYearPage,
-  initialData,
+  initialKind = DEFAULT_TREND_KIND,
+  initialPeriod = DEFAULT_TREND_PERIOD,
+  initialView = DEFAULT_TREND_VIEW,
+  initialOverallPage = DEFAULT_TREND_OVERALL_PAGE,
+  initialYearPage = DEFAULT_TREND_YEAR_PAGE,
+  initialData = null,
   initialError = "",
 }: TrendsClientPageProps) {
+  const searchParams = useSearchParams();
+  const searchParamsKey = searchParams.toString();
+  const urlState = useMemo(() => {
+    const params = new URLSearchParams(searchParamsKey);
+    const nextKind = parseTrendKindParam(params.get("kind"));
+    const nextView = resolveViewByKind(
+      nextKind,
+      parseTrendViewParam(params.get("view"))
+    );
+
+    return {
+      kind: nextKind,
+      period: parseTrendPeriodParam(params.get("period")),
+      view: nextView,
+      overallPage: parseTrendOverallPageParam(params.get("overallPage")),
+      yearPage: parseTrendYearPageParam(params.get("yearPage")),
+    };
+  }, [searchParamsKey]);
   const nowMs = Date.now();
   const shouldRefetchOnMount = Boolean(
-    initialError ||
+    !initialData ||
+      initialError ||
       (initialData && initialData.sampleCount >= 30 && Array.isArray(initialData.items) && initialData.items.length === 0)
   );
-  const [kind, setKind] = useState<SubjectKind>(initialKind);
-  const [period, setPeriod] = useState<TrendPeriod>(initialPeriod);
-  const [view, setView] = useState<TrendView>(resolveViewByKind(initialKind, initialView));
-  const [overallPage, setOverallPage] = useState<number>(initialOverallPage);
-  const [yearPage, setYearPage] = useState<TrendYearPage>(initialYearPage);
+  const [kind, setKind] = useState<SubjectKind>(initialKind ?? urlState.kind);
+  const [period, setPeriod] = useState<TrendPeriod>(initialPeriod ?? urlState.period);
+  const [view, setView] = useState<TrendView>(
+    resolveViewByKind(initialKind ?? urlState.kind, initialView ?? urlState.view)
+  );
+  const [overallPage, setOverallPage] = useState<number>(initialOverallPage ?? urlState.overallPage);
+  const [yearPage, setYearPage] = useState<TrendYearPage>(initialYearPage ?? urlState.yearPage);
   const [data, setData] = useState<TrendResponse | null>(initialData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(initialError);
@@ -358,6 +420,14 @@ export default function TrendsClientPage({
   const isCurrentKindOverallOnly = isOverallOnlyKind(kind);
   const requestOverallPage = view === "overall" ? overallPage : 1;
   const requestYearPage: TrendYearPage = view === "year" ? yearPage : "recent";
+
+  useEffect(() => {
+    setKind(urlState.kind);
+    setPeriod(urlState.period);
+    setView(urlState.view);
+    setOverallPage(urlState.overallPage);
+    setYearPage(urlState.yearPage);
+  }, [urlState.kind, urlState.overallPage, urlState.period, urlState.view, urlState.yearPage]);
 
   useEffect(() => {
     // Keep mount-time recovery refetch path intact for stale-empty/error SSR payloads.
