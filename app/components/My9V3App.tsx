@@ -721,7 +721,7 @@ export default function My9V3App({
             大家的构成
             <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
           </button>
-          {/* <p className="text-sm text-amber-600 dark:text-amber-400">还没想好要做什么……</p> */}
+          <p className="text-sm text-amber-600 dark:text-amber-400">{/* 还没想好要做什么…… */}</p>
           <SupportButton/>
         </header>
 
