@@ -3,31 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { SUBJECT_KIND_ORDER, SubjectKind, getSubjectKindMeta, getSubjectKindShareTitle } from "@/lib/subject-kind";
+import { FILL_MODE_ORDER, FillMode, getFillModeMeta } from "@/lib/fill-mode";
 import { cn } from "@/lib/utils";
 
 export default function HomeKindEntry() {
-  const [kind, setKind] = useState<SubjectKind>("game");
+  const [mode, setMode] = useState<FillMode>("game");
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const scrollRafRef = useRef<number | null>(null);
-  const kindMeta = getSubjectKindMeta(kind);
-  const shareTitle = getSubjectKindShareTitle(kind);
-  const titlePrefix = `构成我的九${kindMeta.selectionUnit}`;
-  const optionRefs = useRef<Record<SubjectKind, HTMLButtonElement | null>>({
-    game: null,
-    anime: null,
-    tv: null,
-    movie: null,
-    manga: null,
-    lightnovel: null,
-    song: null,
-    album: null,
-    work: null,
-    character: null,
-    person: null,
-  });
+  const fillModeMeta = getFillModeMeta(mode);
+  const titlePrefix = mode === "custom" ? "构成我的" : `构成我的九${fillModeMeta.selectionUnit}`;
+  const optionRefs = useRef<Partial<Record<FillMode, HTMLButtonElement | null>>>({});
 
-  function scrollKindIntoCenter(targetKind: SubjectKind, behavior: ScrollBehavior) {
+  function scrollKindIntoCenter(targetKind: FillMode, behavior: ScrollBehavior) {
     const picker = pickerRef.current;
     const option = optionRefs.current[targetKind];
     if (!picker || !option) return;
@@ -51,10 +38,10 @@ export default function HomeKindEntry() {
 
     const pickerRect = picker.getBoundingClientRect();
     const centerY = pickerRect.top + pickerRect.height / 2;
-    let nextKind = kind;
+    let nextKind = mode;
     let minDistance = Number.POSITIVE_INFINITY;
 
-    for (const item of SUBJECT_KIND_ORDER) {
+    for (const item of FILL_MODE_ORDER) {
       const option = optionRefs.current[item];
       if (!option) continue;
       const optionRect = option.getBoundingClientRect();
@@ -65,8 +52,8 @@ export default function HomeKindEntry() {
       }
     }
 
-    if (nextKind !== kind) {
-      setKind(nextKind);
+    if (nextKind !== mode) {
+      setMode(nextKind);
     }
   }
 
@@ -90,8 +77,8 @@ export default function HomeKindEntry() {
   }, []);
 
   useEffect(() => {
-    document.title = shareTitle;
-  }, [shareTitle]);
+    document.title = fillModeMeta.pageTitle;
+  }, [fillModeMeta.pageTitle]);
 
   return (
     <main className="min-h-screen bg-background px-4 py-10 text-foreground sm:px-6 sm:py-14">
@@ -110,9 +97,9 @@ export default function HomeKindEntry() {
                   className="h-56 snap-y snap-mandatory overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:h-72"
                 >
                   <div className="h-20 sm:h-28" aria-hidden />
-                  {SUBJECT_KIND_ORDER.map((item) => {
-                    const meta = getSubjectKindMeta(item);
-                    const active = item === kind;
+                  {FILL_MODE_ORDER.map((item) => {
+                    const meta = getFillModeMeta(item);
+                    const active = item === mode;
                     return (
                       <button
                         key={item}
@@ -121,7 +108,7 @@ export default function HomeKindEntry() {
                           optionRefs.current[item] = element;
                         }}
                         onClick={() => {
-                          setKind(item);
+                          setMode(item);
                           scrollKindIntoCenter(item, "smooth");
                         }}
                         className={cn(
@@ -145,7 +132,7 @@ export default function HomeKindEntry() {
               asChild
               className="inline-flex h-auto w-full max-w-sm items-center justify-center rounded-full bg-sky-600 px-4 py-3 text-sm font-bold text-white shadow-sm shadow-sky-200 transition-all hover:bg-sky-700"
             >
-              <Link href={`/${kind}`} prefetch={false}>开始填写！</Link>
+              <Link href={fillModeMeta.route} prefetch={false}>开始填写！</Link>
             </Button>
           </div>
         </section>

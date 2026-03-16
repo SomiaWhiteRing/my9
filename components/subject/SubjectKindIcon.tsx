@@ -1,13 +1,13 @@
 "use client";
 
-import { Gamepad2, Tv, Film, BookOpen, BookText, Library, Music, Disc3, User, Users } from "lucide-react";
+import { Gamepad2, Tv, Film, BookOpen, BookText, Library, Music, Disc3, User, Users, PencilRuler } from "lucide-react";
 import { SubjectKind } from "@/lib/subject-kind";
 
 export function SubjectKindIcon({
   kind,
   className,
 }: {
-  kind?: SubjectKind | null;
+  kind?: SubjectKind | "custom" | null;
   className?: string;
 }) {
   switch (kind) {
@@ -31,6 +31,8 @@ export function SubjectKindIcon({
       return <Users className={className} />;
     case "person":
       return <User className={className} />;
+    case "custom":
+      return <PencilRuler className={className} />;
     case "work":
     default:
       return <Library className={className} />;

@@ -4,6 +4,7 @@ import { SUBJECT_KIND_ORDER } from "@/lib/subject-kind";
 
 const STATIC_ROUTES = [
   { path: "", changeFrequency: "daily", priority: 1 },
+  { path: "/custom", changeFrequency: "weekly", priority: 0.8 },
   { path: "/trends", changeFrequency: "weekly", priority: 0.8 },
   { path: "/agreement", changeFrequency: "monthly", priority: 0.3 },
   { path: "/privacy-policy", changeFrequency: "monthly", priority: 0.3 },

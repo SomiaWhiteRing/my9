@@ -1,6 +1,7 @@
 "use client";
 
 import QRCode from "qrcode";
+import { getCustomEntryExportTitle, type CustomEntry } from "@/lib/custom/types";
 import { SubjectKind, getSubjectKindMeta } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
 
@@ -19,6 +20,12 @@ const PANEL_Y = PANEL_MARGIN_Y;
 const PANEL_WIDTH = CANVAS_WIDTH - PANEL_MARGIN_X * 2;
 const BASE_PANEL_HEIGHT = CANVAS_HEIGHT - PANEL_MARGIN_Y * 2;
 
+type GridExportItem = {
+  cover: string | null;
+  title: string;
+  alignTop?: boolean;
+};
+
 function displayName(game: ShareGame | null): string {
   if (!game) return "未选择";
   return game.localizedName?.trim() || game.name;
@@ -29,26 +36,27 @@ function displayUserName(creatorName?: string | null): string {
   return value || "我";
 }
 
-async function blobToImage(blob: Blob): Promise<HTMLImageElement> {
-  const objectUrl = URL.createObjectURL(blob);
+async function srcToImage(src: string): Promise<HTMLImageElement> {
   const image = new Image();
-  image.src = objectUrl;
+  image.src = src;
   await new Promise<void>((resolve, reject) => {
     image.onload = () => resolve();
     image.onerror = () => reject(new Error("图片加载失败"));
   });
-  URL.revokeObjectURL(objectUrl);
   return image;
 }
 
+async function blobToImage(blob: Blob): Promise<HTMLImageElement> {
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    return await srcToImage(objectUrl);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 async function dataUrlToImage(dataUrl: string): Promise<HTMLImageElement> {
-  const image = new Image();
-  image.src = dataUrl;
-  await new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error("二维码生成失败"));
-  });
-  return image;
+  return srcToImage(dataUrl);
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -144,48 +152,68 @@ function trimTextToWidth(
   return `${output}...`;
 }
 
-async function loadCovers(games: Array<ShareGame | null>) {
-  function normalizeCoverUrl(value: string): string | null {
-    const raw = value.trim();
-    if (!raw) return null;
+function normalizeCoverUrl(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return null;
 
-    if (raw.startsWith("//")) {
-      return `https:${raw}`;
-    }
-
-    try {
-      return new URL(raw).toString();
-    } catch {
-      try {
-        return new URL(raw, "https://bgm.tv").toString();
-      } catch {
-        return null;
-      }
-    }
+  if (raw.startsWith("data:") || raw.startsWith("blob:")) {
+    return raw;
   }
 
-  function toWsrvUrl(value: string): string | null {
-    const normalized = normalizeCoverUrl(value);
-    if (!normalized) return null;
-    return `https://wsrv.nl/?url=${encodeURIComponent(normalized)}&w=640&output=webp`;
+  if (raw.startsWith("//")) {
+    return `https:${raw}`;
   }
 
-  const coverPromises = games.map(async (game) => {
-    const cover = game?.cover?.trim();
-    if (!cover) return null;
-    const wsrvUrl = toWsrvUrl(cover);
-    if (!wsrvUrl) return null;
-
+  try {
+    return new URL(raw).toString();
+  } catch {
     try {
-      const response = await fetch(wsrvUrl, { cache: "force-cache" });
-      if (!response.ok) return null;
-      return await blobToImage(await response.blob());
+      return new URL(raw, "https://bgm.tv").toString();
     } catch {
       return null;
     }
-  });
+  }
+}
 
-  return Promise.all(coverPromises);
+function toWsrvUrl(value: string): string | null {
+  const normalized = normalizeCoverUrl(value);
+  if (!normalized) return null;
+  if (normalized.startsWith("data:") || normalized.startsWith("blob:")) {
+    return normalized;
+  }
+  return `https://wsrv.nl/?url=${encodeURIComponent(normalized)}&w=640&output=webp`;
+}
+
+async function loadCoverImage(cover: string): Promise<HTMLImageElement | null> {
+  const normalized = normalizeCoverUrl(cover);
+  if (!normalized) return null;
+
+  if (normalized.startsWith("data:") || normalized.startsWith("blob:")) {
+    try {
+      return await srcToImage(normalized);
+    } catch {
+      return null;
+    }
+  }
+
+  const wsrvUrl = toWsrvUrl(normalized);
+  if (!wsrvUrl) return null;
+
+  try {
+    const response = await fetch(wsrvUrl, { cache: "force-cache" });
+    if (!response.ok) return null;
+    return await blobToImage(await response.blob());
+  } catch {
+    return null;
+  }
+}
+
+async function loadCovers(items: GridExportItem[]) {
+  return Promise.all(items.map(async (item) => {
+    const cover = item.cover?.trim();
+    if (!cover) return null;
+    return loadCoverImage(cover);
+  }));
 }
 
 function drawPageBackground(ctx: CanvasRenderingContext2D, height: number) {
@@ -211,8 +239,7 @@ function drawBoardPanel(ctx: CanvasRenderingContext2D, panelHeight: number) {
 
 function drawGrid(
   ctx: CanvasRenderingContext2D,
-  kind: SubjectKind | undefined,
-  games: Array<ShareGame | null>,
+  items: GridExportItem[],
   covers: Array<HTMLImageElement | null>,
   showNames: boolean
 ) {
@@ -225,6 +252,7 @@ function drawGrid(
   for (let index = 0; index < 9; index += 1) {
     const col = index % 3;
     const row = Math.floor(index / 3);
+    const item = items[index] || { cover: null, title: "" };
 
     const x = PANEL_X + PANEL_PADDING + col * (slotWidth + SLOT_GAP);
     const y = PANEL_Y + PANEL_PADDING + row * (slotHeight + SLOT_GAP);
@@ -244,7 +272,7 @@ function drawGrid(
     const cover = covers[index];
     if (cover) {
       drawCoverFit(ctx, cover, x, y, slotWidth, slotHeight, {
-        alignTop: shouldTopCropCover(kind),
+        alignTop: item.alignTop,
       });
     } else {
       drawEmptySlot(ctx, x, y, slotWidth, slotHeight);
@@ -259,8 +287,7 @@ function drawGrid(
     if (showNames) {
       const stripHeight = 52;
       const stripY = y + slotHeight - stripHeight;
-      const game = games[index] || null;
-      const name = trimTextToWidth(ctx, displayName(game), slotWidth - 20);
+      const name = trimTextToWidth(ctx, item.title || "", slotWidth - 20);
 
       ctx.fillStyle = "rgba(255,255,255,0.95)";
       ctx.fillRect(x, stripY, slotWidth, stripHeight);
@@ -275,14 +302,13 @@ function drawGrid(
 }
 
 async function createBoardCanvas(options: {
-  kind?: SubjectKind;
-  games: Array<ShareGame | null>;
+  items: GridExportItem[];
   totalHeight: number;
   panelHeight: number;
   showNames: boolean;
 }) {
-  const { kind, games, totalHeight, panelHeight, showNames } = options;
-  const covers = await loadCovers(games);
+  const { items, totalHeight, panelHeight, showNames } = options;
+  const covers = await loadCovers(items);
 
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_WIDTH;
@@ -295,42 +321,38 @@ async function createBoardCanvas(options: {
 
   drawPageBackground(ctx, totalHeight);
   drawBoardPanel(ctx, panelHeight);
-  drawGrid(ctx, kind, games, covers, showNames);
+  drawGrid(ctx, items, covers, showNames);
 
   return canvas;
 }
 
-export async function generateStandardShareImageBlob(options: {
-  kind?: SubjectKind;
-  games: Array<ShareGame | null>;
-  creatorName?: string | null;
-  showNames?: boolean;
-}) {
-  const canvas = await createBoardCanvas({
-    kind: options.kind,
-    games: options.games,
-    totalHeight: CANVAS_HEIGHT,
-    panelHeight: BASE_PANEL_HEIGHT,
-    showNames: options.showNames !== false,
-  });
-  return canvasToBlob(canvas);
+function toShareGridItems(kind: SubjectKind | undefined, games: Array<ShareGame | null>): GridExportItem[] {
+  return games.map((game) => ({
+    cover: game?.cover || null,
+    title: displayName(game),
+    alignTop: shouldTopCropCover(kind),
+  }));
 }
 
-export async function generateEnhancedShareImageBlob(options: {
-  kind: SubjectKind;
-  shareId: string;
-  title: string;
-  games: Array<ShareGame | null>;
-  creatorName?: string | null;
-  origin?: string;
-  showNames?: boolean;
-}) {
-  const origin = options.origin ?? window.location.origin;
-  const shareUrl = `${origin}/${options.kind}/s/${options.shareId}`;
+function toCustomGridItems(entries: Array<CustomEntry | null>): GridExportItem[] {
+  return entries.map((entry) => ({
+    cover: entry?.cover || null,
+    title: getCustomEntryExportTitle(entry),
+    alignTop: false,
+  }));
+}
 
+async function generateQrGridImageBlob(options: {
+  title: string;
+  subtitle: string;
+  qrUrl: string;
+  items: GridExportItem[];
+  showNames?: boolean;
+  debugInfoKey?: string;
+  debugInfo?: Record<string, unknown>;
+}) {
   const canvas = await createBoardCanvas({
-    kind: options.kind,
-    games: options.games,
+    items: options.items,
     totalHeight: CANVAS_HEIGHT + ENHANCED_EXTRA_HEIGHT,
     panelHeight: BASE_PANEL_HEIGHT + ENHANCED_EXTRA_HEIGHT,
     showNames: options.showNames !== false,
@@ -341,23 +363,11 @@ export async function generateEnhancedShareImageBlob(options: {
     throw new Error("无法创建导出画布");
   }
 
-  const qrDataUrl = await QRCode.toDataURL(shareUrl, {
+  const qrDataUrl = await QRCode.toDataURL(options.qrUrl, {
     width: 180,
     margin: 1,
   });
   const qrImage = await dataUrlToImage(qrDataUrl);
-  const kindMeta = getSubjectKindMeta(options.kind);
-
-  const userName = displayUserName(options.creatorName);
-  const reviewCount = options.games.filter(
-    (game) => Boolean(game?.comment && game.comment.trim().length > 0)
-  ).length;
-
-  const line1 = `构成${userName}的九${kindMeta.selectionUnit}${kindMeta.label}`;
-  const line2 =
-    reviewCount > 0
-      ? `扫码查看${userName}的${reviewCount}条评价`
-      : `扫码查看${kindMeta.label}详情`;
 
   const extY = PANEL_Y + BASE_PANEL_HEIGHT;
   const extHeight = ENHANCED_EXTRA_HEIGHT;
@@ -376,23 +386,149 @@ export async function generateEnhancedShareImageBlob(options: {
 
   const textX = PANEL_X + 26;
   const textMaxWidth = qrX - textX - 20;
+  const trimmedTitle = options.title.trim();
 
   ctx.textAlign = "left";
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "700 38px sans-serif";
-  ctx.fillText(trimTextToWidth(ctx, line1, textMaxWidth), textX, extY + 86);
+  if (trimmedTitle) {
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "700 38px sans-serif";
+    ctx.fillText(trimTextToWidth(ctx, trimmedTitle, textMaxWidth), textX, extY + 86);
+  }
 
   ctx.fillStyle = "#334155";
   ctx.font = "600 30px sans-serif";
-  ctx.fillText(trimTextToWidth(ctx, line2, textMaxWidth), textX, extY + 142);
+  ctx.fillText(trimTextToWidth(ctx, options.subtitle, textMaxWidth), textX, extY + 142);
 
-  (window as typeof window & { __MY9_LAST_SHARE_EXPORT__?: unknown })
-    .__MY9_LAST_SHARE_EXPORT__ = {
+  if (options.debugInfoKey) {
+    (window as typeof window & Record<string, unknown>)[options.debugInfoKey] = {
+      width: canvas.width,
+      height: canvas.height,
+      showNames: options.showNames !== false,
+      qrUrl: options.qrUrl,
+      ...options.debugInfo,
+    };
+  }
+
+  return canvasToBlob(canvas);
+}
+
+export async function generateStandardShareImageBlob(options: {
+  kind?: SubjectKind;
+  games: Array<ShareGame | null>;
+  creatorName?: string | null;
+  showNames?: boolean;
+}) {
+  const canvas = await createBoardCanvas({
+    items: toShareGridItems(options.kind, options.games),
+    totalHeight: CANVAS_HEIGHT,
+    panelHeight: BASE_PANEL_HEIGHT,
+    showNames: options.showNames !== false,
+  });
+  return canvasToBlob(canvas);
+}
+
+export async function generateStandardCustomShareImageBlob(options: {
+  entries: Array<CustomEntry | null>;
+  showNames?: boolean;
+}) {
+  const canvas = await createBoardCanvas({
+    items: toCustomGridItems(options.entries),
+    totalHeight: CANVAS_HEIGHT,
+    panelHeight: BASE_PANEL_HEIGHT,
+    showNames: options.showNames !== false,
+  });
+
+  (window as typeof window & Record<string, unknown>).__MY9_LAST_CUSTOM_EXPORT__ = {
     width: canvas.width,
     height: canvas.height,
-    shareUrl,
     showNames: options.showNames !== false,
+    qrUrl: null,
   };
+
+  return canvasToBlob(canvas);
+}
+
+export async function generateEnhancedShareImageBlob(options: {
+  kind: SubjectKind;
+  shareId: string;
+  title: string;
+  games: Array<ShareGame | null>;
+  creatorName?: string | null;
+  origin?: string;
+  showNames?: boolean;
+}) {
+  const origin = options.origin ?? window.location.origin;
+  const shareUrl = `${origin}/${options.kind}/s/${options.shareId}`;
+  const kindMeta = getSubjectKindMeta(options.kind);
+
+  const userName = displayUserName(options.creatorName);
+  const reviewCount = options.games.filter(
+    (game) => Boolean(game?.comment && game.comment.trim().length > 0)
+  ).length;
+
+  const line1 = `构成${userName}的九${kindMeta.selectionUnit}${kindMeta.label}`;
+  const line2 =
+    reviewCount > 0
+      ? `扫码查看${userName}的${reviewCount}条评价`
+      : `扫码查看${kindMeta.label}详情`;
+
+  return generateQrGridImageBlob({
+    title: line1,
+    subtitle: line2,
+    qrUrl: shareUrl,
+    items: toShareGridItems(options.kind, options.games),
+    showNames: options.showNames,
+    debugInfoKey: "__MY9_LAST_SHARE_EXPORT__",
+    debugInfo: {
+      shareUrl,
+    },
+  });
+}
+
+export async function generateCustomShareImageBlob(options: {
+  title: string;
+  qrUrl: string;
+  entries: Array<CustomEntry | null>;
+  showNames?: boolean;
+}) {
+  return generateQrGridImageBlob({
+    title: options.title,
+    subtitle: "扫码填写你的构成",
+    qrUrl: options.qrUrl,
+    items: toCustomGridItems(options.entries),
+    showNames: options.showNames,
+    debugInfoKey: "__MY9_LAST_CUSTOM_EXPORT__",
+  });
+}
+
+export async function generateLocalTestImageBlob() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 960;
+  canvas.height = 640;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("无法创建测试画布");
+  }
+
+  ctx.fillStyle = "#f3f6fb";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(60, 60, canvas.width - 120, canvas.height - 120);
+  ctx.strokeStyle = "#dbe4f0";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(60, 60, canvas.width - 120, canvas.height - 120);
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "700 46px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("保存图片测试", canvas.width / 2, 240);
+
+  ctx.fillStyle = "#475569";
+  ctx.font = "600 28px sans-serif";
+  ctx.fillText("如果这张图可以正常下载，当前浏览器环境通常可用。", canvas.width / 2, 310);
+  ctx.fillText("若失败，请复制 /custom 到系统浏览器继续。", canvas.width / 2, 360);
 
   return canvasToBlob(canvas);
 }

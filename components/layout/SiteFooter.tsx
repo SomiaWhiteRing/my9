@@ -14,10 +14,11 @@ import { SiBilibili } from "react-icons/si";
 import { SupportButton } from "@/components/SupportButton";
 import type { SubjectKind } from "@/lib/subject-kind";
 import { getPublicSiteUrl, getSiteHostname } from "@/lib/site-url";
+import type { FillMode } from "@/lib/fill-mode";
 
 interface SiteFooterProps {
   className?: string;
-  kind?: SubjectKind;
+  kind?: SubjectKind | FillMode;
 }
 
 function buildTallyEmbedUrl(value: string): string {
@@ -40,7 +41,37 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
   const isWorkKind = kind === "work";
   const isTmdbKind = kind === "tv" || kind === "movie";
   const isAppleMusicKind = kind === "song" || kind === "album";
-  const sourceLink = isWorkKind ? (
+  const isCustomKind = kind === "custom";
+  const sourceLink = isCustomKind ? (
+    <>
+      <a
+        href="https://bangumi.tv/"
+        target="_blank"
+        rel="noreferrer"
+        className="font-semibold text-sky-600 hover:underline"
+      >
+        Bangumi
+      </a>
+      <span aria-hidden="true">+</span>
+      <a
+        href="https://www.themoviedb.org/"
+        target="_blank"
+        rel="noreferrer"
+        className="font-semibold text-sky-600 hover:underline"
+      >
+        TMDB
+      </a>
+      <span aria-hidden="true">+</span>
+      <a
+        href="https://music.apple.com/"
+        target="_blank"
+        rel="noreferrer"
+        className="font-semibold text-sky-600 hover:underline"
+      >
+        Apple Music
+      </a>
+    </>
+  ) : isWorkKind ? (
     <>
       <a
         href="https://bangumi.tv/"

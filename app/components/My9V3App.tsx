@@ -17,12 +17,12 @@ import { SearchDialog } from "@/app/components/v3/SearchDialog";
 import { SelectedGamesList } from "@/app/components/v3/SelectedGamesList";
 import { SupportButton } from "@/components/SupportButton";
 import {
-  SUBJECT_KIND_ORDER,
   SubjectKind,
   getSubjectKindMeta,
   getSubjectKindShareTitle,
   parseSubjectKind,
 } from "@/lib/subject-kind";
+import { FILL_MODE_ORDER, FillMode, getFillModeMeta } from "@/lib/fill-mode";
 import { normalizeSearchQuery } from "@/lib/search/query";
 import { SubjectSearchResponse, ShareGame } from "@/lib/share/types";
 import { cn } from "@/lib/utils";
@@ -683,13 +683,13 @@ export default function My9V3App({
     });
   }
 
-  function switchKind(nextKind: SubjectKind) {
+  function switchKind(nextKind: FillMode) {
     if (nextKind === kind) {
       setKindPickerOpen(false);
       return;
     }
     setKindPickerOpen(false);
-    router.push(`/${nextKind}`);
+    router.push(getFillModeMeta(nextKind).route);
   }
 
   return (
@@ -721,7 +721,7 @@ export default function My9V3App({
             大家的构成
             <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
           </button>
-          <p className="text-sm text-amber-600 dark:text-amber-400">{/* 还没想好要做什么…… */}</p>
+          <p className="text-sm text-amber-600 dark:text-amber-400">自定义模式现已追加！</p>
           <SupportButton/>
         </header>
 
@@ -869,8 +869,8 @@ export default function My9V3App({
             <DialogTitle>切换填写类型</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
-            {SUBJECT_KIND_ORDER.map((item) => {
-              const meta = getSubjectKindMeta(item);
+            {FILL_MODE_ORDER.map((item) => {
+              const meta = getFillModeMeta(item);
               const active = item === kind;
               return (
                 <Button

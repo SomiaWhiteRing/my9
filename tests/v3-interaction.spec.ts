@@ -179,6 +179,69 @@ function buildSearchResponse(query: string, kind = DEFAULT_KIND) {
   };
 }
 
+function buildCustomSearchResponse(query: string, source: "bangumi" | "tmdb" | "apple") {
+  if (source === "bangumi") {
+    return {
+      ok: true,
+      source,
+      items: [
+        {
+          id: "8801",
+          name: "Bangumi Source",
+          localizedName: "Bangumi 作品",
+          cover: "https://lain.bgm.tv/r/400/pic/cover/l/custom-bangumi.jpg",
+          coverMode: "remote",
+          source: "bangumi",
+          sourceLabel: "Bangumi",
+          externalUrl: "https://bgm.tv/subject/8801",
+          releaseYear: 2018,
+        },
+      ],
+      noResultQuery: null,
+    };
+  }
+
+  if (source === "tmdb") {
+    return {
+      ok: true,
+      source,
+      items: [
+        {
+          id: "movie:550",
+          name: "Fight Club",
+          localizedName: "搏击俱乐部",
+          cover: "https://image.tmdb.org/t/p/w500/custom-tmdb.jpg",
+          coverMode: "remote",
+          source: "tmdb",
+          sourceLabel: "TMDB",
+          externalUrl: "https://www.themoviedb.org/movie/550",
+          releaseYear: 1999,
+        },
+      ],
+      noResultQuery: null,
+    };
+  }
+
+  return {
+    ok: true,
+    source,
+    items: [
+      {
+        id: `apple-${query || "1"}`,
+        name: "Taylor Swift",
+        localizedName: "Love Story",
+        cover: "https://is1-ssl.mzstatic.com/image/thumb/Music123/v4/mock/cover/100x100bb.jpg",
+        coverMode: "remote",
+        source: "apple",
+        sourceLabel: "Apple Music",
+        externalUrl: "https://music.apple.com/cn/album/love-story/123456?i=909253",
+        releaseYear: 2008,
+      },
+    ],
+    noResultQuery: null,
+  };
+}
+
 async function mockV3Apis(page: Page) {
   const state: MockShareState = {
     kind: DEFAULT_KIND,
@@ -263,6 +326,20 @@ async function mockV3Apis(page: Page) {
         updatedAt: Date.now(),
         lastViewedAt: Date.now(),
       }),
+    });
+  });
+}
+
+async function mockCustomSearchApi(page: Page) {
+  await page.route(/\/api\/custom\/search\?/, async (route) => {
+    const url = new URL(route.request().url());
+    const source = (url.searchParams.get("source") || "bangumi").trim() as "bangumi" | "tmdb" | "apple";
+    const q = (url.searchParams.get("q") || "").trim();
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(buildCustomSearchResponse(q, source)),
     });
   });
 }
@@ -380,6 +457,7 @@ test.describe("v3 interaction", () => {
   test.beforeEach(async ({ page }) => {
     await installClientSpies(page);
     await mockV3Apis(page);
+    await mockCustomSearchApi(page);
   });
 
   test("首页显示类型选择并可进入填写页", async ({ page }) => {
@@ -850,5 +928,178 @@ test.describe("v3 interaction", () => {
     expect(imageBox).not.toBeNull();
     expect(linkBox).not.toBeNull();
     expect((imageBox?.y || 0) < (linkBox?.y || 0)).toBeTruthy();
+  });
+
+  test("自定义模式首次提示只出现一次并可测试保存图片", async ({ page }) => {
+    await page.goto("/custom");
+    await expect(page.getByRole("heading", { name: "使用须知" })).toBeVisible();
+
+    await page.evaluate(() => {
+      const g = window as typeof window & {
+        __MY9_LAST_DOWNLOAD_NAME__?: string;
+        __ORIGIN_ANCHOR_SET_ATTRIBUTE__?: typeof HTMLAnchorElement.prototype.setAttribute;
+      };
+      if (!g.__ORIGIN_ANCHOR_SET_ATTRIBUTE__) {
+        g.__ORIGIN_ANCHOR_SET_ATTRIBUTE__ = HTMLAnchorElement.prototype.setAttribute;
+        HTMLAnchorElement.prototype.setAttribute = function (name: string, value: string) {
+          if (name === "download") {
+            g.__MY9_LAST_DOWNLOAD_NAME__ = value;
+          }
+          return g.__ORIGIN_ANCHOR_SET_ATTRIBUTE__!.call(this, name, value);
+        };
+      }
+    });
+
+    await page.getByRole("button", { name: "测试保存图片" }).click();
+    await expect(page.getByText("测试图片已触发下载。如果你能正常保存它，当前环境通常可用。")).toBeVisible();
+    const downloadName = await page.evaluate(() => {
+      const g = window as typeof window & { __MY9_LAST_DOWNLOAD_NAME__?: string };
+      return g.__MY9_LAST_DOWNLOAD_NAME__ || "";
+    });
+    expect(downloadName).toBe("my9-custom-test.png");
+
+    await page.getByRole("button", { name: "我知道了" }).click();
+    await expect(page.getByRole("heading", { name: "使用须知" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "使用须知" })).toBeVisible();
+    await page.getByRole("button", { name: "使用须知" }).click();
+    await expect(page.getByRole("heading", { name: "使用须知" })).toBeVisible();
+    await page.getByRole("button", { name: "我知道了" }).click();
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "使用须知" })).toHaveCount(0);
+  });
+
+  test("自定义模式支持单源搜索、上传裁切、本地草稿和直接导图", async ({ page }) => {
+    let shareRequestCount = 0;
+    page.on("request", (request) => {
+      if (request.url().includes("/api/share")) {
+        shareRequestCount += 1;
+      }
+    });
+
+    await page.goto("/custom");
+    await page.getByRole("button", { name: "我知道了" }).click();
+
+    await expect(page.getByRole("button", { name: "保存页面" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "生成分享链接" })).toHaveCount(0);
+    await expect(page.getByText("大家的构成")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^还差 9 部可生成$/ })).toBeEnabled();
+    await expect(page.getByRole("button", { name: /^还差 9 部可生成$/ })).toHaveClass(/opacity-45/);
+
+    await page.getByPlaceholder("输入你的昵称").fill("本地玩家");
+
+    await page.getByLabel("选择第 1 格作品").click();
+    await page.getByPlaceholder("搜索 Bangumi 条目").fill("bgm");
+    await page.getByRole("button", { name: "搜索", exact: true }).click();
+    await page.getByRole("button", { name: /Bangumi 作品/ }).click();
+    await page.getByLabel("条目标题").fill("");
+    await page.getByRole("button", { name: "填入第 1 格" }).click();
+    await expect(page.getByText("已填入第 1 格")).toBeVisible();
+
+    await page.getByLabel("选择第 1 格作品").click();
+    await expect(page.getByPlaceholder("搜索 Bangumi 条目")).toBeVisible();
+    await expect(page.getByLabel("条目标题")).toHaveValue("");
+    await expect(page.getByText("原始名称：Bangumi 作品")).toBeVisible();
+    await page.getByRole("button", { name: "关闭" }).click();
+
+    await page.getByLabel("选择第 2 格作品").click();
+    await page.getByRole("button", { name: "TMDB" }).click();
+    await page.getByPlaceholder("搜索 TMDB 条目").fill("tmdb");
+    await page.getByRole("button", { name: "搜索", exact: true }).click();
+    await page.getByRole("button", { name: /搏击俱乐部/ }).click();
+    await page.getByRole("button", { name: "填入第 2 格" }).click();
+    await expect(page.getByText("已填入第 2 格")).toBeVisible();
+
+    await page.getByLabel("选择第 3 格作品").click();
+    await page.getByRole("button", { name: "上传" }).click();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "upload.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(ONE_PIXEL_PNG_BASE64, "base64"),
+    });
+    await expect(page.getByRole("heading", { name: "裁切上传图片" })).toBeVisible();
+    await page.getByRole("button", { name: "确认使用" }).click();
+    await page.getByRole("button", { name: "填入第 3 格" }).click();
+    await expect(page.getByText("已填入第 3 格")).toBeVisible();
+
+    await expect(page.getByText("未命名条目")).toBeVisible();
+    await expect(page.getByText("搏击俱乐部")).toBeVisible();
+    await expect(page.getByText("upload")).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "使用须知" })).toHaveCount(0);
+    await expect(page.getByPlaceholder("输入你的昵称")).toHaveValue("本地玩家");
+    await expect(page.getByText("3 / 9 已选择")).toBeVisible();
+    await expect(page.getByText("未命名条目")).toBeVisible();
+    await expect(page.getByText("搏击俱乐部")).toBeVisible();
+
+    const partialGenerateButton = page.getByRole("button", { name: /^还差 6 部可生成$/ });
+    await expect(partialGenerateButton).toBeEnabled();
+    await expect(partialGenerateButton).toHaveClass(/opacity-45/);
+
+    page.once("dialog", async (dialog) => {
+      await dialog.accept();
+    });
+    await partialGenerateButton.click();
+    await expect(page.getByRole("heading", { name: "生成图片" })).toBeVisible();
+    await expect(page.getByAltText("自定义图片预览")).toBeVisible({ timeout: 15_000 });
+    const customQrSwitch = page.getByRole("switch", { name: "附带分享链接" });
+    const customShowNameSwitch = page.getByRole("switch", { name: "显示名称" });
+    await expect(customQrSwitch).toHaveAttribute("aria-checked", "true");
+    await expect(customShowNameSwitch).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByLabel("自定义标题")).toBeVisible();
+
+    await page.evaluate(() => {
+      const g = window as typeof window & {
+        __MY9_LAST_DOWNLOAD_NAME__?: string;
+        __ORIGIN_ANCHOR_SET_ATTRIBUTE__?: typeof HTMLAnchorElement.prototype.setAttribute;
+      };
+      if (!g.__ORIGIN_ANCHOR_SET_ATTRIBUTE__) {
+        g.__ORIGIN_ANCHOR_SET_ATTRIBUTE__ = HTMLAnchorElement.prototype.setAttribute;
+        HTMLAnchorElement.prototype.setAttribute = function (name: string, value: string) {
+          if (name === "download") {
+            g.__MY9_LAST_DOWNLOAD_NAME__ = value;
+          }
+          return g.__ORIGIN_ANCHOR_SET_ATTRIBUTE__!.call(this, name, value);
+        };
+      }
+    });
+
+    await customQrSwitch.click();
+    await expect(customQrSwitch).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByLabel("自定义标题")).toHaveCount(0);
+    await page.getByRole("button", { name: "保存图片" }).click();
+
+    const exportInfoWithoutQr = await page.evaluate(() => {
+      const g = window as typeof window & {
+        __MY9_LAST_CUSTOM_EXPORT__?: { qrUrl?: string | null; height?: number; showNames?: boolean };
+      };
+      return g.__MY9_LAST_CUSTOM_EXPORT__ || null;
+    });
+    expect(exportInfoWithoutQr?.qrUrl).toBeNull();
+    expect(exportInfoWithoutQr?.height).toBe(1440);
+    expect(exportInfoWithoutQr?.showNames).toBeTruthy();
+
+    await customQrSwitch.click();
+    await expect(customQrSwitch).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByLabel("自定义标题")).toBeVisible();
+    await page.getByLabel("自定义标题").fill("");
+    await page.getByRole("button", { name: "保存图片" }).click();
+
+    const exportInfo = await page.evaluate(() => {
+      const g = window as typeof window & {
+        __MY9_LAST_CUSTOM_EXPORT__?: { qrUrl?: string | null; showNames?: boolean; height?: number };
+      };
+      return g.__MY9_LAST_CUSTOM_EXPORT__ || null;
+    });
+    const downloadName = await page.evaluate(() => {
+      const g = window as typeof window & { __MY9_LAST_DOWNLOAD_NAME__?: string };
+      return g.__MY9_LAST_DOWNLOAD_NAME__ || "";
+    });
+    expect(exportInfo?.qrUrl?.endsWith("/custom")).toBeTruthy();
+    expect(exportInfo?.showNames).toBeTruthy();
+    expect(exportInfo?.height).toBe(1660);
+    expect(downloadName).toBe("my9-custom.png");
+    expect(shareRequestCount).toBe(0);
   });
 });

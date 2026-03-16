@@ -9,6 +9,7 @@ interface CommentDialogProps {
   onOpenChange: (open: boolean) => void;
   value: string;
   spoiler: boolean;
+  description?: string;
   onChangeValue: (value: string) => void;
   onChangeSpoiler: (spoiler: boolean) => void;
   onSave: () => void;
@@ -19,6 +20,7 @@ export function CommentDialog({
   onOpenChange,
   value,
   spoiler,
+  description = "查看你分享的链接的人可以看到这些评论。",
   onChangeValue,
   onChangeSpoiler,
   onSave,
@@ -49,7 +51,7 @@ export function CommentDialog({
         <div className="mb-3 flex items-start justify-between gap-4">
           <div className="space-y-1">
             <h2 className="text-xl font-bold">编辑评论</h2>
-            <p className="text-sm text-muted-foreground">查看你分享的链接的人可以看到这些评论。</p>
+            <p className="text-sm text-muted-foreground">{description}</p>
           </div>
           <button
             type="button"
