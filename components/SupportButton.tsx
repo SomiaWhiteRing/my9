@@ -17,6 +17,7 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-14", name: "匿名", amount: "1", message: "" },
   { date: "2026-03-14", name: "Zeek🤗", amount: "6", message: "希望能挽救真实的评价体系！" },
   { date: "2026-03-14", name: "明下", amount: "6", message: "希望能有书籍功能T T感谢作者" },
   { date: "2026-03-14", name: "Miki", amount: "3", message: "" },

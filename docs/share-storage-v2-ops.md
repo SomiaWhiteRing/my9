@@ -32,6 +32,11 @@ Useful flags:
 
 Checkpoint file: `scripts/.migrate-shares-v1.checkpoint.json`
 
+Notes:
+
+- This migration only materializes `my9_share_registry_v2`, `my9_share_alias_v1`, and `my9_subject_dim_v1`.
+- Current online trend tables must be rebuilt separately with `node scripts/rebuild-trends-kind-v3.mjs`.
+
 ## Migration verify
 
 Run migration consistency checks (`old`, `v2`, `alias`, `missing`):
@@ -66,7 +71,7 @@ Cutover runbook:
 1. Run rebuild once before switching app read/write to v3.
 2. Deploy app code (trend read/write -> v3).
 3. Run rebuild again immediately to fill deployment gap.
-4. Keep old tables (`my9_trend_subject_all_v2`, `my9_trend_subject_day_v2`, `my9_trend_subject_hour_v1`) for rollback observation, then delete manually after stability.
+4. Legacy subject-grain trend tables were retired on `2026-03-16`; do not recreate them.
 
 ## DB usage monitor
 

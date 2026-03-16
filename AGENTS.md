@@ -33,7 +33,7 @@
 - `npm run test:e2e`：运行 Playwright E2E。
 - `node scripts/migrate-shares-v1-to-v2.mjs`：将 `my9_shares_v1` 迁移到 v2 存储模型（支持 checkpoint）。
 - `node scripts/verify-shares-v2-migration.mjs`：校验迁移覆盖率（`missing_count`/`orphan_alias_count`）。
-- `node scripts/rebuild-trend-hour-window.mjs`：用现有分享数据重建“昨天 00:00（北京时间）到当前”的小时粒度趋势窗口（建议连续执行两次）。
+- `node scripts/rebuild-trends-kind-v3.mjs`：用现有分享数据重建当前线上使用的 kind 粒度趋势表。
 - `node scripts/archive-shares-cold.mjs`：归档 30 天前热数据到 R2，并清理过旧日/小时粒度趋势计数。
 
 说明：
@@ -90,7 +90,7 @@
 - OpenNext Cloudflare 当前不建议把原生 Windows PowerShell 作为正式构建/部署环境；发布前至少在 Linux CI 或 WSL2 上验证一次 `npm run cf:build`。
 
 ## 分享存储 v2 运维
-- 迁移脚本默认读取 `my9_shares_v1`，并写入 `my9_share_registry_v2` / `my9_share_alias_v1` / `my9_subject_dim_v1` / `my9_trend_subject_*`。
+- 迁移脚本默认读取 `my9_shares_v1`，并写入 `my9_share_registry_v2` / `my9_share_alias_v1` / `my9_subject_dim_v1`；当前趋势表需通过 `node scripts/rebuild-trends-kind-v3.mjs` 单独重建到 `my9_trend_subject_kind_*_v3`。
 - 迁移完成后先执行 `node scripts/verify-shares-v2-migration.mjs`；仅当 `missing_count=0` 且 `orphan_alias_count=0` 才允许考虑关闭 v1 兜底。
 - 日常归档由 Cloudflare Workers Cron 调度 `worker.js` 中的 `scheduled()`，当前配置在 `wrangler.jsonc`（`5 16 * * *`，即北京时间 `00:05`，每天一次）。
 - `app/api/cron/archive` 继续保留为手动运维入口；生产环境建议始终使用 `CRON_SECRET`。

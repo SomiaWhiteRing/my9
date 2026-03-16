@@ -22,9 +22,6 @@ const SHARES_V1_TABLE = "my9_shares_v1";
 const SHARES_V2_TABLE = "my9_share_registry_v2";
 const SHARE_ALIAS_TABLE = "my9_share_alias_v1";
 const SUBJECT_DIM_TABLE = "my9_subject_dim_v1";
-const TREND_COUNT_ALL_TABLE = "my9_trend_subject_all_v2";
-const TREND_COUNT_DAY_TABLE = "my9_trend_subject_day_v2";
-const TREND_COUNT_HOUR_TABLE = "my9_trend_subject_hour_v1";
 const SHARES_V2_KIND_CREATED_IDX = `${SHARES_V2_TABLE}_kind_created_idx`;
 const SHARES_V2_TIER_CREATED_IDX = `${SHARES_V2_TABLE}_tier_created_idx`;
 const SHARE_ALIAS_TARGET_IDX = `${SHARE_ALIAS_TABLE}_target_idx`;
@@ -89,21 +86,6 @@ function normalizeSubjectId(value) {
   return null;
 }
 
-const BEIJING_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
-
-function toBeijingDayKey(timestampMs) {
-  const date = new Date(timestampMs + BEIJING_TZ_OFFSET_MS);
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  return Number(`${year}${month}${day}`);
-}
-
-function toBeijingHourBucket(timestampMs) {
-  return Math.floor((timestampMs + BEIJING_TZ_OFFSET_MS) / HOUR_MS);
-}
-
 function toCompactAndSubjects(games) {
   const payload = Array.from({ length: 9 }, () => null);
   const subjects = new Map();
@@ -160,24 +142,6 @@ function createContentHash(kind, creatorName, payload) {
     slots: payload.map((slot) => (slot ? { sid: slot.sid, c: slot.c || "", s: Boolean(slot.s) } : null)),
   });
   return createHash("sha256").update(canonical).digest("hex");
-}
-
-function buildIncrements(payload, createdAt) {
-  const dayKey = toBeijingDayKey(createdAt);
-  const hourBucket = toBeijingHourBucket(createdAt);
-  const countBySubject = new Map();
-
-  for (const slot of payload) {
-    if (!slot) continue;
-    countBySubject.set(slot.sid, (countBySubject.get(slot.sid) ?? 0) + 1);
-  }
-
-  return Array.from(countBySubject.entries()).map(([subjectId, count]) => ({
-    dayKey,
-    hourBucket,
-    subjectId,
-    count,
-  }));
 }
 
 function loadCheckpoint() {
@@ -254,40 +218,6 @@ async function ensureV2Schema(sql) {
     )
     `
   );
-
-  await sql.query(
-    `
-    CREATE TABLE IF NOT EXISTS ${TREND_COUNT_ALL_TABLE} (
-      subject_id TEXT PRIMARY KEY,
-      count BIGINT NOT NULL,
-      updated_at BIGINT NOT NULL
-    )
-    `
-  );
-
-  await sql.query(
-    `
-    CREATE TABLE IF NOT EXISTS ${TREND_COUNT_DAY_TABLE} (
-      day_key INT NOT NULL,
-      subject_id TEXT NOT NULL,
-      count BIGINT NOT NULL,
-      updated_at BIGINT NOT NULL,
-      PRIMARY KEY (day_key, subject_id)
-    )
-    `
-  );
-
-  await sql.query(
-    `
-    CREATE TABLE IF NOT EXISTS ${TREND_COUNT_HOUR_TABLE} (
-      hour_bucket BIGINT NOT NULL,
-      subject_id TEXT NOT NULL,
-      count BIGINT NOT NULL,
-      updated_at BIGINT NOT NULL,
-      PRIMARY KEY (hour_bucket, subject_id)
-    )
-    `
-  );
 }
 
 async function main() {
@@ -325,7 +255,6 @@ async function main() {
 
     const aliasRows = [];
     const subjectMap = new Map();
-    const trendRows = [];
     const shareUpsertRows = [];
     const preparedRows = [];
     const seenContentHash = new Set();
@@ -462,15 +391,6 @@ async function main() {
           }
         }
 
-        for (const inc of buildIncrements(item.payload, item.createdAt)) {
-          trendRows.push({
-            day_key: inc.dayKey,
-            hour_bucket: inc.hourBucket,
-            subject_id: inc.subjectId,
-            count: inc.count,
-            updated_at: item.updatedAt,
-          });
-        }
       }
     }
 
@@ -523,97 +443,6 @@ async function main() {
           updated_at = EXCLUDED.updated_at
         `,
         [JSON.stringify(subjectRows)]
-      );
-    }
-
-    if (trendRows.length > 0) {
-      await sql.query(
-        `
-        WITH input_rows AS (
-          SELECT day_key, hour_bucket, subject_id, count, updated_at
-          FROM jsonb_to_recordset($1::jsonb) AS t(
-            day_key int,
-            hour_bucket bigint,
-            subject_id text,
-            count bigint,
-            updated_at bigint
-          )
-        ),
-        folded AS (
-          SELECT subject_id, SUM(count)::BIGINT AS count, MAX(updated_at)::BIGINT AS updated_at
-          FROM input_rows
-          GROUP BY subject_id
-        )
-        INSERT INTO ${TREND_COUNT_ALL_TABLE} (subject_id, count, updated_at)
-        SELECT subject_id, count, updated_at
-        FROM folded
-        ON CONFLICT (subject_id) DO UPDATE SET
-          count = ${TREND_COUNT_ALL_TABLE}.count + EXCLUDED.count,
-          updated_at = EXCLUDED.updated_at
-        `,
-        [JSON.stringify(trendRows)]
-      );
-
-      await sql.query(
-        `
-        WITH input_rows AS (
-          SELECT day_key, hour_bucket, subject_id, count, updated_at
-          FROM jsonb_to_recordset($1::jsonb) AS t(
-            day_key int,
-            hour_bucket bigint,
-            subject_id text,
-            count bigint,
-            updated_at bigint
-          )
-        ),
-        folded AS (
-          SELECT
-            day_key,
-            subject_id,
-            SUM(count)::BIGINT AS count,
-            MAX(updated_at)::BIGINT AS updated_at
-          FROM input_rows
-          GROUP BY day_key, subject_id
-        )
-        INSERT INTO ${TREND_COUNT_DAY_TABLE} (day_key, subject_id, count, updated_at)
-        SELECT day_key, subject_id, count, updated_at
-        FROM folded
-        ON CONFLICT (day_key, subject_id) DO UPDATE SET
-          count = ${TREND_COUNT_DAY_TABLE}.count + EXCLUDED.count,
-          updated_at = EXCLUDED.updated_at
-        `,
-        [JSON.stringify(trendRows)]
-      );
-
-      await sql.query(
-        `
-        WITH input_rows AS (
-          SELECT day_key, hour_bucket, subject_id, count, updated_at
-          FROM jsonb_to_recordset($1::jsonb) AS t(
-            day_key int,
-            hour_bucket bigint,
-            subject_id text,
-            count bigint,
-            updated_at bigint
-          )
-        ),
-        folded AS (
-          SELECT
-            hour_bucket,
-            subject_id,
-            SUM(count)::BIGINT AS count,
-            MAX(updated_at)::BIGINT AS updated_at
-          FROM input_rows
-          GROUP BY hour_bucket, subject_id
-        )
-        INSERT INTO ${TREND_COUNT_HOUR_TABLE} (hour_bucket, subject_id, count, updated_at)
-        SELECT hour_bucket, subject_id, count, updated_at
-        FROM folded
-        ON CONFLICT (hour_bucket, subject_id) DO UPDATE SET
-          count = ${TREND_COUNT_HOUR_TABLE}.count + EXCLUDED.count,
-          updated_at = EXCLUDED.updated_at
-        `,
-        [JSON.stringify(trendRows)]
       );
     }
 
