@@ -1,16 +1,14 @@
-import type { ColdStorageBucketLike } from "@/lib/share/cold-storage";
-import { runShareArchive } from "@/lib/share/archive";
+import { cleanupOldTrendCounts } from "@/lib/share/storage";
 import { runShareViewRollup, type ShareViewRollupResult } from "@/lib/share/view-stats";
 
 export type DailyShareMaintenanceResult = {
-  archive?: Awaited<ReturnType<typeof runShareArchive>>;
+  trendCleanup?: Awaited<ReturnType<typeof cleanupOldTrendCounts>>;
   shareViews?: ShareViewRollupResult;
 };
 
 type WorkerEnvLike = Record<string, unknown> | undefined;
 
 export async function runDailyShareMaintenance(options?: {
-  coldStorageBucket?: ColdStorageBucketLike | null;
   env?: WorkerEnvLike;
   logLabel?: string;
 }) {
@@ -18,12 +16,9 @@ export async function runDailyShareMaintenance(options?: {
   const failures: string[] = [];
 
   try {
-    result.archive = await runShareArchive({
-      coldStorageBucket: options?.coldStorageBucket ?? null,
-      logLabel: options?.logLabel ? `${options.logLabel}:archive` : undefined,
-    });
+    result.trendCleanup = await cleanupOldTrendCounts();
   } catch (error) {
-    failures.push(`archive=${error instanceof Error ? error.message : String(error)}`);
+    failures.push(`trendCleanup=${error instanceof Error ? error.message : String(error)}`);
   }
 
   try {

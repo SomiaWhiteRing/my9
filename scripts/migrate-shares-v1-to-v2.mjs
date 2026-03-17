@@ -23,7 +23,6 @@ const SHARES_V2_TABLE = "my9_share_registry_v2";
 const SHARE_ALIAS_TABLE = "my9_share_alias_v1";
 const SUBJECT_DIM_TABLE = "my9_subject_dim_v1";
 const SHARES_V2_KIND_CREATED_IDX = `${SHARES_V2_TABLE}_kind_created_idx`;
-const SHARES_V2_TIER_CREATED_IDX = `${SHARES_V2_TABLE}_tier_created_idx`;
 const SHARE_ALIAS_TARGET_IDX = `${SHARE_ALIAS_TABLE}_target_idx`;
 
 const CHECKPOINT_PATH = resolve(process.cwd(), "scripts/.migrate-shares-v1.checkpoint.json");
@@ -164,13 +163,10 @@ async function ensureV2Schema(sql) {
       kind TEXT NOT NULL,
       creator_name TEXT,
       content_hash TEXT NOT NULL UNIQUE,
-      storage_tier TEXT NOT NULL DEFAULT 'hot',
-      hot_payload JSONB,
-      cold_object_key TEXT,
+      hot_payload JSONB NOT NULL,
       created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL,
-      last_viewed_at BIGINT NOT NULL,
-      CHECK (storage_tier IN ('hot', 'cold'))
+      last_viewed_at BIGINT NOT NULL
     )
     `
   );
@@ -180,13 +176,6 @@ async function ensureV2Schema(sql) {
     ON ${SHARES_V2_TABLE} (kind, created_at DESC)
     `
   );
-  await sql.query(
-    `
-    CREATE INDEX IF NOT EXISTS ${SHARES_V2_TIER_CREATED_IDX}
-    ON ${SHARES_V2_TABLE} (storage_tier, created_at)
-    `
-  );
-
   await sql.query(
     `
     CREATE TABLE IF NOT EXISTS ${SHARE_ALIAS_TABLE} (
@@ -325,12 +314,10 @@ async function main() {
         )
       )
       INSERT INTO ${SHARES_V2_TABLE} (
-        share_id, kind, creator_name, content_hash, storage_tier, hot_payload, cold_object_key,
-        created_at, updated_at, last_viewed_at
+        share_id, kind, creator_name, content_hash, hot_payload, created_at, updated_at, last_viewed_at
       )
       SELECT
-        share_id, kind, creator_name, content_hash, 'hot', hot_payload, NULL,
-        created_at, updated_at, last_viewed_at
+        share_id, kind, creator_name, content_hash, hot_payload, created_at, updated_at, last_viewed_at
       FROM input_rows
       ON CONFLICT (content_hash) DO UPDATE
       SET

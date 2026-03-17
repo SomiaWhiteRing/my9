@@ -4,19 +4,10 @@
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
-- Cloudflare Worker binding: `MY9_COLD_STORAGE` (R2 bucket binding used by the runtime)
-- `R2_ENDPOINT`
-- `R2_BUCKET`
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
-- Optional: `R2_REGION` (default: `auto`)
 - Optional: `MY9_ENABLE_V1_FALLBACK=0` (default keeps `my9_shares_v1` read fallback)
-- Optional: `CRON_SECRET` (recommended in production, used by manual `/api/cron/archive` authorization header)
 - Optional: `MY9_ANALYTICS_ACCOUNT_ID` (runtime fallback for Analytics Engine SQL rollup; defaults to `CLOUDFLARE_ACCOUNT_ID` when synced)
 - Optional: `MY9_ANALYTICS_API_TOKEN` (recommended: dedicated read token for Analytics Engine SQL rollup)
-- Optional: `MY9_ARCHIVE_OLDER_THAN_DAYS` (default `30`)
-- Optional: `MY9_ARCHIVE_BATCH_SIZE` (default `500`)
-- Optional: `MY9_ARCHIVE_CLEANUP_TREND_DAYS` (default `190`)
+- Optional: `MY9_TREND_CLEANUP_DAYS` (default `190`, do not set below `180` if you still serve `180d` trends)
 - Optional: `MY9_TRENDS_24H_SOURCE=day|hour` (default `day`, 24h data source switch on v3 day/hour tables)
 
 ## Migration
@@ -45,6 +36,13 @@ Run migration consistency checks (`old`, `v2`, `alias`, `missing`):
 
 ```bash
 node scripts/verify-shares-v2-migration.mjs
+```
+
+If you are removing the legacy cold-storage columns after deploying the hot-only runtime, verify first and then drop them:
+
+```bash
+node scripts/remove-cold-storage-columns.mjs --dry-run
+node scripts/remove-cold-storage-columns.mjs
 ```
 
 ## Trend table rebuild (kind-grain v3)
@@ -89,17 +87,15 @@ Useful flags:
 - `node scripts/monitor-db-usage.mjs --fail-on=warn` or `--fail-on=critical`
 - `node scripts/monitor-db-usage.mjs --exact-counts` (slower, full table count)
 
-## Cold archive + trend cleanup
+## Trend cleanup
 
 ```bash
-node scripts/archive-shares-cold.mjs
+node scripts/cleanup-trend-counts.mjs
 ```
 
 Useful flags:
 
-- `node scripts/archive-shares-cold.mjs --older-than-days=30`
-- `node scripts/archive-shares-cold.mjs --batch-size=500`
-- `node scripts/archive-shares-cold.mjs --cleanup-trend-days=190`
+- `node scripts/cleanup-trend-counts.mjs --cleanup-trend-days=190`
 
 ## Share view analytics rollup
 
@@ -114,28 +110,15 @@ Current dataset bindings:
 
 ## Cloudflare Cron (daily)
 
-- Cron route: `/api/cron/archive`
 - Scheduler entry: `worker.js` `scheduled()`
 - Config file: `wrangler.jsonc`
 - Current schedule: `5 16 * * *` (UTC, Beijing `00:05`, once per day)
-- Scheduled job default behavior: archive shares older than `30` days, then roll up share view totals from Workers Analytics Engine into Postgres
-- Manual route behavior: archive-only maintenance, protected by `CRON_SECRET` in production
+- Scheduled job default behavior: clean up old trend rows, then roll up share view totals from Workers Analytics Engine into Postgres
 
 Notes:
 
-- Runtime cold storage reads/writes use the `MY9_COLD_STORAGE` R2 binding first.
 - Runtime share page tracking writes to the `MY9_SHARE_VIEW_ANALYTICS` Analytics Engine binding.
+- Trend cleanup removes day/hour rows older than `MY9_TREND_CLEANUP_DAYS`.
 - Postgres rollup stores one row per `share_id`; the cron recomputes totals for all closed Beijing natural days up to the previous day.
-- Existing Node scripts still use `R2_ENDPOINT` / `R2_BUCKET` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`.
 - For production hardening, prefer syncing a dedicated `MY9_ANALYTICS_API_TOKEN` instead of reusing the deployment token.
 - Failed runs should be inspected in Worker logs and re-run manually when needed.
-
-Recommended setup:
-
-1. Bind `MY9_COLD_STORAGE` in `wrangler.jsonc` to the same bucket used for archive objects.
-2. Set `CRON_SECRET` in Worker secrets if you want to keep the manual route protected.
-3. Deploy so `wrangler.jsonc` cron is applied.
-4. Verify route manually once:
-   ```bash
-   curl -H "Authorization: Bearer <CRON_SECRET>" https://<your-domain>/api/cron/archive
-   ```

@@ -10,7 +10,6 @@ const worker = {
   scheduled(controller, env, ctx) {
     ctx.waitUntil(
       runDailyShareMaintenance({
-        coldStorageBucket: env.MY9_COLD_STORAGE ?? null,
         env,
         logLabel: `[daily-cron:${controller.cron}]`,
       }).catch((error) => {

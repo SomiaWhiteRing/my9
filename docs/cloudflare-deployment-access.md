@@ -19,9 +19,8 @@ SITE_URL=https://my9test.shatranj.space
 
 ## Worker config
 
-- Default `wrangler.jsonc` keeps the shared Worker config and points `MY9_COLD_STORAGE` to the current `my9` R2 bucket.
 - `env.test` attaches a separate Worker environment to the Custom Domain `my9test.shatranj.space`.
-- `env.test` intentionally leaves cron disabled so the test deployment does not run the archive schedule.
+- `env.test` intentionally leaves cron disabled so the test deployment does not run the production maintenance schedule.
 
 ## Verification flow
 
@@ -36,8 +35,6 @@ It checks:
 - account token validity via the account token verify endpoint
 - account Worker visibility
 - zone lookup and Workers routes read access
-- R2 bucket visibility
-- `wrangler.jsonc` bucket target vs local `R2_BUCKET` alignment
 
 Recommended deploy sequence for the test domain:
 
@@ -53,9 +50,7 @@ Secrets:
 
 - `BANGUMI_ACCESS_TOKEN`
 - `BANGUMI_USER_AGENT` if treated as sensitive in your setup
-- `CRON_SECRET`
 - Neon connection secrets used by the app
-- Optional R2 S3 fallback secrets if you want Node-side fallback available in the deployed Worker
 
 Non-secret vars:
 
@@ -63,13 +58,9 @@ Non-secret vars:
 - `SITE_URL`
 - `NEXT_PUBLIC_GA_ID`
 - `MY9_ENABLE_V1_FALLBACK`
+- `MY9_TREND_CLEANUP_DAYS`
 - `MY9_TRENDS_24H_SOURCE`
-- `MY9_ARCHIVE_OLDER_THAN_DAYS`
-- `MY9_ARCHIVE_BATCH_SIZE`
-- `MY9_ARCHIVE_CLEANUP_TREND_DAYS`
 
 Notes:
 
-- Runtime cold storage in the Worker uses the `MY9_COLD_STORAGE` binding first.
-- Existing Node scripts still rely on `R2_ENDPOINT` / `R2_BUCKET` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`.
 - `npm run cf:verify-access` is intentionally non-mutating. It does not prove secret write access or Custom Domain creation on its own.

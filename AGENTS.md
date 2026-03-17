@@ -34,7 +34,8 @@
 - `node scripts/migrate-shares-v1-to-v2.mjs`：将 `my9_shares_v1` 迁移到 v2 存储模型（支持 checkpoint）。
 - `node scripts/verify-shares-v2-migration.mjs`：校验迁移覆盖率（`missing_count`/`orphan_alias_count`）。
 - `node scripts/rebuild-trends-kind-v3.mjs`：用现有分享数据重建当前线上使用的 kind 粒度趋势表。
-- `node scripts/archive-shares-cold.mjs`：归档 30 天前热数据到 R2，并清理过旧日/小时粒度趋势计数。
+- `node scripts/cleanup-trend-counts.mjs`：清理过旧日/小时粒度趋势计数，控制趋势表体积。
+- `node scripts/remove-cold-storage-columns.mjs --dry-run`：核对数据库是否还依赖旧冷存储列；部署新代码后再去掉旧列。
 
 说明：
 - 仓库以 `npm` + `package-lock.json` 为准，避免切换包管理器引发锁文件噪音。
@@ -72,19 +73,13 @@
   - 生产环境默认禁用内存 fallback（数据库异常会直接报错）；可用 `MY9_ALLOW_MEMORY_FALLBACK=1` 临时放开
   - 可选：`MY9_ENABLE_V1_FALLBACK=0`（默认开启 v1 读取兜底；迁移稳定后再关闭）
   - 可选：`MY9_TRENDS_24H_SOURCE=day|hour`（默认 `day`；小时窗口初始化完成后再切 `hour`）
-  - `R2_ENDPOINT`、`R2_BUCKET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`
-  - 可选：`R2_REGION=auto`
-  - `CRON_SECRET`（生产环境建议必配，用于手动保护 `/api/cron/archive`）
   - 可选：`MY9_ANALYTICS_ACCOUNT_ID`（未设置时可回退到 `CLOUDFLARE_ACCOUNT_ID`）
   - 可选：`MY9_ANALYTICS_API_TOKEN`（Workers Analytics Engine SQL 读权限；未设置时 `cf:sync-secrets` 可临时回退到 `CLOUDFLARE_API_TOKEN`）
-  - 可选：`MY9_ARCHIVE_OLDER_THAN_DAYS`（默认 `30`）
-  - 可选：`MY9_ARCHIVE_BATCH_SIZE`（默认 `500`）
-  - 可选：`MY9_ARCHIVE_CLEANUP_TREND_DAYS`（默认 `190`，勿低于 `180`，否则影响 `180d` 趋势）
+  - 可选：`MY9_TREND_CLEANUP_DAYS`（默认 `190`，勿低于 `180`，否则影响 `180d` 趋势）
   - 可选：`NEXT_PUBLIC_GA_ID`
   - 可选：`NEXT_PUBLIC_SITE_URL`（测试域部署时需设为 `https://my9test.shatranj.space`）
   - 可选：`SITE_URL`（服务端覆盖；未设置时回退到 `NEXT_PUBLIC_SITE_URL`）
 - Cloudflare Workers 生产部署还需在 `wrangler.jsonc` 中绑定：
-  - `MY9_COLD_STORAGE`（R2）
   - `MY9_SHARE_VIEW_ANALYTICS`（Workers Analytics Engine）
   - `ASSETS`（静态资源）
 - Cloudflare 部署认证统一使用 account token，不再使用全局 `CLOUDFLARE_API_KEY`。
@@ -96,8 +91,7 @@
 - 迁移脚本默认读取 `my9_shares_v1`，并写入 `my9_share_registry_v2` / `my9_share_alias_v1` / `my9_subject_dim_v1`；当前趋势表需通过 `node scripts/rebuild-trends-kind-v3.mjs` 单独重建到 `my9_trend_subject_kind_*_v3`。
 - 迁移完成后先执行 `node scripts/verify-shares-v2-migration.mjs`；仅当 `missing_count=0` 且 `orphan_alias_count=0` 才允许考虑关闭 v1 兜底。
 - 日常归档由 Cloudflare Workers Cron 调度 `worker.js` 中的 `scheduled()`，当前配置在 `wrangler.jsonc`（`5 16 * * *`，即北京时间 `00:05`，每天一次）。
-- 同一个 daily cron 还会把 Workers Analytics Engine 中截至前一个已闭合北京时间自然日的分享页访问量累计回写到 `my9_share_view_total_v1`（每个 `share_id` 一行）。
-- `app/api/cron/archive` 继续保留为手动运维入口；生产环境建议始终使用 `CRON_SECRET`。
+- 同一个 daily cron 还会清理 `MY9_TREND_CLEANUP_DAYS` 之前的日/小时趋势数据，并把截至前一个已闭合北京时间自然日的分享页访问量累计回写到 `my9_share_view_total_v1`（每个 `share_id` 一行）。
 - 生产切换顺序：`v2 优先 + v1 兜底` -> 全量迁移与校验 -> 关闭兜底 -> 稳定观察后再删除 v1 表。
 
 ## 提交与 PR 建议

@@ -38,12 +38,6 @@
       "dataset": "my9_share_views_v1"
     }
   ],
-  "r2_buckets": [
-    {
-      "binding": "MY9_COLD_STORAGE",
-      "bucket_name": "my9"
-    }
-  ],
   "env": {
     "test": {
       "routes": [
@@ -65,12 +59,6 @@
         "directory": ".open-next/assets",
         "binding": "ASSETS"
       },
-      "r2_buckets": [
-        {
-          "binding": "MY9_COLD_STORAGE",
-          "bucket_name": "my9"
-        }
-      ],
       "triggers": {
         "crons": []
       }

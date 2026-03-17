@@ -8,13 +8,6 @@ import {
   toCompactSharePayload,
 } from "@/lib/share/compact";
 import {
-  getColdSharePayload,
-  buildColdObjectKey,
-  isColdStorageEnabled,
-  putColdSharePayload,
-  type ColdStorageBucketLike,
-} from "@/lib/share/cold-storage";
-import {
   ShareSubject,
   StoredShareV1,
   TrendBucket,
@@ -49,7 +42,6 @@ const HALF_HOUR_MS = 30 * 60 * 1000;
 const BEIJING_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
 const TREND_CACHE_COMPAT_TTL_MS = 60 * 60 * 1000;
 const SHARES_V2_KIND_CREATED_IDX = `${SHARES_V2_TABLE}_kind_created_idx`;
-const SHARES_V2_TIER_CREATED_IDX = `${SHARES_V2_TABLE}_tier_created_idx`;
 const SHARE_ALIAS_TARGET_IDX = `${SHARE_ALIAS_TABLE}_target_idx`;
 const SUBJECT_DIM_SUBJECT_IDX = `${SUBJECT_DIM_TABLE}_subject_idx`;
 const TREND_COUNT_ALL_KIND_COUNT_IDX = `${TREND_COUNT_ALL_TABLE}_kind_count_idx`;
@@ -64,6 +56,13 @@ function readEnv(...names: string[]): string | null {
     }
   }
   return null;
+}
+
+function parsePositiveInt(value: string | null | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.trunc(parsed);
 }
 
 function buildDatabaseUrlFromNeonParts(): string | null {
@@ -134,9 +133,7 @@ type ShareRegistryRow = {
   share_id: string;
   kind: string;
   creator_name: string | null;
-  storage_tier: "hot" | "cold";
   hot_payload: unknown;
-  cold_object_key: string | null;
   created_at: number | string;
   updated_at: number | string;
   last_viewed_at: number | string;
@@ -336,22 +333,15 @@ async function ensureSchema(): Promise<boolean> {
           kind TEXT NOT NULL,
           creator_name TEXT,
           content_hash TEXT NOT NULL UNIQUE,
-          storage_tier TEXT NOT NULL DEFAULT 'hot',
-          hot_payload JSONB,
-          cold_object_key TEXT,
+          hot_payload JSONB NOT NULL,
           created_at BIGINT NOT NULL,
           updated_at BIGINT NOT NULL,
-          last_viewed_at BIGINT NOT NULL,
-          CHECK (storage_tier IN ('hot', 'cold'))
+          last_viewed_at BIGINT NOT NULL
         )
       `;
       await sql`
         CREATE INDEX IF NOT EXISTS ${sql.unsafe(SHARES_V2_KIND_CREATED_IDX)}
         ON ${sql.unsafe(SHARES_V2_TABLE)} (kind, created_at DESC)
-      `;
-      await sql`
-        CREATE INDEX IF NOT EXISTS ${sql.unsafe(SHARES_V2_TIER_CREATED_IDX)}
-        ON ${sql.unsafe(SHARES_V2_TABLE)} (storage_tier, created_at)
       `;
 
       await sql`
@@ -597,17 +587,8 @@ function collectSubjectIdsFromPayload(payload: CompactSharePayload): string[] {
   return Array.from(unique);
 }
 
-async function resolveCompactPayload(row: ShareRegistryRow): Promise<CompactSharePayload | null> {
-  const hotPayload = normalizeCompactPayload(row.hot_payload);
-  if (hotPayload) {
-    return hotPayload;
-  }
-
-  if (row.storage_tier === "cold" && row.cold_object_key) {
-    return getColdSharePayload(row.cold_object_key);
-  }
-
-  return null;
+function resolveCompactPayload(row: ShareRegistryRow): CompactSharePayload | null {
+  return normalizeCompactPayload(row.hot_payload);
 }
 
 async function inflateShareFromRegistryRow(
@@ -615,7 +596,7 @@ async function inflateShareFromRegistryRow(
   row: ShareRegistryRow
 ): Promise<StoredShareV1 | null> {
   const kind = (parseSubjectKind(row.kind) ?? DEFAULT_SUBJECT_KIND) as SubjectKind;
-  const payload = await resolveCompactPayload(row);
+  const payload = resolveCompactPayload(row);
   if (!payload) {
     return null;
   }
@@ -795,10 +776,9 @@ export async function saveShare(record: StoredShareV1): Promise<{ shareId: strin
       `
       WITH upsert_share AS (
         INSERT INTO ${SHARES_V2_TABLE} (
-          share_id, kind, creator_name, content_hash, storage_tier, hot_payload, cold_object_key,
-          created_at, updated_at, last_viewed_at
+          share_id, kind, creator_name, content_hash, hot_payload, created_at, updated_at, last_viewed_at
         )
-        VALUES ($1, $2, $3, $4, 'hot', $5::jsonb, NULL, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
         ON CONFLICT (content_hash) DO UPDATE
         SET
           updated_at = GREATEST(${SHARES_V2_TABLE}.updated_at, EXCLUDED.updated_at),
@@ -951,7 +931,7 @@ export async function getShare(shareId: string): Promise<StoredShareV1 | null> {
     try {
       const rows = (await sql.query(
         `
-        SELECT share_id, kind, creator_name, storage_tier, hot_payload, cold_object_key, created_at, updated_at, last_viewed_at
+        SELECT share_id, kind, creator_name, hot_payload, created_at, updated_at, last_viewed_at
         FROM ${SHARES_V2_TABLE}
         WHERE share_id = $1
         LIMIT 1
@@ -979,7 +959,7 @@ export async function getShare(shareId: string): Promise<StoredShareV1 | null> {
       if (aliasTarget) {
         const targetRows = (await sql.query(
           `
-          SELECT share_id, kind, creator_name, storage_tier, hot_payload, cold_object_key, created_at, updated_at, last_viewed_at
+          SELECT share_id, kind, creator_name, hot_payload, created_at, updated_at, last_viewed_at
           FROM ${SHARES_V2_TABLE}
           WHERE share_id = $1
           LIMIT 1
@@ -1092,7 +1072,7 @@ export async function listAllShares(): Promise<StoredShareV1[]> {
     try {
       const rows = (await sql.query(
         `
-        SELECT share_id, kind, creator_name, storage_tier, hot_payload, cold_object_key, created_at, updated_at, last_viewed_at
+        SELECT share_id, kind, creator_name, hot_payload, created_at, updated_at, last_viewed_at
         FROM ${SHARES_V2_TABLE}
         ORDER BY created_at DESC
         `
@@ -1198,7 +1178,7 @@ export async function listSharesByPeriod(period: TrendPeriod): Promise<StoredSha
         from > 0
           ? ((await sql.query(
               `
-            SELECT share_id, kind, creator_name, storage_tier, hot_payload, cold_object_key, created_at, updated_at, last_viewed_at
+            SELECT share_id, kind, creator_name, hot_payload, created_at, updated_at, last_viewed_at
             FROM ${SHARES_V2_TABLE}
             WHERE created_at >= $1
             ORDER BY created_at DESC
@@ -1207,7 +1187,7 @@ export async function listSharesByPeriod(period: TrendPeriod): Promise<StoredSha
             )) as ShareRegistryRow[])
           : ((await sql.query(
               `
-            SELECT share_id, kind, creator_name, storage_tier, hot_payload, cold_object_key, created_at, updated_at, last_viewed_at
+            SELECT share_id, kind, creator_name, hot_payload, created_at, updated_at, last_viewed_at
             FROM ${SHARES_V2_TABLE}
             ORDER BY created_at DESC
             `
@@ -2193,74 +2173,21 @@ export async function upsertShareViewTotalCounts(
   }
 }
 
-export async function archiveHotSharesToColdStorage(params?: {
-  olderThanDays?: number;
-  batchSize?: number;
+export async function cleanupOldTrendCounts(params?: {
   cleanupTrendDays?: number;
-}, options?: {
-  coldStorageBucket?: ColdStorageBucketLike | null;
-}): Promise<{ processed: number; archived: number; skipped: number; cleanedTrendRows: number }> {
-  const olderThanDays = params?.olderThanDays ?? 30;
-  const batchSize = params?.batchSize ?? 500;
-  const cleanupTrendDays = params?.cleanupTrendDays ?? 190;
-
+}): Promise<{ cleanupTrendDays: number; cleanedTrendRows: number; cleanedDayRows: number; cleanedHourRows: number }> {
+  const cleanupTrendDays = Math.max(
+    180,
+    params?.cleanupTrendDays ?? parsePositiveInt(readEnv("MY9_TREND_CLEANUP_DAYS"), 190)
+  );
   const sql = getSqlClient();
   if (!sql || !(await ensureSchema())) {
     return {
-      processed: 0,
-      archived: 0,
-      skipped: 0,
+      cleanupTrendDays,
       cleanedTrendRows: 0,
+      cleanedDayRows: 0,
+      cleanedHourRows: 0,
     };
-  }
-
-  const cutoff = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
-  const rows = (await sql.query(
-    `
-    SELECT share_id, kind, creator_name, storage_tier, hot_payload, cold_object_key, created_at, updated_at, last_viewed_at
-    FROM ${SHARES_V2_TABLE}
-    WHERE storage_tier = 'hot'
-      AND hot_payload IS NOT NULL
-      AND created_at < $1
-    ORDER BY created_at ASC
-    LIMIT $2
-    `,
-    [cutoff, batchSize]
-  )) as ShareRegistryRow[];
-
-  let archived = 0;
-  let skipped = 0;
-  const coldStorageEnabled = await isColdStorageEnabled(options?.coldStorageBucket);
-
-  for (const row of rows) {
-    const payload = normalizeCompactPayload(row.hot_payload);
-    if (!payload || !coldStorageEnabled) {
-      skipped += 1;
-      continue;
-    }
-
-    const objectKey = buildColdObjectKey(row.share_id);
-    const uploaded = await putColdSharePayload(objectKey, payload, {
-      bucket: options?.coldStorageBucket ?? null,
-    });
-    if (!uploaded) {
-      skipped += 1;
-      continue;
-    }
-
-    await sql.query(
-      `
-      UPDATE ${SHARES_V2_TABLE}
-      SET
-        storage_tier = 'cold',
-        cold_object_key = $2,
-        hot_payload = NULL,
-        updated_at = $3
-      WHERE share_id = $1
-      `,
-      [row.share_id, objectKey, Date.now()]
-    );
-    archived += 1;
   }
 
   const cleanupBeforeDayKey = toBeijingDayKey(Date.now() - cleanupTrendDays * DAY_MS);
@@ -2284,9 +2211,9 @@ export async function archiveHotSharesToColdStorage(params?: {
   )) as Array<{ "?column?": number }>;
 
   return {
-    processed: rows.length,
-    archived,
-    skipped,
+    cleanupTrendDays,
     cleanedTrendRows: cleanedDayRows.length + cleanedHourRows.length,
+    cleanedDayRows: cleanedDayRows.length,
+    cleanedHourRows: cleanedHourRows.length,
   };
 }

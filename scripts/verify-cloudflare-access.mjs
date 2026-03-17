@@ -71,11 +71,8 @@ async function main() {
   }
 
   const wranglerConfig = await readJsonConfig("wrangler.jsonc");
-  const defaultBucketName = wranglerConfig.r2_buckets?.[0]?.bucket_name ?? null;
-  const testBucketName = wranglerConfig.env?.test?.r2_buckets?.[0]?.bucket_name ?? null;
   const testDomainPattern = wranglerConfig.env?.test?.routes?.[0]?.pattern ?? null;
   const productionDomainPattern = wranglerConfig.routes?.[0]?.pattern ?? null;
-  const envBucketName = readEnv("R2_BUCKET");
   const testWorkerName = `${wranglerConfig.name}-test`;
 
   const tokenResult = await cfFetch(`/accounts/${accountId}/tokens/verify`, token);
@@ -128,25 +125,6 @@ async function main() {
     "test domain worker match",
     Boolean(testDomainBinding?.service === testWorkerName),
     testDomainBinding ? `${testDomainBinding.service} vs ${testWorkerName}` : `${testWorkerName} not bound`
-  );
-
-  const bucketsResult = await cfFetch(`/accounts/${accountId}/r2/buckets`, token);
-  const bucketNames = new Set((bucketsResult.buckets ?? []).map((bucket) => bucket.name));
-  printCheck("r2 read", true, `${bucketNames.size} buckets visible`);
-  printCheck(
-    "default wrangler bucket",
-    Boolean(defaultBucketName && bucketNames.has(defaultBucketName)),
-    defaultBucketName ? defaultBucketName : "missing"
-  );
-  printCheck(
-    "test wrangler bucket",
-    Boolean(testBucketName && bucketNames.has(testBucketName)),
-    testBucketName ? testBucketName : "missing"
-  );
-  printCheck(
-    "env R2 bucket match",
-    Boolean(envBucketName && envBucketName === defaultBucketName),
-    envBucketName ? `${envBucketName} vs ${defaultBucketName}` : "R2_BUCKET missing"
   );
 
   console.log("");
