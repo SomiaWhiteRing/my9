@@ -14,6 +14,14 @@ const LANDSCAPE_SVG = `
   <text x="480" y="380" text-anchor="middle" font-size="28" font-weight="600" fill="#475569">若失败，请复制 /custom 到系统浏览器继续。</text>
 </svg>
 `.trim();
+const PORTRAIT_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="960" viewBox="0 0 720 960">
+  <rect width="720" height="960" fill="#f3f6fb"/>
+  <rect x="40" y="40" width="640" height="880" fill="#ffffff" stroke="#dbe4f0" stroke-width="4"/>
+  <text x="360" y="360" text-anchor="middle" font-size="46" font-weight="700" fill="#0f172a">3:4 测试图</text>
+  <text x="360" y="450" text-anchor="middle" font-size="28" font-weight="600" fill="#475569">最小缩放时不应被额外裁边</text>
+</svg>
+`.trim();
 
 type MockShareState = {
   kind: string;
@@ -1006,6 +1014,41 @@ test.describe("v3 interaction", () => {
 
     expect(mediaRatio).not.toBeNull();
     expect(Math.abs((mediaRatio?.renderedRatio || 0) - (mediaRatio?.naturalRatio || 0))).toBeLessThan(0.05);
+  });
+
+  test("自定义模式上传裁切在移动端对精确比例图不额外裁边", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/custom");
+    await page.getByRole("button", { name: "我知道了" }).click();
+
+    await page.getByLabel("选择第 1 格作品").click();
+    await page.getByRole("button", { name: "上传" }).click();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "portrait.svg",
+      mimeType: "image/svg+xml",
+      buffer: Buffer.from(PORTRAIT_SVG, "utf8"),
+    });
+
+    await expect(page.getByRole("heading", { name: "裁切上传图片" })).toBeVisible();
+    await page.waitForTimeout(250);
+
+    const sizeInfo = await page.evaluate(() => {
+      const media = document.querySelector(".reactEasyCrop_Image") as HTMLImageElement | null;
+      const cropArea = document.querySelector(".reactEasyCrop_CropArea") as HTMLDivElement | null;
+      if (!media || !cropArea) return null;
+      const mediaRect = media.getBoundingClientRect();
+      const cropRect = cropArea.getBoundingClientRect();
+      return {
+        mediaWidth: mediaRect.width,
+        mediaHeight: mediaRect.height,
+        cropWidth: cropRect.width,
+        cropHeight: cropRect.height,
+      };
+    });
+
+    expect(sizeInfo).not.toBeNull();
+    expect(Math.abs((sizeInfo?.mediaWidth || 0) - (sizeInfo?.cropWidth || 0))).toBeLessThan(1.5);
+    expect(Math.abs((sizeInfo?.mediaHeight || 0) - (sizeInfo?.cropHeight || 0))).toBeLessThan(1.5);
   });
 
   test("自定义模式支持单源搜索、上传裁切、本地草稿和直接导图", async ({ page }) => {

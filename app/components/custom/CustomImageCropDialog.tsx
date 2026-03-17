@@ -102,13 +102,7 @@ export function CustomImageCropDialog({
                 zoom={zoom}
                 aspect={3 / 4}
                 showGrid
-                objectFit="cover"
-                style={{
-                  mediaStyle: {
-                    maxWidth: "none",
-                    maxHeight: "none",
-                  },
-                }}
+                objectFit="contain"
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
                 onCropComplete={(_, croppedPixels) => setCroppedAreaPixels(croppedPixels)}
