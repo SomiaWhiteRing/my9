@@ -12,7 +12,7 @@
     "prebuild": "npm run share-count:snapshot",
     "build": "next build",
     "prebuild:cf": "npm run share-count:snapshot",
-    "build:cf": "next build --webpack",
+    "build:cf": "node scripts/build-next-cf.mjs",
     "start": "next start",
     "cf:verify-access": "node scripts/verify-cloudflare-access.mjs",
     "d1:migrate:local": "node scripts/run-wrangler-with-sql-token.mjs d1 migrations apply my9-prod --local",
