@@ -19,7 +19,7 @@ SITE_URL=https://my9test.shatranj.space
 
 ## Worker config
 
-- `env.test` attaches a separate Worker environment to the Custom Domain `my9test.shatranj.space`.
+- Production and `env.test` both bind D1 through `MY9_DB`.
 - `env.test` intentionally leaves cron disabled so the test deployment does not run the production maintenance schedule.
 
 ## Verification flow
@@ -29,12 +29,6 @@ Run the read-only verifier before any deploy:
 ```bash
 npm run cf:verify-access
 ```
-
-It checks:
-
-- account token validity via the account token verify endpoint
-- account Worker visibility
-- zone lookup and Workers routes read access
 
 Recommended deploy sequence for the test domain:
 
@@ -49,18 +43,26 @@ npm run cf:deploy:test
 Secrets:
 
 - `BANGUMI_ACCESS_TOKEN`
-- `BANGUMI_USER_AGENT` if treated as sensitive in your setup
-- Neon connection secrets used by the app
+- `BANGUMI_USER_AGENT`
+- `MY9_ANALYTICS_ACCOUNT_ID`
+- `MY9_ANALYTICS_API_TOKEN`
 
 Non-secret vars:
 
 - `NEXT_PUBLIC_SITE_URL`
 - `SITE_URL`
 - `NEXT_PUBLIC_GA_ID`
-- `MY9_ENABLE_V1_FALLBACK`
 - `MY9_TREND_CLEANUP_DAYS`
 - `MY9_TRENDS_24H_SOURCE`
+- `MY9_SHARE_VIEW_ANALYTICS_DATASET`
+
+Bindings:
+
+- `MY9_DB`
+- `MY9_SHARE_VIEW_ANALYTICS`
+- `ASSETS`
 
 Notes:
 
 - `npm run cf:verify-access` is intentionally non-mutating. It does not prove secret write access or Custom Domain creation on its own.
+- Neon credentials are no longer part of the Worker runtime.

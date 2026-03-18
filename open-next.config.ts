@@ -7,5 +7,6 @@ const config = defineCloudflareConfig({
 
 // OpenNext's Cloudflare runtime does not currently support Turbopack server builds.
 config.buildCommand = "npm run build:cf";
+config.buildOutputPath = ".cf-build";
 
 export default config;

@@ -12,6 +12,7 @@
 # next.js
 /.next/
 /.open-next/
+/.cf-build/
 /out/
 
 # production
@@ -42,7 +43,6 @@ next-env.d.ts
 /.next-e2e/
 /screenshot/
 /test-results/
-scripts/.migrate-shares-v1.checkpoint.json
 
 # example
 *.csv

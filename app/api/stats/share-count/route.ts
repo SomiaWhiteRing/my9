@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { countAllShares } from "@/lib/share/storage";
+import { SHARE_COUNT_SNAPSHOT } from "@/lib/generated/share-count-snapshot";
 
 const SHARE_COUNT_CDN_TTL_SECONDS = 300;
 const SHARE_COUNT_STALE_TTL_SECONDS = 600;
@@ -24,15 +25,14 @@ export async function GET() {
         headers: createShareCountCacheHeaders(),
       }
     );
-  } catch {
+  } catch (error) {
+    console.error("[share-count] falling back to snapshot", error);
     return NextResponse.json(
       {
-        ok: false,
-        error: "总数加载失败",
+        ok: true,
+        totalCount: SHARE_COUNT_SNAPSHOT,
       },
-      {
-        status: 500,
-      }
+      { headers: createShareCountCacheHeaders() }
     );
   }
 }

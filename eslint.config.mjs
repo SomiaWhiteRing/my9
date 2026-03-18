@@ -6,6 +6,8 @@ const eslintConfig = [
   ...nextTypeScript,
   {
     ignores: [
+      ".cf-build/**",
+      ".next/**",
       ".next-e2e/**",
       ".open-next/**",
       ".wrangler/**",

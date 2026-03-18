@@ -1,17 +1,10 @@
-import { neon } from "@neondatabase/serverless";
+import { spawn } from "node:child_process";
 
-const SHARES_V1_TABLE = "my9_shares_v1";
 const SHARES_V2_TABLE = "my9_share_registry_v2";
-
-function readEnv(...names) {
-  for (const name of names) {
-    const value = process.env[name];
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
-  }
-  return null;
-}
+const DEFAULT_D1_DATABASE_NAMES = {
+  production: "my9-prod",
+  test: "my9-test",
+};
 
 function toNonNegativeInt(value) {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -26,63 +19,80 @@ function toNonNegativeInt(value) {
   return null;
 }
 
-export function buildDatabaseUrlFromNeonParts() {
-  const host = readEnv("NEON_DATABASE_PGHOST_UNPOOLED", "NEON_DATABASE_PGHOST");
-  const user = readEnv("NEON_DATABASE_PGUSER");
-  const password = readEnv("NEON_DATABASE_PGPASSWORD", "NEON_DATABASE_POSTGRES_PASSWORD");
-  const database = readEnv("NEON_DATABASE_PGDATABASE", "NEON_DATABASE_POSTGRES_DATABASE");
-
-  if (!host || !user || !password || !database) {
-    return null;
-  }
-
-  let hostWithPort = host;
-  const port = readEnv("NEON_DATABASE_PGPORT");
-  if (port && !host.includes(":")) {
-    hostWithPort = `${host}:${port}`;
-  }
-
-  const sslMode = readEnv("NEON_DATABASE_PGSSLMODE") ?? "require";
-  return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(
-    password
-  )}@${hostWithPort}/${encodeURIComponent(database)}?sslmode=${encodeURIComponent(sslMode)}`;
-}
-
-async function tryCountFromTable(sql, tableName) {
-  try {
-    const rows = await sql.query(
-      `
-      SELECT COUNT(*)::BIGINT AS total_count
-      FROM ${tableName}
-      `
-    );
-    const nextCount = toNonNegativeInt(rows?.[0]?.total_count);
-    return nextCount ?? 0;
-  } catch {
-    return null;
-  }
-}
-
-export async function resolveShareCountFromDatabase(databaseUrl) {
-  const sql = neon(databaseUrl);
-
-  const v2Count = await tryCountFromTable(sql, SHARES_V2_TABLE);
-  if (v2Count !== null && v2Count > 0) {
-    return v2Count;
-  }
-
-  const v1Count = await tryCountFromTable(sql, SHARES_V1_TABLE);
-  if (v1Count !== null) {
-    return v1Count;
-  }
-
-  if (v2Count !== null) {
-    return v2Count;
-  }
-
-  throw new Error("Failed to read share count from v1/v2 tables.");
-}
-
 export function parseShareCount(value) {
   return toNonNegativeInt(value);
+}
+
+function run(command, args) {
+  return new Promise((resolve, reject) => {
+    const commandLine = [command, ...args.map((arg) => (/[\s()*;]/.test(arg) ? `"${arg.replaceAll('"', '\\"')}"` : arg))].join(" ");
+    const child = spawn(commandLine, {
+      cwd: process.cwd(),
+      env: process.env,
+      shell: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+
+    child.on("error", reject);
+    child.on("exit", (code, signal) => {
+      if (signal) {
+        reject(new Error(`command exited via signal: ${signal}`));
+        return;
+      }
+      if ((code ?? 1) !== 0) {
+        reject(new Error(stderr.trim() || stdout.trim() || `command failed: ${command}`));
+        return;
+      }
+      resolve(stdout);
+    });
+  });
+}
+
+function parseWranglerJson(stdout) {
+  const jsonStart = stdout.search(/[\[{]/);
+  if (jsonStart === -1) {
+    throw new Error(`wrangler returned no JSON payload: ${stdout}`.trim());
+  }
+  return JSON.parse(stdout.slice(jsonStart));
+}
+
+async function queryCountFromWranglerD1(targetEnv, mode) {
+  const databaseName = DEFAULT_D1_DATABASE_NAMES[targetEnv === "test" ? "test" : "production"];
+  const args = [
+    "wrangler",
+    "d1",
+    "execute",
+    databaseName,
+    `--${mode}`,
+    `--command=SELECT COUNT(*) AS total_count FROM ${SHARES_V2_TABLE}`,
+    "--json",
+  ];
+
+  if (targetEnv === "test") {
+    args.push("--env", "test");
+  }
+
+  const stdout = await run("npx", args);
+  const payload = parseWranglerJson(stdout);
+  const rows = payload?.[0]?.results ?? payload?.results ?? [];
+  return toNonNegativeInt(rows?.[0]?.total_count) ?? 0;
+}
+
+export async function resolveShareCountFromD1Local(targetEnv = "production") {
+  return await queryCountFromWranglerD1(targetEnv, "local");
+}
+
+export async function resolveShareCountFromD1Remote(targetEnv = "production") {
+  return await queryCountFromWranglerD1(targetEnv, "remote");
 }

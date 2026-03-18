@@ -29,13 +29,12 @@
 - `npm run cf:preview`：先构建，再通过 Wrangler 本地预览 Worker。
 - `npm run cf:deploy`：先构建，再部署到 Cloudflare Workers。
 - `npm run cf:deploy:test`：构建并部署到 `my9test.shatranj.space` 对应的 Cloudflare Worker 环境。
+- `npm run d1:migrate:local` / `npm run d1:migrate:remote`：应用生产 D1 migrations。
+- `npm run d1:migrate:local:test` / `npm run d1:migrate:remote:test`：应用测试环境 D1 migrations。
+- `npm run d1:rebuild-trends`：从 D1 事实表重建 kind 粒度趋势表。
+- `npm run d1:cleanup-trends`：清理过旧日/小时趋势计数。
 - `npm run lint`：运行 ESLint。
 - `npm run test:e2e`：运行 Playwright E2E。
-- `node scripts/migrate-shares-v1-to-v2.mjs`：将 `my9_shares_v1` 迁移到 v2 存储模型（支持 checkpoint）。
-- `node scripts/verify-shares-v2-migration.mjs`：校验迁移覆盖率（`missing_count`/`orphan_alias_count`）。
-- `node scripts/rebuild-trends-kind-v3.mjs`：用现有分享数据重建当前线上使用的 kind 粒度趋势表。
-- `node scripts/cleanup-trend-counts.mjs`：清理过旧日/小时粒度趋势计数，控制趋势表体积。
-- `node scripts/remove-cold-storage-columns.mjs --dry-run`：核对数据库是否还依赖旧冷存储列；部署新代码后再去掉旧列。
 
 说明：
 - 仓库以 `npm` + `package-lock.json` 为准，避免切换包管理器引发锁文件噪音。
@@ -65,13 +64,7 @@
   - `CLOUDFLARE_ACCOUNT_ID`
   - `BANGUMI_ACCESS_TOKEN`
   - `BANGUMI_USER_AGENT`
-  - `NEON_DATABASE_PGHOST_UNPOOLED`（或 `NEON_DATABASE_PGHOST`）
-  - `NEON_DATABASE_PGUSER`
-  - `NEON_DATABASE_PGPASSWORD`（或 `NEON_DATABASE_POSTGRES_PASSWORD`）
-  - `NEON_DATABASE_PGDATABASE`（或 `NEON_DATABASE_POSTGRES_DATABASE`）
-  - 可选：`NEON_DATABASE_PGPORT`、`NEON_DATABASE_PGSSLMODE`（默认 `require`）
-  - 生产环境默认禁用内存 fallback（数据库异常会直接报错）；可用 `MY9_ALLOW_MEMORY_FALLBACK=1` 临时放开
-  - 可选：`MY9_ENABLE_V1_FALLBACK=0`（默认开启 v1 读取兜底；迁移稳定后再关闭）
+  - 可选：`MY9_DB_WRANGLER_ENV`（本地 Node 侧通过 `getPlatformProxy()` 选择 `wrangler` 环境，例：`test`）
   - 可选：`MY9_TRENDS_24H_SOURCE=day|hour`（默认 `day`；小时窗口初始化完成后再切 `hour`）
   - 可选：`MY9_ANALYTICS_ACCOUNT_ID`（未设置时可回退到 `CLOUDFLARE_ACCOUNT_ID`）
   - 可选：`MY9_ANALYTICS_API_TOKEN`（Workers Analytics Engine SQL 读权限；未设置时 `cf:sync-secrets` 可临时回退到 `CLOUDFLARE_API_TOKEN`）
@@ -80,19 +73,21 @@
   - 可选：`NEXT_PUBLIC_SITE_URL`（测试域部署时需设为 `https://my9test.shatranj.space`）
   - 可选：`SITE_URL`（服务端覆盖；未设置时回退到 `NEXT_PUBLIC_SITE_URL`）
 - Cloudflare Workers 生产部署还需在 `wrangler.jsonc` 中绑定：
+  - `MY9_DB`（D1）
   - `MY9_SHARE_VIEW_ANALYTICS`（Workers Analytics Engine）
   - `ASSETS`（静态资源）
 - Cloudflare 部署认证统一使用 account token，不再使用全局 `CLOUDFLARE_API_KEY`。
 - 分享图封面当前通过 `wsrv.nl` 在前端拉取并绘制；修改该链路时需评估跨域与流量成本影响。
-- 严禁提交任何真实密钥（Neon/R2/CRON）。若误泄露，必须立即旋转并更新环境变量。
+- 严禁提交任何真实密钥（Cloudflare/R2/CRON）。若误泄露，必须立即旋转并更新环境变量。
 - OpenNext Cloudflare 当前不建议把原生 Windows PowerShell 作为正式构建/部署环境；发布前至少在 Linux CI 或 WSL2 上验证一次 `npm run cf:build`。
 
 ## 分享存储 v2 运维
-- 迁移脚本默认读取 `my9_shares_v1`，并写入 `my9_share_registry_v2` / `my9_share_alias_v1` / `my9_subject_dim_v1`；当前趋势表需通过 `node scripts/rebuild-trends-kind-v3.mjs` 单独重建到 `my9_trend_subject_kind_*_v3`。
-- 迁移完成后先执行 `node scripts/verify-shares-v2-migration.mjs`；仅当 `missing_count=0` 且 `orphan_alias_count=0` 才允许考虑关闭 v1 兜底。
+- 当前运行时为 D1-only；分享写入、读取、趋势聚合、浏览量总表、cron 清理都只依赖 D1。
+- D1 schema 通过 `migrations/d1` 维护；新库先执行 `npm run d1:migrate:local` / `npm run d1:migrate:remote`。
+- 趋势重建使用 `npm run d1:rebuild-trends`，输入事实表为 `my9_share_subject_slot_v1`，输出为 `my9_trend_subject_kind_*_v3`。
 - 日常归档由 Cloudflare Workers Cron 调度 `worker.js` 中的 `scheduled()`，当前配置在 `wrangler.jsonc`（`5 16 * * *`，即北京时间 `00:05`，每天一次）。
 - 同一个 daily cron 还会清理 `MY9_TREND_CLEANUP_DAYS` 之前的日/小时趋势数据，并把截至前一个已闭合北京时间自然日的分享页访问量累计回写到 `my9_share_view_total_v1`（每个 `share_id` 一行）。
-- 生产切换顺序：`v2 优先 + v1 兜底` -> 全量迁移与校验 -> 关闭兜底 -> 稳定观察后再删除 v1 表。
+- test 环境不跑 cron；需要人工执行部署和运维脚本验证。
 
 ## 提交与 PR 建议
 - 提交信息简短、祈使/现在时，聚焦单一改动。

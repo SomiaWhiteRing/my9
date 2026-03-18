@@ -284,8 +284,15 @@ async function resolveTrendResponseInternal(params: ResolveTrendParams): Promise
       await safeSetTrendsCache(params, normalized);
       return normalized;
     }
-  } catch {
-    // degrade to stale cache below
+  } catch (error) {
+    console.error("[trends] aggregation failed", {
+      period: params.period,
+      view: params.view,
+      kind: params.kind,
+      overallPage: params.overallPage,
+      yearPage: params.yearPage,
+      error,
+    });
   }
 
   const staleCached = await safeGetTrendsCache(params, true);

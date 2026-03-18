@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  buildDatabaseUrlFromNeonParts,
   parseShareCount,
-  resolveShareCountFromDatabase,
+  resolveShareCountFromD1Local,
+  resolveShareCountFromD1Remote,
 } from "./share-count-utils.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -41,23 +41,38 @@ export const SHARE_COUNT_SNAPSHOT = ${count};
 `;
 }
 
+function hasArg(name) {
+  return process.argv.includes(`--${name}`);
+}
+
+function resolveTargetEnv() {
+  return hasArg("test") ? "test" : "production";
+}
+
 async function main() {
   loadLocalEnvFiles();
 
   const fallbackCount = readExistingSnapshotCount() ?? parseShareCount(process.env.NEXT_PUBLIC_SHARE_COUNT) ?? 0;
   let nextCount = fallbackCount;
   let source = "fallback";
+  const targetEnv = resolveTargetEnv();
 
-  const databaseUrl = buildDatabaseUrlFromNeonParts();
-  if (databaseUrl) {
+  if (hasArg("local")) {
     try {
-      nextCount = await resolveShareCountFromDatabase(databaseUrl);
-      source = "database";
+      nextCount = await resolveShareCountFromD1Local(targetEnv);
+      source = `d1:${targetEnv}:local`;
     } catch (error) {
-      console.warn("[share-count] failed to query database, using fallback snapshot.", error);
+      console.warn("[share-count] failed to query local D1, using fallback snapshot.", error);
+    }
+  } else if (hasArg("remote")) {
+    try {
+      nextCount = await resolveShareCountFromD1Remote(targetEnv);
+      source = `d1:${targetEnv}:remote`;
+    } catch (error) {
+      console.warn("[share-count] failed to query remote D1, using fallback snapshot.", error);
     }
   } else {
-    console.warn("[share-count] database env is not complete, using fallback snapshot.");
+    console.log("[share-count] no query flag provided; keeping existing snapshot/fallback.");
   }
 
   mkdirSync(path.dirname(snapshotFilePath), { recursive: true });
