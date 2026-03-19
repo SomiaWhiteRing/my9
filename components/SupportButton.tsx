@@ -17,6 +17,7 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-19", name: "纷飞的蒲公英", amount: "6", message: "" },
   { date: "2026-03-18", name: "Recroaed", amount: "3", message: "" },
   { date: "2026-03-17", name: "匿名", amount: "10", message: "好多专辑搜不到……TT" },
   { date: "2026-03-17", name: "匿名", amount: "10", message: "想看我的英雄學院小众角色" },
@@ -184,6 +185,7 @@ export function SupportButton() {
           </div>
         ) : (
           <div className="mt-3 flex justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={fallbackWechatPayQrUrl}
               alt="微信赞赏码"
