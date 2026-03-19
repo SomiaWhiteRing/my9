@@ -1,4 +1,4 @@
-import { getAggregatedTrendResponse } from "@/lib/share/storage";
+import { getAggregatedTrendResponse, getTrendsCache, setTrendsCache } from "@/lib/share/storage";
 import { TrendPeriod, TrendResponse, TrendView, TrendYearPage } from "@/lib/share/types";
 import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 
@@ -11,6 +11,7 @@ export const DEFAULT_TREND_OVERALL_PAGE = 1;
 export const DEFAULT_TREND_YEAR_PAGE: TrendYearPage = "recent";
 const MAX_TREND_OVERALL_PAGE = 5;
 const OVERALL_ONLY_TREND_KINDS = new Set<SubjectKind>(["character", "person"]);
+const TRENDS_STORAGE_CACHE_TTL_SECONDS = 300;
 
 type ResolveTrendParams = {
   period: TrendPeriod;
@@ -102,6 +103,22 @@ export function parseTrendYearPage(value: string | null | undefined): TrendYearP
 
 async function resolveTrendResponseInternal(params: ResolveTrendParams): Promise<TrendResponse> {
   try {
+    const cached = await getTrendsCache(params.period, params.view, params.kind, params.overallPage, params.yearPage);
+    if (cached) {
+      return suppressSmallSamples(cached);
+    }
+  } catch (error) {
+    console.error("[trends] cache read failed", {
+      period: params.period,
+      view: params.view,
+      kind: params.kind,
+      overallPage: params.overallPage,
+      yearPage: params.yearPage,
+      error,
+    });
+  }
+
+  try {
     const aggregated = await getAggregatedTrendResponse({
       period: params.period,
       view: params.view,
@@ -111,6 +128,26 @@ async function resolveTrendResponseInternal(params: ResolveTrendParams): Promise
     });
 
     if (aggregated) {
+      try {
+        await setTrendsCache(
+          params.period,
+          params.view,
+          params.kind,
+          params.overallPage,
+          params.yearPage,
+          aggregated,
+          TRENDS_STORAGE_CACHE_TTL_SECONDS
+        );
+      } catch (error) {
+        console.error("[trends] cache write failed", {
+          period: params.period,
+          view: params.view,
+          kind: params.kind,
+          overallPage: params.overallPage,
+          yearPage: params.yearPage,
+          error,
+        });
+      }
       return suppressSmallSamples(aggregated);
     }
   } catch (error) {

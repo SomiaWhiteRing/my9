@@ -122,6 +122,9 @@ const SHARE_VIEW_ROLLUP_CHECKPOINT_KEY = "system:share-view-rollup:v1";
 const TREND_ROLLUP_CHECKPOINT_KEY = "system:trend-rollup:v1";
 const DEFAULT_TREND_ROLLUP_BATCH_SIZE = 512;
 const TREND_ROLLUP_CHECKPOINT_CACHE_TTL_MS = 60 * 1000;
+// D1 starts rejecting statements once bound variables exceed 100.
+const D1_SAFE_SQL_VARIABLES = 96;
+const D1_IN_CLAUSE_CHUNK_SIZE = D1_SAFE_SQL_VARIABLES;
 type TrendUpdateMode = "auto" | "realtime" | "rollup";
 let trendRollupCheckpointCache:
   | {
@@ -288,7 +291,7 @@ function areStringArraysEqual(left: string[], right: string[]) {
 
 async function fetchExistingSubjectDimRows(db: D1DatabaseLike, kind: SubjectKind, subjectIds: string[]) {
   const rowsById = new Map<string, SubjectDimRow>();
-  for (const ids of chunkArray(subjectIds, 300)) {
+  for (const ids of chunkArray(subjectIds, D1_IN_CLAUSE_CHUNK_SIZE)) {
     if (ids.length === 0) continue;
     const rows = await queryAll<SubjectDimRow>(
       db,
@@ -309,7 +312,7 @@ async function fetchExistingSubjectDimRows(db: D1DatabaseLike, kind: SubjectKind
 
 async function fetchExistingSubjectGenres(db: D1DatabaseLike, kind: SubjectKind, subjectIds: string[]) {
   const rowsById = new Map<string, string[]>();
-  for (const ids of chunkArray(subjectIds, 300)) {
+  for (const ids of chunkArray(subjectIds, D1_IN_CLAUSE_CHUNK_SIZE)) {
     if (ids.length === 0) continue;
     const rows = await queryAll<SubjectGenreRow>(
       db,
@@ -435,7 +438,7 @@ function buildSubjectGenreStatements(params: {
 
 async function fetchSubjectSnapshots(db: D1DatabaseLike, kind: SubjectKind, subjectIds: string[]) {
   const snapshots = new Map<string, ReturnType<typeof toSubjectSnapshot>>();
-  for (const ids of chunkArray(subjectIds, 300)) {
+  for (const ids of chunkArray(subjectIds, D1_IN_CLAUSE_CHUNK_SIZE)) {
     if (ids.length === 0) continue;
     const rows = await queryAll<SubjectDimRow>(
       db,
@@ -546,10 +549,6 @@ async function resolveTrendLastUpdatedAt(db: D1DatabaseLike, period: TrendPeriod
   );
 
   return toOptionalNumber(updatedAtRow?.last_updated_at) ?? 0;
-}
-
-function buildCompositeWhereClause(columns: string[], rowCount: number): string {
-  return Array.from({ length: rowCount }, () => `(${columns.map((column) => `${column} = ?`).join(" AND ")})`).join(" OR ");
 }
 
 function toTrendRollupCheckpoint(row: TrendRollupSourceRow): TrendRollupCheckpoint {
@@ -676,137 +675,106 @@ async function fetchTrendRollupSourceRows(
   );
 }
 
-async function loadRollupCountsByAllKey(
-  db: D1DatabaseLike,
-  keys: Array<{ kind: string; subjectId: string }>
-): Promise<Array<{ kind: string; subject_id: string; count: number | string }>> {
-  const rows: Array<{ kind: string; subject_id: string; count: number | string }> = [];
-  for (const chunk of chunkArray(keys, 120)) {
-    if (chunk.length === 0) continue;
-    const whereSql = buildCompositeWhereClause(["kind", "subject_id"], chunk.length);
-    const params = chunk.flatMap((key) => [key.kind, key.subjectId]);
-    rows.push(
-      ...(await queryAll<{ kind: string; subject_id: string; count: number | string }>(
-        db,
-        `
-        SELECT kind, subject_id, COUNT(*) AS count
-        FROM ${SHARE_SUBJECT_SLOT_TABLE}
-        WHERE ${whereSql}
-        GROUP BY kind, subject_id
-        `,
-        params
-      ))
-    );
+function buildTrendRollupRangeWhereClause(start: TrendRollupCheckpoint | null, end: TrendRollupCheckpoint) {
+  const endParams = [end.createdAt, end.createdAt, end.shareId, end.createdAt, end.shareId, end.slotIndex];
+
+  if (!start) {
+    return {
+      sql: `
+      (
+        created_at < ?
+        OR (created_at = ? AND share_id < ?)
+        OR (created_at = ? AND share_id = ? AND slot_index <= ?)
+      )
+      `,
+      params: endParams,
+    };
   }
-  return rows;
+
+  return {
+    sql: `
+    (
+      created_at > ?
+      OR (created_at = ? AND share_id > ?)
+      OR (created_at = ? AND share_id = ? AND slot_index > ?)
+    )
+    AND (
+      created_at < ?
+      OR (created_at = ? AND share_id < ?)
+      OR (created_at = ? AND share_id = ? AND slot_index <= ?)
+    )
+    `,
+    params: [
+      start.createdAt,
+      start.createdAt,
+      start.shareId,
+      start.createdAt,
+      start.shareId,
+      start.slotIndex,
+      ...endParams,
+    ],
+  };
 }
 
-async function loadRollupCountsByDayKey(
-  db: D1DatabaseLike,
-  keys: Array<{ kind: string; dayKey: number; subjectId: string }>
-): Promise<Array<{ kind: string; day_key: number | string; subject_id: string; count: number | string }>> {
-  const rows: Array<{ kind: string; day_key: number | string; subject_id: string; count: number | string }> = [];
-  for (const chunk of chunkArray(keys, 80)) {
-    if (chunk.length === 0) continue;
-    const whereSql = buildCompositeWhereClause(["kind", "day_key", "subject_id"], chunk.length);
-    const params = chunk.flatMap((key) => [key.kind, key.dayKey, key.subjectId]);
-    rows.push(
-      ...(await queryAll<{ kind: string; day_key: number | string; subject_id: string; count: number | string }>(
-        db,
-        `
-        SELECT kind, day_key, subject_id, COUNT(*) AS count
-        FROM ${SHARE_SUBJECT_SLOT_TABLE}
-        WHERE ${whereSql}
-        GROUP BY kind, day_key, subject_id
-        `,
-        params
-      ))
-    );
-  }
-  return rows;
-}
-
-async function loadRollupCountsByHourKey(
-  db: D1DatabaseLike,
-  keys: Array<{ kind: string; hourBucket: number; subjectId: string }>
-): Promise<Array<{ kind: string; hour_bucket: number | string; subject_id: string; count: number | string }>> {
-  const rows: Array<{ kind: string; hour_bucket: number | string; subject_id: string; count: number | string }> = [];
-  for (const chunk of chunkArray(keys, 80)) {
-    if (chunk.length === 0) continue;
-    const whereSql = buildCompositeWhereClause(["kind", "hour_bucket", "subject_id"], chunk.length);
-    const params = chunk.flatMap((key) => [key.kind, key.hourBucket, key.subjectId]);
-    rows.push(
-      ...(await queryAll<{ kind: string; hour_bucket: number | string; subject_id: string; count: number | string }>(
-        db,
-        `
-        SELECT kind, hour_bucket, subject_id, COUNT(*) AS count
-        FROM ${SHARE_SUBJECT_SLOT_TABLE}
-        WHERE ${whereSql}
-        GROUP BY kind, hour_bucket, subject_id
-        `,
-        params
-      ))
-    );
-  }
-  return rows;
-}
-
-async function buildTrendRollupStatements(
-  db: D1DatabaseLike,
-  sourceRows: TrendRollupSourceRow[],
+function buildTrendRollupStatements(
+  start: TrendRollupCheckpoint | null,
+  end: TrendRollupCheckpoint,
   updatedAt: number
-): Promise<StatementInput[]> {
-  const allKeyMap = new Map<string, { kind: string; subjectId: string }>();
-  const dayKeyMap = new Map<string, { kind: string; dayKey: number; subjectId: string }>();
-  const hourKeyMap = new Map<string, { kind: string; hourBucket: number; subjectId: string }>();
-
-  for (const row of sourceRows) {
-    const kind = String(row.kind);
-    const subjectId = String(row.subject_id);
-    const dayKey = toNumber(row.day_key, 0);
-    const hourBucket = toNumber(row.hour_bucket, 0);
-    allKeyMap.set(`${kind}:${subjectId}`, { kind, subjectId });
-    dayKeyMap.set(`${kind}:${dayKey}:${subjectId}`, { kind, dayKey, subjectId });
-    hourKeyMap.set(`${kind}:${hourBucket}:${subjectId}`, { kind, hourBucket, subjectId });
-  }
-
-  const [allCounts, dayCounts, hourCounts] = await Promise.all([
-    loadRollupCountsByAllKey(db, Array.from(allKeyMap.values())),
-    loadRollupCountsByDayKey(db, Array.from(dayKeyMap.values())),
-    loadRollupCountsByHourKey(db, Array.from(hourKeyMap.values())),
-  ]);
+): StatementInput[] {
+  const range = buildTrendRollupRangeWhereClause(start, end);
+  const checkpointPayload = JSON.stringify(end);
 
   return [
-    ...allCounts.map<StatementInput>((row) => ({
+    {
       sql: `
       INSERT INTO ${TREND_COUNT_ALL_TABLE} (kind, subject_id, count, updated_at)
-      VALUES (?, ?, ?, ?)
+      SELECT kind, subject_id, COUNT(*) AS count, ? AS updated_at
+      FROM ${SHARE_SUBJECT_SLOT_TABLE}
+      WHERE ${range.sql}
+      GROUP BY kind, subject_id
       ON CONFLICT (kind, subject_id) DO UPDATE SET
-        count = excluded.count,
+        count = ${TREND_COUNT_ALL_TABLE}.count + excluded.count,
         updated_at = excluded.updated_at
       `,
-      params: [row.kind, row.subject_id, toNumber(row.count, 0), updatedAt],
-    })),
-    ...dayCounts.map<StatementInput>((row) => ({
+      params: [updatedAt, ...range.params],
+    },
+    {
       sql: `
       INSERT INTO ${TREND_COUNT_DAY_TABLE} (kind, day_key, subject_id, count, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+      SELECT kind, day_key, subject_id, COUNT(*) AS count, ? AS updated_at
+      FROM ${SHARE_SUBJECT_SLOT_TABLE}
+      WHERE ${range.sql}
+      GROUP BY kind, day_key, subject_id
       ON CONFLICT (kind, day_key, subject_id) DO UPDATE SET
-        count = excluded.count,
+        count = ${TREND_COUNT_DAY_TABLE}.count + excluded.count,
         updated_at = excluded.updated_at
       `,
-      params: [row.kind, toNumber(row.day_key, 0), row.subject_id, toNumber(row.count, 0), updatedAt],
-    })),
-    ...hourCounts.map<StatementInput>((row) => ({
+      params: [updatedAt, ...range.params],
+    },
+    {
       sql: `
       INSERT INTO ${TREND_COUNT_HOUR_TABLE} (kind, hour_bucket, subject_id, count, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+      SELECT kind, hour_bucket, subject_id, COUNT(*) AS count, ? AS updated_at
+      FROM ${SHARE_SUBJECT_SLOT_TABLE}
+      WHERE ${range.sql}
+      GROUP BY kind, hour_bucket, subject_id
       ON CONFLICT (kind, hour_bucket, subject_id) DO UPDATE SET
-        count = excluded.count,
+        count = ${TREND_COUNT_HOUR_TABLE}.count + excluded.count,
         updated_at = excluded.updated_at
       `,
-      params: [row.kind, toNumber(row.hour_bucket, 0), row.subject_id, toNumber(row.count, 0), updatedAt],
-    })),
+      params: [updatedAt, ...range.params],
+    },
+    {
+      sql: `
+      INSERT INTO ${SYSTEM_CHECKPOINT_TABLE} (
+        checkpoint_key, payload, updated_at
+      ) VALUES (?, ?, ?)
+      ON CONFLICT (checkpoint_key) DO UPDATE SET
+        payload = excluded.payload,
+        updated_at = excluded.updated_at
+      `,
+      params: [TREND_ROLLUP_CHECKPOINT_KEY, checkpointPayload, updatedAt],
+    },
   ];
 }
 
@@ -1639,7 +1607,7 @@ const d1StorageBackend: StorageBackend = {
 
     const shareIds = Array.from(new Set(Array.from(folded.values()).map((row) => row.shareId)));
     const aliasMap = new Map<string, string>();
-    for (const ids of chunkArray(shareIds, 300)) {
+    for (const ids of chunkArray(shareIds, D1_IN_CLAUSE_CHUNK_SIZE)) {
       if (ids.length === 0) continue;
       const rows = await queryAll<{ share_id: string; target_share_id: string }>(
         db,
@@ -1657,7 +1625,7 @@ const d1StorageBackend: StorageBackend = {
 
     const resolvedIds = Array.from(new Set(shareIds.map((shareId) => aliasMap.get(shareId) ?? shareId)));
     const shareKindMap = new Map<string, SubjectKind>();
-    for (const ids of chunkArray(resolvedIds, 300)) {
+    for (const ids of chunkArray(resolvedIds, D1_IN_CLAUSE_CHUNK_SIZE)) {
       if (ids.length === 0) continue;
       const rows = await queryAll<{ share_id: string; kind: string }>(
         db,
@@ -1750,14 +1718,18 @@ const d1StorageBackend: StorageBackend = {
         break;
       }
 
-      const statements = await buildTrendRollupStatements(db, sourceRows, updatedAt);
+      const nextCheckpoint = toTrendRollupCheckpoint(sourceRows[sourceRows.length - 1]);
+      const statements = buildTrendRollupStatements(checkpoint, nextCheckpoint, updatedAt);
       rowsFetched += sourceRows.length;
       if (statements.length > 0) {
         rowsWritten += await executeBatch(db, statements);
       }
 
-      checkpoint = toTrendRollupCheckpoint(sourceRows[sourceRows.length - 1]);
-      await setTrendRollupCheckpoint(db, checkpoint);
+      checkpoint = nextCheckpoint;
+      trendRollupCheckpointCache = {
+        expiresAt: Date.now() + TREND_ROLLUP_CHECKPOINT_CACHE_TTL_MS,
+        hasCheckpoint: true,
+      };
       rowsWritten += 1;
     }
 
