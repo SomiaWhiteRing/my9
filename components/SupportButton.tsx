@@ -17,6 +17,10 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-19", name: "匿名", amount: "3", message: "" },
+  { date: "2026-03-19", name: "匿名", amount: "6", message: "可以加个查询作品选定数的功能吗，想看看自己选的作品能有多冷（开发者注：最近在优化数据库，之后可能会考虑……）" },
+  { date: "2026-03-19", name: "烂神植旭富", amount: "10", message: "继续支持一下" },
+  { date: "2026-03-19", name: "知不可乎骤得", amount: "6", message: "希望能坚持下去" },
   { date: "2026-03-19", name: "纷飞的蒲公英", amount: "6", message: "" },
   { date: "2026-03-18", name: "Recroaed", amount: "3", message: "" },
   { date: "2026-03-17", name: "匿名", amount: "10", message: "好多专辑搜不到……TT" },
