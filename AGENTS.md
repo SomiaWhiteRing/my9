@@ -85,8 +85,10 @@
 - 当前运行时为 D1-only；分享写入、读取、趋势聚合、浏览量总表、cron 清理都只依赖 D1。
 - D1 schema 通过 `migrations/d1` 维护；新库先执行 `npm run d1:migrate:local` / `npm run d1:migrate:remote`。
 - 趋势重建使用 `npm run d1:rebuild-trends`，输入事实表为 `my9_share_subject_slot_v1`，输出为 `my9_trend_subject_kind_*_v3`。
-- 日常归档由 Cloudflare Workers Cron 调度 `worker.js` 中的 `scheduled()`，当前配置在 `wrangler.jsonc`（`5 16 * * *`，即北京时间 `00:05`，每天一次）。
-- 同一个 daily cron 还会清理 `MY9_TREND_CLEANUP_DAYS` 之前的日/小时趋势数据，并把截至前一个已闭合北京时间自然日的分享页访问量累计回写到 `my9_share_view_total_v1`（每个 `share_id` 一行）。
+- Cloudflare Workers Cron 现在有两条：
+  - `30 * * * *`：按小时增量 rollup `my9_share_subject_slot_v1` 到 `my9_trend_subject_kind_*_v3`
+  - `5 16 * * *`：北京时间 `00:05` 跑日常维护
+- daily cron 会清理 `MY9_TREND_CLEANUP_DAYS` 之前的日/小时趋势数据，并把截至前一个已闭合北京时间自然日的分享页访问量累计回写到 `my9_share_view_total_v1`（每个 `share_id` 一行）。
 - test 环境不跑 cron；需要人工执行部署和运维脚本验证。
 
 ## 提交与 PR 建议

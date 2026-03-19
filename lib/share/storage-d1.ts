@@ -4,7 +4,7 @@ import {
   normalizeCompactPayload,
   toCompactSharePayload,
 } from "@/lib/share/compact";
-import type { StorageBackend } from "@/lib/share/storage-contract";
+import type { StorageBackend, TrendRollupCheckpoint, TrendRollupResult } from "@/lib/share/storage-contract";
 import type { StoredShareV1, TrendBucket, TrendPeriod, TrendView, TrendYearPage } from "@/lib/share/types";
 import { DEFAULT_SUBJECT_KIND, type SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 import {
@@ -15,6 +15,7 @@ import {
   SHARE_SUBJECT_SLOT_TABLE,
   SHARE_VIEW_TOTAL_TABLE,
   SHARES_V2_TABLE,
+  SYSTEM_CHECKPOINT_TABLE,
   SUBJECT_DIM_TABLE,
   SUBJECT_GENRE_DIM_TABLE,
   TREND_COUNT_ALL_TABLE,
@@ -97,11 +98,37 @@ type ShareViewAggregationRow = {
   last_aggregated_at: number | string | null;
 };
 
+type TrendUpdatedAtRow = {
+  last_updated_at: number | string | null;
+};
+
+type SystemCheckpointRow = {
+  payload: unknown;
+  updated_at: number | string;
+};
+
+type TrendRollupSourceRow = {
+  share_id: string;
+  kind: string;
+  slot_index: number | string;
+  subject_id: string;
+  created_at: number | string;
+  day_key: number | string;
+  hour_bucket: number | string;
+};
+
 const GROUPED_TOP_GAMES_LIMIT = 5;
 const SHARE_VIEW_ROLLUP_CHECKPOINT_KEY = "system:share-view-rollup:v1";
-const SYSTEM_CACHE_PERIOD = "__system__";
-const SYSTEM_CACHE_VIEW = "__share_view_rollup__";
-const SYSTEM_CACHE_KIND = "__system__";
+const TREND_ROLLUP_CHECKPOINT_KEY = "system:trend-rollup:v1";
+const DEFAULT_TREND_ROLLUP_BATCH_SIZE = 512;
+const TREND_ROLLUP_CHECKPOINT_CACHE_TTL_MS = 60 * 1000;
+type TrendUpdateMode = "auto" | "realtime" | "rollup";
+let trendRollupCheckpointCache:
+  | {
+      expiresAt: number;
+      hasCheckpoint: boolean;
+    }
+  | null = null;
 
 function resolveCompactPayload(row: ShareRegistryRow) {
   return normalizeCompactPayload(parseJsonValue<unknown>(row.hot_payload));
@@ -118,6 +145,132 @@ function toOptionalNumber(value: unknown): number | null {
     }
   }
   return null;
+}
+
+function parseTrendRollupCheckpoint(value: unknown): TrendRollupCheckpoint | null {
+  const parsed = parseJsonValue<Partial<TrendRollupCheckpoint>>(value);
+  const createdAt = toOptionalNumber(parsed?.createdAt);
+  const slotIndex = toOptionalNumber(parsed?.slotIndex);
+  const shareId = typeof parsed?.shareId === "string" ? parsed.shareId.trim().toLowerCase() : "";
+
+  if (createdAt === null || slotIndex === null || !shareId) {
+    return null;
+  }
+
+  return {
+    createdAt,
+    shareId,
+    slotIndex,
+  };
+}
+
+function readTrendUpdateMode(): TrendUpdateMode {
+  const raw = readEnv("MY9_TRENDS_UPDATE_MODE");
+  if (raw === "realtime" || raw === "rollup") {
+    return raw;
+  }
+  return "auto";
+}
+
+async function getSystemCheckpoint<T>(
+  db: D1DatabaseLike,
+  checkpointKey: string,
+  parsePayload: (value: unknown) => T | null
+): Promise<T | null> {
+  const row = await queryFirst<SystemCheckpointRow>(
+    db,
+    `
+    SELECT payload, updated_at
+    FROM ${SYSTEM_CHECKPOINT_TABLE}
+    WHERE checkpoint_key = ?
+    LIMIT 1
+    `,
+    [checkpointKey]
+  );
+  return parsePayload(row?.payload);
+}
+
+async function getSystemCheckpointRecord<T>(
+  db: D1DatabaseLike,
+  checkpointKey: string,
+  parsePayload: (value: unknown) => T | null
+): Promise<{ value: T; updatedAt: number } | null> {
+  const row = await queryFirst<SystemCheckpointRow>(
+    db,
+    `
+    SELECT payload, updated_at
+    FROM ${SYSTEM_CHECKPOINT_TABLE}
+    WHERE checkpoint_key = ?
+    LIMIT 1
+    `,
+    [checkpointKey]
+  );
+  const value = parsePayload(row?.payload);
+  if (!value) {
+    return null;
+  }
+  return {
+    value,
+    updatedAt: toOptionalNumber(row?.updated_at) ?? 0,
+  };
+}
+
+async function setSystemCheckpoint(
+  db: D1DatabaseLike,
+  checkpointKey: string,
+  payload: unknown,
+  updatedAt = Date.now()
+): Promise<void> {
+  await execute(
+    db,
+    `
+    INSERT INTO ${SYSTEM_CHECKPOINT_TABLE} (
+      checkpoint_key, payload, updated_at
+    ) VALUES (?, ?, ?)
+    ON CONFLICT (checkpoint_key) DO UPDATE SET
+      payload = excluded.payload,
+      updated_at = excluded.updated_at
+    `,
+    [checkpointKey, JSON.stringify(payload), updatedAt]
+  );
+}
+
+async function getTrendRollupCheckpoint(db: D1DatabaseLike): Promise<TrendRollupCheckpoint | null> {
+  return await getSystemCheckpoint(db, TREND_ROLLUP_CHECKPOINT_KEY, parseTrendRollupCheckpoint);
+}
+
+async function setTrendRollupCheckpoint(db: D1DatabaseLike, checkpoint: TrendRollupCheckpoint): Promise<void> {
+  await setSystemCheckpoint(db, TREND_ROLLUP_CHECKPOINT_KEY, checkpoint);
+  trendRollupCheckpointCache = {
+    expiresAt: Date.now() + TREND_ROLLUP_CHECKPOINT_CACHE_TTL_MS,
+    hasCheckpoint: true,
+  };
+}
+
+async function hasTrendRollupCheckpoint(db: D1DatabaseLike): Promise<boolean> {
+  const now = Date.now();
+  if (trendRollupCheckpointCache && trendRollupCheckpointCache.expiresAt > now) {
+    return trendRollupCheckpointCache.hasCheckpoint;
+  }
+
+  const checkpoint = await getTrendRollupCheckpoint(db);
+  const hasCheckpoint = Boolean(checkpoint);
+  trendRollupCheckpointCache = {
+    expiresAt: now + TREND_ROLLUP_CHECKPOINT_CACHE_TTL_MS,
+    hasCheckpoint,
+  };
+  return hasCheckpoint;
+}
+
+async function shouldUseRealtimeTrendWrites(db: D1DatabaseLike): Promise<boolean> {
+  const mode = readTrendUpdateMode();
+  if (mode === "realtime") {
+    return true;
+  }
+  if (mode === "rollup") {
+    return false;
+  }
+  return !(await hasTrendRollupCheckpoint(db));
 }
 
 function normalizeGenreList(genres: string[] | undefined): string[] {
@@ -363,6 +516,298 @@ function buildTrendCountSourceQuery(period: TrendPeriod, kind: SubjectKind) {
         `,
         params: [kind, fromCountSourceKey],
       };
+}
+
+async function resolveTrendLastUpdatedAt(db: D1DatabaseLike, period: TrendPeriod, kind: SubjectKind): Promise<number> {
+  const rollupCheckpoint = await getSystemCheckpointRecord(db, TREND_ROLLUP_CHECKPOINT_KEY, parseTrendRollupCheckpoint);
+  if (rollupCheckpoint) {
+    return rollupCheckpoint.updatedAt;
+  }
+
+  const fromTimestamp = getPeriodStart(period);
+  const useHourCountsFor24h = period === "24h" && TREND_24H_SOURCE === "hour";
+  const updatedAtRow = await queryFirst<TrendUpdatedAtRow>(
+    db,
+    period === "all"
+      ? `
+        SELECT MAX(updated_at) AS last_updated_at
+        FROM ${TREND_COUNT_ALL_TABLE}
+        WHERE kind = ?
+        `
+      : `
+        SELECT MAX(updated_at) AS last_updated_at
+        FROM ${useHourCountsFor24h ? TREND_COUNT_HOUR_TABLE : TREND_COUNT_DAY_TABLE}
+        WHERE kind = ?
+          AND ${useHourCountsFor24h ? "hour_bucket" : "day_key"} >= ?
+        `,
+    period === "all"
+      ? [kind]
+      : [kind, useHourCountsFor24h ? toBeijingHourBucket(fromTimestamp) : toBeijingDayKey(fromTimestamp)]
+  );
+
+  return toOptionalNumber(updatedAtRow?.last_updated_at) ?? 0;
+}
+
+function buildCompositeWhereClause(columns: string[], rowCount: number): string {
+  return Array.from({ length: rowCount }, () => `(${columns.map((column) => `${column} = ?`).join(" AND ")})`).join(" OR ");
+}
+
+function toTrendRollupCheckpoint(row: TrendRollupSourceRow): TrendRollupCheckpoint {
+  return {
+    createdAt: toNumber(row.created_at, 0),
+    shareId: String(row.share_id),
+    slotIndex: toNumber(row.slot_index, 0),
+  };
+}
+
+function buildTrendSampleQuery(
+  period: TrendPeriod,
+  hasCheckpoint: boolean
+): {
+  sql: string;
+  bindValues: (kind: SubjectKind, fromTimestamp: number, checkpoint: TrendRollupCheckpoint | null) => Array<string | number>;
+} {
+  if (period === "all") {
+    return hasCheckpoint
+      ? {
+          sql: `
+          SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
+          FROM ${SHARES_V2_TABLE}
+          WHERE kind = ?
+            AND created_at <= ?
+          `,
+          bindValues: (kind, _fromTimestamp, checkpoint) => [kind, checkpoint?.createdAt ?? 0],
+        }
+      : {
+          sql: `
+          SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
+          FROM ${SHARES_V2_TABLE}
+          WHERE kind = ?
+          `,
+          bindValues: (kind) => [kind],
+        };
+  }
+
+  return hasCheckpoint
+    ? {
+        sql: `
+        SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
+        FROM ${SHARES_V2_TABLE}
+        WHERE kind = ?
+          AND created_at >= ?
+          AND created_at <= ?
+        `,
+        bindValues: (kind, fromTimestamp, checkpoint) => [kind, fromTimestamp, checkpoint?.createdAt ?? 0],
+      }
+    : {
+        sql: `
+        SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
+        FROM ${SHARES_V2_TABLE}
+        WHERE kind = ?
+          AND created_at >= ?
+        `,
+        bindValues: (kind, fromTimestamp) => [kind, fromTimestamp],
+      };
+}
+
+async function resolveTrendRollupHead(db: D1DatabaseLike): Promise<TrendRollupCheckpoint | null> {
+  const row = await queryFirst<TrendRollupSourceRow>(
+    db,
+    `
+    SELECT share_id, slot_index, created_at, kind, subject_id, day_key, hour_bucket
+    FROM ${SHARE_SUBJECT_SLOT_TABLE}
+    ORDER BY created_at DESC, share_id DESC, slot_index DESC
+    LIMIT 1
+    `
+  );
+  return row ? toTrendRollupCheckpoint(row) : null;
+}
+
+async function hasExistingTrendAggregates(db: D1DatabaseLike): Promise<boolean> {
+  const row = await queryFirst<{ has_rows: number | string }>(
+    db,
+    `
+    SELECT 1 AS has_rows
+    FROM ${TREND_COUNT_ALL_TABLE}
+    LIMIT 1
+    `
+  );
+  return toNumber(row?.has_rows, 0) === 1;
+}
+
+async function fetchTrendRollupSourceRows(
+  db: D1DatabaseLike,
+  checkpoint: TrendRollupCheckpoint | null,
+  limit: number
+): Promise<TrendRollupSourceRow[]> {
+  if (!checkpoint) {
+    return await queryAll<TrendRollupSourceRow>(
+      db,
+      `
+      SELECT share_id, kind, slot_index, subject_id, created_at, day_key, hour_bucket
+      FROM ${SHARE_SUBJECT_SLOT_TABLE}
+      ORDER BY created_at ASC, share_id ASC, slot_index ASC
+      LIMIT ?
+      `,
+      [limit]
+    );
+  }
+
+  return await queryAll<TrendRollupSourceRow>(
+    db,
+    `
+    SELECT share_id, kind, slot_index, subject_id, created_at, day_key, hour_bucket
+    FROM ${SHARE_SUBJECT_SLOT_TABLE}
+    WHERE created_at > ?
+      OR (created_at = ? AND share_id > ?)
+      OR (created_at = ? AND share_id = ? AND slot_index > ?)
+    ORDER BY created_at ASC, share_id ASC, slot_index ASC
+    LIMIT ?
+    `,
+    [
+      checkpoint.createdAt,
+      checkpoint.createdAt,
+      checkpoint.shareId,
+      checkpoint.createdAt,
+      checkpoint.shareId,
+      checkpoint.slotIndex,
+      limit,
+    ]
+  );
+}
+
+async function loadRollupCountsByAllKey(
+  db: D1DatabaseLike,
+  keys: Array<{ kind: string; subjectId: string }>
+): Promise<Array<{ kind: string; subject_id: string; count: number | string }>> {
+  const rows: Array<{ kind: string; subject_id: string; count: number | string }> = [];
+  for (const chunk of chunkArray(keys, 120)) {
+    if (chunk.length === 0) continue;
+    const whereSql = buildCompositeWhereClause(["kind", "subject_id"], chunk.length);
+    const params = chunk.flatMap((key) => [key.kind, key.subjectId]);
+    rows.push(
+      ...(await queryAll<{ kind: string; subject_id: string; count: number | string }>(
+        db,
+        `
+        SELECT kind, subject_id, COUNT(*) AS count
+        FROM ${SHARE_SUBJECT_SLOT_TABLE}
+        WHERE ${whereSql}
+        GROUP BY kind, subject_id
+        `,
+        params
+      ))
+    );
+  }
+  return rows;
+}
+
+async function loadRollupCountsByDayKey(
+  db: D1DatabaseLike,
+  keys: Array<{ kind: string; dayKey: number; subjectId: string }>
+): Promise<Array<{ kind: string; day_key: number | string; subject_id: string; count: number | string }>> {
+  const rows: Array<{ kind: string; day_key: number | string; subject_id: string; count: number | string }> = [];
+  for (const chunk of chunkArray(keys, 80)) {
+    if (chunk.length === 0) continue;
+    const whereSql = buildCompositeWhereClause(["kind", "day_key", "subject_id"], chunk.length);
+    const params = chunk.flatMap((key) => [key.kind, key.dayKey, key.subjectId]);
+    rows.push(
+      ...(await queryAll<{ kind: string; day_key: number | string; subject_id: string; count: number | string }>(
+        db,
+        `
+        SELECT kind, day_key, subject_id, COUNT(*) AS count
+        FROM ${SHARE_SUBJECT_SLOT_TABLE}
+        WHERE ${whereSql}
+        GROUP BY kind, day_key, subject_id
+        `,
+        params
+      ))
+    );
+  }
+  return rows;
+}
+
+async function loadRollupCountsByHourKey(
+  db: D1DatabaseLike,
+  keys: Array<{ kind: string; hourBucket: number; subjectId: string }>
+): Promise<Array<{ kind: string; hour_bucket: number | string; subject_id: string; count: number | string }>> {
+  const rows: Array<{ kind: string; hour_bucket: number | string; subject_id: string; count: number | string }> = [];
+  for (const chunk of chunkArray(keys, 80)) {
+    if (chunk.length === 0) continue;
+    const whereSql = buildCompositeWhereClause(["kind", "hour_bucket", "subject_id"], chunk.length);
+    const params = chunk.flatMap((key) => [key.kind, key.hourBucket, key.subjectId]);
+    rows.push(
+      ...(await queryAll<{ kind: string; hour_bucket: number | string; subject_id: string; count: number | string }>(
+        db,
+        `
+        SELECT kind, hour_bucket, subject_id, COUNT(*) AS count
+        FROM ${SHARE_SUBJECT_SLOT_TABLE}
+        WHERE ${whereSql}
+        GROUP BY kind, hour_bucket, subject_id
+        `,
+        params
+      ))
+    );
+  }
+  return rows;
+}
+
+async function buildTrendRollupStatements(
+  db: D1DatabaseLike,
+  sourceRows: TrendRollupSourceRow[],
+  updatedAt: number
+): Promise<StatementInput[]> {
+  const allKeyMap = new Map<string, { kind: string; subjectId: string }>();
+  const dayKeyMap = new Map<string, { kind: string; dayKey: number; subjectId: string }>();
+  const hourKeyMap = new Map<string, { kind: string; hourBucket: number; subjectId: string }>();
+
+  for (const row of sourceRows) {
+    const kind = String(row.kind);
+    const subjectId = String(row.subject_id);
+    const dayKey = toNumber(row.day_key, 0);
+    const hourBucket = toNumber(row.hour_bucket, 0);
+    allKeyMap.set(`${kind}:${subjectId}`, { kind, subjectId });
+    dayKeyMap.set(`${kind}:${dayKey}:${subjectId}`, { kind, dayKey, subjectId });
+    hourKeyMap.set(`${kind}:${hourBucket}:${subjectId}`, { kind, hourBucket, subjectId });
+  }
+
+  const [allCounts, dayCounts, hourCounts] = await Promise.all([
+    loadRollupCountsByAllKey(db, Array.from(allKeyMap.values())),
+    loadRollupCountsByDayKey(db, Array.from(dayKeyMap.values())),
+    loadRollupCountsByHourKey(db, Array.from(hourKeyMap.values())),
+  ]);
+
+  return [
+    ...allCounts.map<StatementInput>((row) => ({
+      sql: `
+      INSERT INTO ${TREND_COUNT_ALL_TABLE} (kind, subject_id, count, updated_at)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT (kind, subject_id) DO UPDATE SET
+        count = excluded.count,
+        updated_at = excluded.updated_at
+      `,
+      params: [row.kind, row.subject_id, toNumber(row.count, 0), updatedAt],
+    })),
+    ...dayCounts.map<StatementInput>((row) => ({
+      sql: `
+      INSERT INTO ${TREND_COUNT_DAY_TABLE} (kind, day_key, subject_id, count, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (kind, day_key, subject_id) DO UPDATE SET
+        count = excluded.count,
+        updated_at = excluded.updated_at
+      `,
+      params: [row.kind, toNumber(row.day_key, 0), row.subject_id, toNumber(row.count, 0), updatedAt],
+    })),
+    ...hourCounts.map<StatementInput>((row) => ({
+      sql: `
+      INSERT INTO ${TREND_COUNT_HOUR_TABLE} (kind, hour_bucket, subject_id, count, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (kind, hour_bucket, subject_id) DO UPDATE SET
+        count = excluded.count,
+        updated_at = excluded.updated_at
+      `,
+      params: [row.kind, toNumber(row.hour_bucket, 0), row.subject_id, toNumber(row.count, 0), updatedAt],
+    })),
+  ];
 }
 
 function toTrendGameItem(row: TrendSubjectQueryRow) {
@@ -612,10 +1057,13 @@ const d1StorageBackend: StorageBackend = {
       return { shareId: existingShareId, deduped: true };
     }
 
-    const increments = buildTrendIncrements({
-      payload,
-      createdAt: normalizedRecord.createdAt,
-    });
+    const useRealtimeTrendWrites = await shouldUseRealtimeTrendWrites(db);
+    const increments = useRealtimeTrendWrites
+      ? buildTrendIncrements({
+          payload,
+          createdAt: normalizedRecord.createdAt,
+        })
+      : [];
     const subjectRows = Array.from(subjectSnapshots.values());
     const existingSubjectRows = await fetchExistingSubjectDimRows(
       db,
@@ -657,6 +1105,40 @@ const d1StorageBackend: StorageBackend = {
           ]
         : []
     );
+    const trendStatements = useRealtimeTrendWrites
+      ? [
+          ...increments.map<StatementInput>((row) => ({
+            sql: `
+            INSERT INTO ${TREND_COUNT_ALL_TABLE} (kind, subject_id, count, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT (kind, subject_id) DO UPDATE SET
+              count = ${TREND_COUNT_ALL_TABLE}.count + excluded.count,
+              updated_at = excluded.updated_at
+            `,
+            params: [normalizedRecord.kind, row.subjectId, row.count, normalizedRecord.updatedAt],
+          })),
+          ...increments.map<StatementInput>((row) => ({
+            sql: `
+            INSERT INTO ${TREND_COUNT_DAY_TABLE} (kind, day_key, subject_id, count, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (kind, day_key, subject_id) DO UPDATE SET
+              count = ${TREND_COUNT_DAY_TABLE}.count + excluded.count,
+              updated_at = excluded.updated_at
+            `,
+            params: [normalizedRecord.kind, row.dayKey, row.subjectId, row.count, normalizedRecord.updatedAt],
+          })),
+          ...increments.map<StatementInput>((row) => ({
+            sql: `
+            INSERT INTO ${TREND_COUNT_HOUR_TABLE} (kind, hour_bucket, subject_id, count, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (kind, hour_bucket, subject_id) DO UPDATE SET
+              count = ${TREND_COUNT_HOUR_TABLE}.count + excluded.count,
+              updated_at = excluded.updated_at
+            `,
+            params: [normalizedRecord.kind, row.hourBucket, row.subjectId, row.count, normalizedRecord.updatedAt],
+          })),
+        ]
+      : [];
 
     const statements: StatementInput[] = [
       {
@@ -694,36 +1176,7 @@ const d1StorageBackend: StorageBackend = {
           toBeijingHourBucket(normalizedRecord.createdAt),
         ],
       })),
-      ...increments.map<StatementInput>((row) => ({
-        sql: `
-        INSERT INTO ${TREND_COUNT_ALL_TABLE} (kind, subject_id, count, updated_at)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT (kind, subject_id) DO UPDATE SET
-          count = ${TREND_COUNT_ALL_TABLE}.count + excluded.count,
-          updated_at = excluded.updated_at
-        `,
-        params: [normalizedRecord.kind, row.subjectId, row.count, normalizedRecord.updatedAt],
-      })),
-      ...increments.map<StatementInput>((row) => ({
-        sql: `
-        INSERT INTO ${TREND_COUNT_DAY_TABLE} (kind, day_key, subject_id, count, updated_at)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT (kind, day_key, subject_id) DO UPDATE SET
-          count = ${TREND_COUNT_DAY_TABLE}.count + excluded.count,
-          updated_at = excluded.updated_at
-        `,
-        params: [normalizedRecord.kind, row.dayKey, row.subjectId, row.count, normalizedRecord.updatedAt],
-      })),
-      ...increments.map<StatementInput>((row) => ({
-        sql: `
-        INSERT INTO ${TREND_COUNT_HOUR_TABLE} (kind, hour_bucket, subject_id, count, updated_at)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT (kind, hour_bucket, subject_id) DO UPDATE SET
-          count = ${TREND_COUNT_HOUR_TABLE}.count + excluded.count,
-          updated_at = excluded.updated_at
-        `,
-        params: [normalizedRecord.kind, row.hourBucket, row.subjectId, row.count, normalizedRecord.updatedAt],
-      })),
+      ...trendStatements,
     ];
 
     try {
@@ -901,26 +1354,18 @@ const d1StorageBackend: StorageBackend = {
     }
 
     const fromTimestamp = getPeriodStart(params.period);
+    const trendRollupCheckpoint = await getTrendRollupCheckpoint(db);
+    const sampleQuery = buildTrendSampleQuery(params.period, Boolean(trendRollupCheckpoint));
     const sampleRow = await queryFirst<TrendSampleRow>(
       db,
-      fromTimestamp > 0
-        ? `
-          SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
-          FROM ${SHARES_V2_TABLE}
-          WHERE kind = ?
-            AND created_at >= ?
-          `
-        : `
-          SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
-          FROM ${SHARES_V2_TABLE}
-          WHERE kind = ?
-          `,
-      fromTimestamp > 0 ? [params.kind, fromTimestamp] : [params.kind]
+      sampleQuery.sql,
+      sampleQuery.bindValues(params.kind, fromTimestamp, trendRollupCheckpoint)
     );
 
     const sampleCount = toNumber(sampleRow?.sample_count, 0);
     const rangeFrom = sampleRow?.min_created === null ? null : toNumber(sampleRow?.min_created, 0) || null;
     const rangeTo = sampleRow?.max_created === null ? null : toNumber(sampleRow?.max_created, 0) || null;
+    const lastUpdatedAt = await resolveTrendLastUpdatedAt(db, params.period, params.kind);
 
     if (sampleCount === 0) {
       return {
@@ -928,7 +1373,7 @@ const d1StorageBackend: StorageBackend = {
         view: params.view,
         sampleCount,
         range: { from: rangeFrom, to: rangeTo },
-        lastUpdatedAt: Date.now(),
+        lastUpdatedAt,
         items: [],
       };
     }
@@ -945,7 +1390,7 @@ const d1StorageBackend: StorageBackend = {
       view: params.view,
       sampleCount,
       range: { from: rangeFrom, to: rangeTo },
-      lastUpdatedAt: Date.now(),
+      lastUpdatedAt,
       items,
     };
   },
@@ -957,21 +1402,12 @@ const d1StorageBackend: StorageBackend = {
     }
 
     const fromTimestamp = getPeriodStart(period);
+    const trendRollupCheckpoint = await getTrendRollupCheckpoint(db);
+    const sampleQuery = buildTrendSampleQuery(period, Boolean(trendRollupCheckpoint));
     const row = await queryFirst<TrendSampleRow>(
       db,
-      fromTimestamp > 0
-        ? `
-          SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
-          FROM ${SHARES_V2_TABLE}
-          WHERE kind = ?
-            AND created_at >= ?
-          `
-        : `
-          SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
-          FROM ${SHARES_V2_TABLE}
-          WHERE kind = ?
-          `,
-      fromTimestamp > 0 ? [kind, fromTimestamp] : [kind]
+      sampleQuery.sql,
+      sampleQuery.bindValues(kind, fromTimestamp, trendRollupCheckpoint)
     );
 
     return {
@@ -1118,6 +1554,15 @@ const d1StorageBackend: StorageBackend = {
       throw new Error("getShareViewRollupCheckpoint failed: d1 is not ready");
     }
 
+    const systemCheckpoint = await getSystemCheckpoint(
+      db,
+      SHARE_VIEW_ROLLUP_CHECKPOINT_KEY,
+      (value) => toOptionalNumber(parseJsonValue<{ rolledThroughMs?: number | string }>(value)?.rolledThroughMs)
+    );
+    if (systemCheckpoint !== null) {
+      return systemCheckpoint;
+    }
+
     const checkpointRow = await queryFirst<ShareViewRollupCheckpointRow>(
       db,
       `
@@ -1150,32 +1595,9 @@ const d1StorageBackend: StorageBackend = {
       throw new Error("setShareViewRollupCheckpoint failed: d1 is not ready");
     }
 
-    const updatedAt = Date.now();
-    const expiresAt = checkpointMs + 10 * 365 * 24 * 60 * 60 * 1000;
-    await execute(
-      db,
-      `
-      INSERT INTO ${TRENDS_CACHE_TABLE} (
-        cache_key, period, view, kind, payload, expires_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (cache_key) DO UPDATE SET
-        period = excluded.period,
-        view = excluded.view,
-        kind = excluded.kind,
-        payload = excluded.payload,
-        expires_at = excluded.expires_at,
-        updated_at = excluded.updated_at
-      `,
-      [
-        SHARE_VIEW_ROLLUP_CHECKPOINT_KEY,
-        SYSTEM_CACHE_PERIOD,
-        SYSTEM_CACHE_VIEW,
-        SYSTEM_CACHE_KIND,
-        JSON.stringify({ rolledThroughMs: checkpointMs }),
-        expiresAt,
-        updatedAt,
-      ]
-    );
+    await setSystemCheckpoint(db, SHARE_VIEW_ROLLUP_CHECKPOINT_KEY, {
+      rolledThroughMs: checkpointMs,
+    });
   },
 
   async upsertShareViewTotalCounts(rows, options) {
@@ -1283,6 +1705,69 @@ const d1StorageBackend: StorageBackend = {
       }))
     );
     return finalRows.size;
+  },
+
+  async runTrendRollup(options): Promise<TrendRollupResult> {
+    const db = await getD1Database();
+    if (!db || !(await ensureD1Schema())) {
+      throw new Error("runTrendRollup failed: d1 is not ready");
+    }
+
+    const batchSize = Math.max(1, Math.min(2000, Math.trunc(options?.batchSize ?? DEFAULT_TREND_ROLLUP_BATCH_SIZE)));
+    const updatedAt = Number.isFinite(options?.nowMs) ? Math.trunc(options?.nowMs ?? Date.now()) : Date.now();
+    let checkpoint = await getTrendRollupCheckpoint(db);
+
+    if (!checkpoint) {
+      const head = await resolveTrendRollupHead(db);
+      if (!head) {
+        return {
+          ok: true,
+          mode: "idle",
+          rowsFetched: 0,
+          rowsWritten: 0,
+          checkpoint: null,
+        };
+      }
+
+      if (await hasExistingTrendAggregates(db)) {
+        await setTrendRollupCheckpoint(db, head);
+        return {
+          ok: true,
+          mode: "bootstrap-skip",
+          rowsFetched: 0,
+          rowsWritten: 1,
+          checkpoint: head,
+        };
+      }
+    }
+
+    let rowsFetched = 0;
+    let rowsWritten = 0;
+
+    for (;;) {
+      const sourceRows = await fetchTrendRollupSourceRows(db, checkpoint, batchSize);
+      if (sourceRows.length === 0) {
+        break;
+      }
+
+      const statements = await buildTrendRollupStatements(db, sourceRows, updatedAt);
+      rowsFetched += sourceRows.length;
+      if (statements.length > 0) {
+        rowsWritten += await executeBatch(db, statements);
+      }
+
+      checkpoint = toTrendRollupCheckpoint(sourceRows[sourceRows.length - 1]);
+      await setTrendRollupCheckpoint(db, checkpoint);
+      rowsWritten += 1;
+    }
+
+    return {
+      ok: true,
+      mode: rowsFetched > 0 ? "rollup" : "idle",
+      rowsFetched,
+      rowsWritten,
+      checkpoint,
+    };
   },
 
   async cleanupOldTrendCounts(params) {

@@ -102,3 +102,7 @@ export function upsertShareViewTotalCounts(
 export function cleanupOldTrendCounts(params?: { cleanupTrendDays?: number }) {
   return d1StorageBackend.cleanupOldTrendCounts(params);
 }
+
+export function runTrendRollup(options?: { batchSize?: number; nowMs?: number }) {
+  return d1StorageBackend.runTrendRollup(options);
+}

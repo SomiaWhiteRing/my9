@@ -24,6 +24,7 @@ export const TREND_COUNT_ALL_TABLE = "my9_trend_subject_kind_all_v3";
 export const TREND_COUNT_DAY_TABLE = "my9_trend_subject_kind_day_v3";
 export const TREND_COUNT_HOUR_TABLE = "my9_trend_subject_kind_hour_v3";
 export const TRENDS_CACHE_TABLE = "my9_trends_cache_v1";
+export const SYSTEM_CHECKPOINT_TABLE = "my9_system_checkpoint_v1";
 export const SHARE_VIEW_TOTAL_TABLE = "my9_share_view_total_v1";
 export const TRENDS_CACHE_VERSION = "v9";
 export const TRENDS_SAMPLE_CACHE_VERSION = "v5";

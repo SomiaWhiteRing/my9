@@ -14,6 +14,20 @@ export type TrendSampleSummary = {
   };
 };
 
+export type TrendRollupCheckpoint = {
+  createdAt: number;
+  shareId: string;
+  slotIndex: number;
+};
+
+export type TrendRollupResult = {
+  ok: true;
+  mode: "idle" | "bootstrap-skip" | "rollup";
+  rowsFetched: number;
+  rowsWritten: number;
+  checkpoint: TrendRollupCheckpoint | null;
+};
+
 export interface StorageBackend {
   readonly name: "d1";
   saveShare(record: StoredShareV1): Promise<ShareSaveResult>;
@@ -76,4 +90,8 @@ export interface StorageBackend {
     cleanedDayRows: number;
     cleanedHourRows: number;
   }>;
+  runTrendRollup(options?: {
+    batchSize?: number;
+    nowMs?: number;
+  }): Promise<TrendRollupResult>;
 }

@@ -13,6 +13,7 @@
   - `my9_trend_subject_kind_day_v3`
   - `my9_trend_subject_kind_hour_v3`
   - `my9_trends_cache_v1`
+  - `my9_system_checkpoint_v1`
   - `my9_share_view_total_v1`
 
 ## Required env
@@ -75,11 +76,19 @@ npm run d1:cleanup-trends:test
 - Daily cron aggregates closed Beijing natural days into `my9_share_view_total_v1`.
 - Rollup writes cumulative totals, one row per `share_id`.
 
+## Trend rollup
+
+- `saveShare` always writes `my9_share_subject_slot_v1`.
+- Before the trend rollup checkpoint exists, runtime keeps legacy real-time trend upserts enabled.
+- After the hourly rollup checkpoint is established, new trend counts are maintained by cron-driven incremental rollup instead of request-path writes.
+
 ## Cron
 
 - Scheduler entry: `worker.js` `scheduled()`
 - Config file: `wrangler.jsonc`
-- Current schedule: `5 16 * * *` (UTC, Beijing `00:05`)
+- Current schedules:
+  1. `30 * * * *` (UTC, every hour at `:30`) for trend rollup
+  2. `5 16 * * *` (UTC, Beijing `00:05`) for daily maintenance
 - Daily flow:
   1. clean old trend rows
   2. roll up Analytics Engine totals into D1

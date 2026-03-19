@@ -27,7 +27,7 @@
     }
   },
   "triggers": {
-    "crons": ["5 16 * * *"]
+    "crons": ["30 * * * *", "5 16 * * *"]
   },
   "vars": {
     "MY9_SHARE_VIEW_ANALYTICS_DATASET": "my9_share_views_v1"
