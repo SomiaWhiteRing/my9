@@ -170,36 +170,49 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const id = normalizeShareId(searchParams.get("id"));
-  if (!id) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = normalizeShareId(searchParams.get("id"));
+    if (!id) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "无效的分享 ID",
+        },
+        { status: 400 }
+      );
+    }
+
+    const share = await getShare(id);
+    if (!share) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "分享不存在",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        ok: true,
+        shareId: share.shareId,
+        kind: share.kind,
+        creatorName: share.creatorName,
+        games: share.games,
+      },
+      {
+        headers: createShareGetCacheHeaders(),
+      }
+    );
+  } catch (error) {
     return NextResponse.json(
       {
         ok: false,
-        error: "无效的分享 ID",
+        error: error instanceof Error ? error.message : "读取失败",
       },
-      { status: 400 }
+      { status: 500 }
     );
   }
-
-  const share = await getShare(id);
-  if (!share) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "分享不存在",
-      },
-      { status: 404 }
-    );
-  }
-
-  return NextResponse.json({
-    ok: true,
-    shareId: share.shareId,
-    kind: share.kind,
-    creatorName: share.creatorName,
-    games: share.games,
-  }, {
-    headers: createShareGetCacheHeaders(),
-  });
 }

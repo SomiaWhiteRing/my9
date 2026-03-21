@@ -719,10 +719,18 @@ test.describe("v3 interaction", () => {
 
     await page.getByRole("button", { name: "生成分享图片" }).click();
     await expect(page.getByRole("heading", { name: "生成分享图片" })).toBeVisible();
-    const qrSwitch = page.getByRole("switch", { name: "附带分享链接" });
+    const headerSwitch = page.getByRole("switch", { name: "显示标题" });
+    const customHeaderSubtitleSwitch = page.getByRole("switch", { name: "自定义介绍" });
+    const commentSwitch = page.getByRole("switch", { name: "显示评价" });
     const showNameSwitch = page.getByRole("switch", { name: "显示名称" });
-    await expect(qrSwitch).toHaveAttribute("aria-checked", "true");
+    const headerSubtitleInput = page.getByRole("textbox", { name: "自定义介绍输入框" });
+    await expect(headerSwitch).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("switch", { name: "显示二维码" })).toHaveCount(0);
+    await expect(customHeaderSubtitleSwitch).toHaveAttribute("aria-checked", "false");
+    await expect(commentSwitch).toHaveAttribute("aria-checked", "false");
+    await expect(commentSwitch).toBeDisabled();
     await expect(showNameSwitch).toHaveAttribute("aria-checked", "true");
+    await expect(headerSubtitleInput).toHaveCount(0);
     await expect(page.getByAltText("分享图片预览")).toBeVisible({ timeout: 15_000 });
 
     await page.evaluate(() => {
@@ -745,7 +753,16 @@ test.describe("v3 interaction", () => {
 
     const exportInfo = await page.evaluate(() => {
       const g = window as typeof window & {
-        __MY9_LAST_SHARE_EXPORT__?: { width: number; height: number; showNames?: boolean };
+        __MY9_LAST_SHARE_EXPORT__?: {
+          width: number;
+          height: number;
+          showNames?: boolean;
+          showHeaderBlock?: boolean;
+          showHeaderQr?: boolean;
+          headerSubtitle?: string | null;
+          showComments?: boolean;
+          reviewCount?: number;
+        };
       };
       return g.__MY9_LAST_SHARE_EXPORT__ || null;
     });
@@ -757,6 +774,11 @@ test.describe("v3 interaction", () => {
     expect(exportInfo?.width).toBe(1080);
     expect(exportInfo?.height).toBe(1660);
     expect(exportInfo?.showNames).toBeTruthy();
+    expect(exportInfo?.showHeaderBlock).toBeTruthy();
+    expect(exportInfo?.showHeaderQr).toBeTruthy();
+    expect(exportInfo?.headerSubtitle).toBe("扫码查看游戏详情");
+    expect(exportInfo?.showComments).toBeFalsy();
+    expect(exportInfo?.reviewCount).toBe(0);
     expect(downloadName.endsWith(".png")).toBeTruthy();
     expect(downloadName.includes("分享图")).toBeFalsy();
     expect(downloadName).toContain("测试玩家");
@@ -772,8 +794,55 @@ test.describe("v3 interaction", () => {
     });
     expect(exportInfoWithoutNames?.showNames).toBeFalsy();
 
-    await qrSwitch.click();
-    await expect(qrSwitch).toHaveAttribute("aria-checked", "false");
+    await customHeaderSubtitleSwitch.click();
+    await expect(customHeaderSubtitleSwitch).toHaveAttribute("aria-checked", "true");
+    await expect(headerSubtitleInput).toHaveValue("扫码查看游戏详情");
+    await headerSubtitleInput.fill("手动介绍文案");
+    await page.getByRole("button", { name: "保存图片" }).click();
+    const exportInfoWithCustomSubtitle = await page.evaluate(() => {
+      const g = window as typeof window & {
+        __MY9_LAST_SHARE_EXPORT__?: {
+          showHeaderQr?: boolean;
+          headerSubtitle?: string | null;
+        };
+      };
+      return g.__MY9_LAST_SHARE_EXPORT__ || null;
+    });
+    expect(exportInfoWithCustomSubtitle?.showHeaderQr).toBeTruthy();
+    expect(exportInfoWithCustomSubtitle?.headerSubtitle).toBe("手动介绍文案");
+
+    await customHeaderSubtitleSwitch.click();
+    await expect(customHeaderSubtitleSwitch).toHaveAttribute("aria-checked", "false");
+    await expect(headerSubtitleInput).toHaveCount(0);
+    await page.getByRole("button", { name: "保存图片" }).click();
+    const exportInfoWithDefaultSubtitle = await page.evaluate(() => {
+      const g = window as typeof window & {
+        __MY9_LAST_SHARE_EXPORT__?: {
+          headerSubtitle?: string | null;
+        };
+      };
+      return g.__MY9_LAST_SHARE_EXPORT__ || null;
+    });
+    expect(exportInfoWithDefaultSubtitle?.headerSubtitle).toBe("扫码查看游戏详情");
+
+    await headerSwitch.click();
+    await expect(headerSwitch).toHaveAttribute("aria-checked", "false");
+    await page.getByRole("button", { name: "保存图片" }).click();
+    const exportInfoWithoutHeader = await page.evaluate(() => {
+      const g = window as typeof window & {
+        __MY9_LAST_SHARE_EXPORT__?: {
+          height?: number;
+          showHeaderBlock?: boolean;
+          showComments?: boolean;
+          qrUrl?: string | null;
+        };
+      };
+      return g.__MY9_LAST_SHARE_EXPORT__ || null;
+    });
+    expect(exportInfoWithoutHeader?.height).toBe(1440);
+    expect(exportInfoWithoutHeader?.showHeaderBlock).toBeFalsy();
+    expect(exportInfoWithoutHeader?.showComments).toBeFalsy();
+    expect(exportInfoWithoutHeader?.qrUrl).toBeNull();
 
     await page.evaluate(() => {
       const g = window as typeof window & {
@@ -799,6 +868,64 @@ test.describe("v3 interaction", () => {
         HTMLAnchorElement.prototype.setAttribute = g.__ORIGIN_ANCHOR_SET_ATTRIBUTE__;
       }
     });
+  });
+
+  test("只读页导图可在关闭标题后单独附带评价", async ({ page }) => {
+    await page.goto("/game");
+    await fillSlot(page, 1, "zelda");
+
+    await page.getByRole("button", { name: "编辑第 1 格评论" }).first().click();
+    await page.getByPlaceholder("写下你想说的评论...").fill("终局剧情神作");
+    await page.getByRole("button", { name: "保存", exact: true }).click();
+
+    page.once("dialog", async (dialog) => {
+      await dialog.accept();
+    });
+    await page.getByRole("button", { name: /^还差 8 .可保存$/ }).click();
+    await expect(page).toHaveURL(`/${DEFAULT_KIND}/s/${SHARE_ID}`, { timeout: 30_000 });
+
+    await page.getByRole("button", { name: "生成分享图片" }).click();
+    await expect(page.getByRole("heading", { name: "生成分享图片" })).toBeVisible();
+
+    const headerSwitch = page.getByRole("switch", { name: "显示标题" });
+    const customHeaderSubtitleSwitch = page.getByRole("switch", { name: "自定义介绍" });
+    const commentSwitch = page.getByRole("switch", { name: "显示评价" });
+    const headerSubtitleInput = page.getByRole("textbox", { name: "自定义介绍输入框" });
+
+    await expect(headerSwitch).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("switch", { name: "显示二维码" })).toHaveCount(0);
+    await expect(customHeaderSubtitleSwitch).toHaveAttribute("aria-checked", "false");
+    await expect(commentSwitch).toHaveAttribute("aria-checked", "false");
+    await expect(commentSwitch).toBeEnabled();
+    await expect(headerSubtitleInput).toHaveCount(0);
+
+    await commentSwitch.click();
+    await expect(commentSwitch).toHaveAttribute("aria-checked", "true");
+
+    await headerSwitch.click();
+    await expect(headerSwitch).toHaveAttribute("aria-checked", "false");
+    await expect(commentSwitch).toHaveAttribute("aria-checked", "true");
+
+    await page.getByRole("button", { name: "保存图片" }).click();
+
+    const exportInfo = await page.evaluate(() => {
+      const g = window as typeof window & {
+        __MY9_LAST_SHARE_EXPORT__?: {
+          height?: number;
+          showHeaderBlock?: boolean;
+          showComments?: boolean;
+          reviewCount?: number;
+          qrUrl?: string | null;
+        };
+      };
+      return g.__MY9_LAST_SHARE_EXPORT__ || null;
+    });
+
+    expect(exportInfo?.showHeaderBlock).toBeFalsy();
+    expect(exportInfo?.showComments).toBeTruthy();
+    expect(exportInfo?.reviewCount).toBe(1);
+    expect(exportInfo?.qrUrl).toBeNull();
+    expect((exportInfo?.height || 0) > 1440).toBeTruthy();
   });
 
   test("被污染 shareId 会重定向到规范链接", async ({ page }) => {

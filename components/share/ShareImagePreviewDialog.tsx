@@ -10,12 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ShareGame } from "@/lib/share/types";
 import {
+  buildDefaultShareImageHeaderSubtitle,
   downloadBlob,
-  generateStandardShareImageBlob,
-  generateEnhancedShareImageBlob,
+  generateShareImageBlob,
 } from "@/utils/image/exportShareImage";
 import { SubjectKind } from "@/lib/subject-kind";
 
@@ -32,7 +33,7 @@ interface ShareImagePreviewDialogProps {
   onNotice: (kind: NoticeKind, message: string) => void;
 }
 
-function buildFileName(kind: SubjectKind, title: string) {
+function buildFileName(title: string) {
   const fileName = `${title}.png`;
   return fileName;
 }
@@ -47,7 +48,12 @@ export function ShareImagePreviewDialog({
   creatorName,
   onNotice,
 }: ShareImagePreviewDialogProps) {
-  const [withQr, setWithQr] = useState(true);
+  const [showHeaderBlock, setShowHeaderBlock] = useState(true);
+  const [showCustomHeaderSubtitle, setShowCustomHeaderSubtitle] = useState(false);
+  const [headerSubtitle, setHeaderSubtitle] = useState(() =>
+    buildDefaultShareImageHeaderSubtitle(kind, creatorName, games.filter((game) => Boolean(game?.comment?.trim())).length)
+  );
+  const [showComments, setShowComments] = useState(false);
   const [showNames, setShowNames] = useState(true);
   const [loading, setLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -55,6 +61,9 @@ export function ShareImagePreviewDialog({
   const [previewError, setPreviewError] = useState("");
   const requestIdRef = useRef(0);
   const previewUrlRef = useRef<string | null>(null);
+  const reviewCount = games.filter((game) => Boolean(game?.comment?.trim())).length;
+  const defaultHeaderSubtitle = buildDefaultShareImageHeaderSubtitle(kind, creatorName, reviewCount);
+  const resolvedHeaderSubtitle = showCustomHeaderSubtitle ? headerSubtitle : defaultHeaderSubtitle;
 
   useEffect(() => {
     return () => {
@@ -67,7 +76,10 @@ export function ShareImagePreviewDialog({
 
   useEffect(() => {
     if (!open) {
-      setWithQr(true);
+      setShowHeaderBlock(true);
+      setShowCustomHeaderSubtitle(false);
+      setHeaderSubtitle(defaultHeaderSubtitle);
+      setShowComments(false);
       setShowNames(true);
       setLoading(false);
       setPreviewBlob(null);
@@ -79,7 +91,13 @@ export function ShareImagePreviewDialog({
       });
       return;
     }
-  }, [open]);
+  }, [defaultHeaderSubtitle, open]);
+
+  useEffect(() => {
+    if (reviewCount === 0 && showComments) {
+      setShowComments(false);
+    }
+  }, [reviewCount, showComments]);
 
   useEffect(() => {
     if (!open) return;
@@ -89,16 +107,18 @@ export function ShareImagePreviewDialog({
       setLoading(true);
       setPreviewError("");
       try {
-        const blob = withQr
-          ? await generateEnhancedShareImageBlob({
-              kind,
-              shareId,
-              title,
-              games,
-              creatorName,
-              showNames,
-            })
-          : await generateStandardShareImageBlob({ kind, games, creatorName, showNames });
+        const blob = await generateShareImageBlob({
+          kind,
+          shareId,
+          title,
+          games,
+          creatorName,
+          showNames,
+          showHeaderBlock,
+          showHeaderQr: showHeaderBlock,
+          headerSubtitle: resolvedHeaderSubtitle,
+          showComments,
+        });
 
         if (requestId !== requestIdRef.current) return;
         const nextUrl = URL.createObjectURL(blob);
@@ -125,23 +145,37 @@ export function ShareImagePreviewDialog({
     }
 
     loadPreview();
-  }, [creatorName, games, kind, open, shareId, showNames, title, withQr]);
+  }, [
+    creatorName,
+    games,
+    kind,
+    open,
+    resolvedHeaderSubtitle,
+    shareId,
+    showComments,
+    showHeaderBlock,
+    showCustomHeaderSubtitle,
+    showNames,
+    title,
+  ]);
 
   async function handleDownload() {
     try {
       const blob =
         previewBlob ||
-        (withQr
-          ? await generateEnhancedShareImageBlob({
-              kind,
-              shareId,
-              title,
-              games,
-              creatorName,
-              showNames,
-            })
-          : await generateStandardShareImageBlob({ kind, games, creatorName, showNames }));
-      downloadBlob(blob, buildFileName(kind, title));
+        (await generateShareImageBlob({
+          kind,
+          shareId,
+          title,
+          games,
+          creatorName,
+          showNames,
+          showHeaderBlock,
+          showHeaderQr: showHeaderBlock,
+          headerSubtitle: resolvedHeaderSubtitle,
+          showComments,
+        }));
+      downloadBlob(blob, buildFileName(title));
     } catch {
       onNotice("info", "下载失败，请长按预览图保存");
     }
@@ -180,30 +214,6 @@ export function ShareImagePreviewDialog({
 
           <div className="flex items-center justify-between rounded-xl border border-border bg-muted px-3 py-2.5">
             <div className="pr-3">
-              <p className="text-sm font-semibold text-foreground">附带分享链接</p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={withQr}
-              aria-label="附带分享链接"
-              onClick={() => setWithQr((value) => !value)}
-              className={cn(
-                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                withQr ? "bg-sky-600" : "bg-muted-foreground/40"
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
-                  withQr ? "translate-x-5" : "translate-x-1"
-                )}
-              />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted px-3 py-2.5">
-            <div className="pr-3">
               <p className="text-sm font-semibold text-foreground">显示名称</p>
             </div>
             <button
@@ -221,6 +231,97 @@ export function ShareImagePreviewDialog({
                 className={cn(
                   "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
                   showNames ? "translate-x-5" : "translate-x-1"
+                )}
+              />
+            </button>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-border bg-muted">
+            <div className="flex items-center justify-between px-3 py-2.5">
+              <div className="pr-3">
+                <p className="text-sm font-semibold text-foreground">显示标题</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showHeaderBlock}
+                aria-label="显示标题"
+                onClick={() => setShowHeaderBlock((value) => !value)}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                  showHeaderBlock ? "bg-sky-600" : "bg-muted-foreground/40"
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
+                    showHeaderBlock ? "translate-x-5" : "translate-x-1"
+                  )}
+                />
+              </button>
+            </div>
+
+            {showHeaderBlock ? (
+              <div className="space-y-2.5 border-t border-border px-3 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="pr-3">
+                    <p className="text-xs font-medium text-foreground">自定义介绍</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={showCustomHeaderSubtitle}
+                    aria-label="自定义介绍"
+                    onClick={() => setShowCustomHeaderSubtitle((value) => !value)}
+                    className={cn(
+                      "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                      showCustomHeaderSubtitle ? "bg-sky-600" : "bg-muted-foreground/40"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                        showCustomHeaderSubtitle ? "translate-x-4" : "translate-x-0.5"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                {showCustomHeaderSubtitle ? (
+                  <Input
+                    aria-label="自定义介绍输入框"
+                    value={headerSubtitle}
+                    onChange={(event) => setHeaderSubtitle(event.target.value.slice(0, 60))}
+                    className="h-8 bg-background text-sm md:text-xs"
+                  />
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted px-3 py-2.5">
+            <div className="pr-3">
+              <p className="text-sm font-semibold text-foreground">显示评价</p>
+              <p className="text-xs text-muted-foreground">
+                {reviewCount === 0 ? "至少存在一条评价才可开启" : null}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showComments}
+              aria-label="显示评价"
+              disabled={reviewCount === 0}
+              onClick={() => setShowComments((value) => !value)}
+              className={cn(
+                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+                showComments ? "bg-sky-600" : "bg-muted-foreground/40"
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
+                  showComments ? "translate-x-5" : "translate-x-1"
                 )}
               />
             </button>

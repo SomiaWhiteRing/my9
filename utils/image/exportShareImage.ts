@@ -19,11 +19,51 @@ const PANEL_X = PANEL_MARGIN_X;
 const PANEL_Y = PANEL_MARGIN_Y;
 const PANEL_WIDTH = CANVAS_WIDTH - PANEL_MARGIN_X * 2;
 const BASE_PANEL_HEIGHT = CANVAS_HEIGHT - PANEL_MARGIN_Y * 2;
+const SECTION_DIVIDER_INSET = 22;
+const SECTION_CONTENT_X = PANEL_X + 26;
+
+const REVIEW_SECTION_TOP_PADDING = 28;
+const REVIEW_SECTION_BOTTOM_PADDING = 32;
+const REVIEW_SECTION_TITLE_LINE_HEIGHT = 38;
+const REVIEW_SECTION_HEADER_GAP = 18;
+const REVIEW_CARD_GAP = 18;
+const REVIEW_CARD_RADIUS = 18;
+const REVIEW_CARD_PADDING = 20;
+const REVIEW_CARD_COVER_WIDTH = 92;
+const REVIEW_CARD_COVER_HEIGHT = 124;
+const REVIEW_CARD_TEXT_GAP = 18;
+const REVIEW_CARD_TITLE_LINE_HEIGHT = 30;
+const REVIEW_CARD_META_GAP = 14;
+const REVIEW_COMMENT_LINE_HEIGHT = 34;
+const REVIEW_SPOILER_BADGE_HEIGHT = 28;
+const REVIEW_SPOILER_BADGE_HORIZONTAL_PADDING = 12;
 
 type GridExportItem = {
   cover: string | null;
   title: string;
   alignTop?: boolean;
+};
+
+type ReviewExportItem = {
+  slotIndex: number;
+  cover: string | null;
+  title: string;
+  comment: string;
+  spoiler: boolean;
+  alignTop?: boolean;
+};
+
+type ReviewCardLayout = {
+  item: ReviewExportItem;
+  title: string;
+  commentLines: string[];
+  spoilerBadgeWidth: number;
+  cardHeight: number;
+};
+
+type ReviewSectionLayout = {
+  height: number;
+  cards: ReviewCardLayout[];
 };
 
 function displayName(game: ShareGame | null): string {
@@ -34,6 +74,24 @@ function displayName(game: ShareGame | null): string {
 function displayUserName(creatorName?: string | null): string {
   const value = creatorName?.trim();
   return value || "我";
+}
+
+export function buildDefaultShareImageHeaderTitle(kind: SubjectKind, creatorName?: string | null): string {
+  const kindMeta = getSubjectKindMeta(kind);
+  const userName = displayUserName(creatorName);
+  return `构成${userName}的九${kindMeta.selectionUnit}${kindMeta.label}`;
+}
+
+export function buildDefaultShareImageHeaderSubtitle(
+  kind: SubjectKind,
+  creatorName?: string | null,
+  reviewCount = 0
+): string {
+  const kindMeta = getSubjectKindMeta(kind);
+  const userName = displayUserName(creatorName);
+  return reviewCount > 0
+    ? `扫码查看${userName}的${reviewCount}条评价`
+    : `扫码查看${kindMeta.label}详情`;
 }
 
 async function srcToImage(src: string): Promise<HTMLImageElement> {
@@ -152,6 +210,41 @@ function trimTextToWidth(
   return `${output}...`;
 }
 
+function wrapTextToWidth(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  const normalized = text.replace(/\r\n/g, "\n");
+  const paragraphs = normalized.split("\n");
+  const lines: string[] = [];
+
+  for (const paragraph of paragraphs) {
+    if (!paragraph) {
+      lines.push("");
+      continue;
+    }
+
+    let currentLine = "";
+    for (const char of Array.from(paragraph)) {
+      const nextLine = `${currentLine}${char}`;
+      if (!currentLine || ctx.measureText(nextLine).width <= maxWidth) {
+        currentLine = nextLine;
+        continue;
+      }
+
+      lines.push(currentLine);
+      currentLine = char;
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+  }
+
+  return lines.length > 0 ? lines : [""];
+}
+
 function normalizeCoverUrl(value: string): string | null {
   const raw = value.trim();
   if (!raw) return null;
@@ -219,6 +312,15 @@ async function loadCovers(items: GridExportItem[]) {
 function drawPageBackground(ctx: CanvasRenderingContext2D, height: number) {
   ctx.fillStyle = "#f3f6fb";
   ctx.fillRect(0, 0, CANVAS_WIDTH, height);
+}
+
+function drawSectionDivider(ctx: CanvasRenderingContext2D, y: number) {
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(PANEL_X + SECTION_DIVIDER_INSET, y + 2);
+  ctx.lineTo(PANEL_X + PANEL_WIDTH - SECTION_DIVIDER_INSET, y + 2);
+  ctx.stroke();
 }
 
 function drawBoardPanel(ctx: CanvasRenderingContext2D, panelHeight: number) {
@@ -323,7 +425,7 @@ async function createBoardCanvas(options: {
   drawBoardPanel(ctx, panelHeight);
   drawGrid(ctx, items, covers, showNames);
 
-  return canvas;
+  return { canvas, covers };
 }
 
 function toShareGridItems(kind: SubjectKind | undefined, games: Array<ShareGame | null>): GridExportItem[] {
@@ -342,6 +444,358 @@ function toCustomGridItems(entries: Array<CustomEntry | null>): GridExportItem[]
   }));
 }
 
+function collectReviewItems(
+  kind: SubjectKind | undefined,
+  games: Array<ShareGame | null>
+): ReviewExportItem[] {
+  return games.flatMap((game, slotIndex) => {
+    const comment = game?.comment?.trim();
+    if (!game || !comment) return [];
+
+    return [
+      {
+        slotIndex,
+        cover: game.cover || null,
+        title: displayName(game),
+        comment,
+        spoiler: Boolean(game.spoiler),
+        alignTop: shouldTopCropCover(kind),
+      },
+    ];
+  });
+}
+
+function buildReviewSectionLayout(reviewItems: ReviewExportItem[]): ReviewSectionLayout | null {
+  if (reviewItems.length === 0) {
+    return null;
+  }
+
+  const measureCanvas = document.createElement("canvas");
+  const ctx = measureCanvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("无法创建导出画布");
+  }
+
+  const cards: ReviewCardLayout[] = [];
+  const cardWidth = PANEL_WIDTH - (SECTION_CONTENT_X - PANEL_X) * 2;
+  const bodyWidth =
+    cardWidth - REVIEW_CARD_PADDING * 2 - REVIEW_CARD_COVER_WIDTH - REVIEW_CARD_TEXT_GAP;
+
+  for (const item of reviewItems) {
+    ctx.font = "700 28px sans-serif";
+    const spoilerBadgeWidth = item.spoiler
+      ? Math.ceil(ctx.measureText("剧透").width + REVIEW_SPOILER_BADGE_HORIZONTAL_PADDING * 2)
+      : 0;
+    const titleGap = item.spoiler ? 12 : 0;
+    const titleMaxWidth = Math.max(120, bodyWidth - spoilerBadgeWidth - titleGap);
+    const title = trimTextToWidth(ctx, item.title, titleMaxWidth);
+
+    ctx.font = "500 24px sans-serif";
+    const commentLines = wrapTextToWidth(ctx, item.comment, bodyWidth);
+    const commentHeight = Math.max(1, commentLines.length) * REVIEW_COMMENT_LINE_HEIGHT;
+
+    const bodyHeight =
+      REVIEW_CARD_PADDING +
+      REVIEW_CARD_TITLE_LINE_HEIGHT +
+      REVIEW_CARD_META_GAP +
+      commentHeight +
+      REVIEW_CARD_PADDING;
+
+    const cardHeight = Math.max(
+      REVIEW_CARD_PADDING * 2 + REVIEW_CARD_COVER_HEIGHT,
+      bodyHeight
+    );
+
+    cards.push({
+      item,
+      title,
+      commentLines,
+      spoilerBadgeWidth,
+      cardHeight,
+    });
+  }
+
+  const cardsHeight =
+    cards.reduce((sum, card) => sum + card.cardHeight, 0) + REVIEW_CARD_GAP * (cards.length - 1);
+
+  return {
+    cards,
+    height:
+      REVIEW_SECTION_TOP_PADDING +
+      REVIEW_SECTION_TITLE_LINE_HEIGHT +
+      REVIEW_SECTION_HEADER_GAP +
+      cardsHeight +
+      REVIEW_SECTION_BOTTOM_PADDING,
+  };
+}
+
+function drawMissingReviewCover(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  ctx.save();
+  roundedRectPath(ctx, x, y, width, height, 14);
+  ctx.fillStyle = "#f3f4f6";
+  ctx.fill();
+  ctx.restore();
+
+  ctx.fillStyle = "#9ca3af";
+  ctx.font = "600 20px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("无图", x + width / 2, y + height / 2);
+  ctx.textBaseline = "alphabetic";
+}
+
+async function drawHeaderSection(
+  ctx: CanvasRenderingContext2D,
+  startY: number,
+  options: {
+    title: string;
+    subtitle: string;
+    qrUrl?: string | null;
+    showQr?: boolean;
+  }
+) {
+  const textX = SECTION_CONTENT_X;
+  const showQr = options.showQr !== false && Boolean(options.qrUrl);
+  let textMaxWidth = PANEL_X + PANEL_WIDTH - 26 - textX;
+
+  if (showQr && options.qrUrl) {
+    const qrDataUrl = await QRCode.toDataURL(options.qrUrl, {
+      width: 180,
+      margin: 1,
+    });
+    const qrImage = await dataUrlToImage(qrDataUrl);
+
+    const qrSize = 150;
+    const qrX = PANEL_X + PANEL_WIDTH - qrSize - 26;
+    const qrY = startY + Math.round((ENHANCED_EXTRA_HEIGHT - qrSize) / 2);
+    ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+    textMaxWidth = qrX - textX - 20;
+  }
+
+  const trimmedTitle = options.title.trim();
+
+  ctx.textAlign = "left";
+  if (trimmedTitle) {
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "700 38px sans-serif";
+    ctx.fillText(trimTextToWidth(ctx, trimmedTitle, textMaxWidth), textX, startY + 86);
+  }
+
+  ctx.fillStyle = "#334155";
+  ctx.font = "600 30px sans-serif";
+  ctx.fillText(trimTextToWidth(ctx, options.subtitle, textMaxWidth), textX, startY + 142);
+}
+
+function drawReviewSection(
+  ctx: CanvasRenderingContext2D,
+  startY: number,
+  layout: ReviewSectionLayout,
+  covers: Array<HTMLImageElement | null>
+) {
+  const cardWidth = PANEL_WIDTH - (SECTION_CONTENT_X - PANEL_X) * 2;
+  const bodyX = SECTION_CONTENT_X + REVIEW_CARD_PADDING + REVIEW_CARD_COVER_WIDTH + REVIEW_CARD_TEXT_GAP;
+
+  let currentY = startY + REVIEW_SECTION_TOP_PADDING;
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "700 32px sans-serif";
+  ctx.fillText("评价", SECTION_CONTENT_X, currentY + REVIEW_SECTION_TITLE_LINE_HEIGHT - 8);
+
+  currentY += REVIEW_SECTION_TITLE_LINE_HEIGHT + REVIEW_SECTION_HEADER_GAP;
+
+  for (const card of layout.cards) {
+    const cardX = SECTION_CONTENT_X;
+    const cardY = currentY;
+
+    ctx.save();
+    roundedRectPath(ctx, cardX, cardY, cardWidth, card.cardHeight, REVIEW_CARD_RADIUS);
+    ctx.fillStyle = "#f8fafc";
+    ctx.fill();
+    ctx.strokeStyle = "#e2e8f0";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    const coverX = cardX + REVIEW_CARD_PADDING;
+    const coverY = cardY + REVIEW_CARD_PADDING;
+    const coverImage = covers[card.item.slotIndex] || null;
+
+    ctx.save();
+    roundedRectPath(
+      ctx,
+      coverX,
+      coverY,
+      REVIEW_CARD_COVER_WIDTH,
+      REVIEW_CARD_COVER_HEIGHT,
+      14
+    );
+    ctx.clip();
+    if (coverImage) {
+      drawCoverFit(
+        ctx,
+        coverImage,
+        coverX,
+        coverY,
+        REVIEW_CARD_COVER_WIDTH,
+        REVIEW_CARD_COVER_HEIGHT,
+        {
+          alignTop: card.item.alignTop,
+        }
+      );
+    } else {
+      drawMissingReviewCover(
+        ctx,
+        coverX,
+        coverY,
+        REVIEW_CARD_COVER_WIDTH,
+        REVIEW_CARD_COVER_HEIGHT
+      );
+    }
+    ctx.restore();
+
+    const titleY = cardY + REVIEW_CARD_PADDING + 26;
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "700 22px sans-serif";
+    ctx.fillText(`${card.item.slotIndex + 1}.`, bodyX, titleY);
+
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "700 28px sans-serif";
+    const slotWidth = ctx.measureText(`${card.item.slotIndex + 1}.`).width + 12;
+    const titleX = bodyX + slotWidth;
+    ctx.fillText(card.title, titleX, titleY);
+
+    if (card.item.spoiler) {
+      const badgeX = titleX + ctx.measureText(card.title).width + 12;
+      const badgeY = titleY - REVIEW_SPOILER_BADGE_HEIGHT + 5;
+      ctx.save();
+      roundedRectPath(
+        ctx,
+        badgeX,
+        badgeY,
+        card.spoilerBadgeWidth,
+        REVIEW_SPOILER_BADGE_HEIGHT,
+        REVIEW_SPOILER_BADGE_HEIGHT / 2
+      );
+      ctx.fillStyle = "#fef3c7";
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = "#b45309";
+      ctx.font = "700 18px sans-serif";
+      ctx.fillText(
+        "剧透",
+        badgeX + REVIEW_SPOILER_BADGE_HORIZONTAL_PADDING,
+        titleY - 2
+      );
+    }
+
+    ctx.fillStyle = "#334155";
+    ctx.font = "500 24px sans-serif";
+    let lineY = cardY + REVIEW_CARD_PADDING + REVIEW_CARD_TITLE_LINE_HEIGHT + REVIEW_CARD_META_GAP + 18;
+    for (const line of card.commentLines) {
+      ctx.fillText(line, bodyX, lineY);
+      lineY += REVIEW_COMMENT_LINE_HEIGHT;
+    }
+
+    currentY += card.cardHeight + REVIEW_CARD_GAP;
+  }
+}
+
+export async function generateShareImageBlob(options: {
+  kind?: SubjectKind;
+  shareId?: string;
+  title?: string;
+  games: Array<ShareGame | null>;
+  creatorName?: string | null;
+  origin?: string;
+  showNames?: boolean;
+  showHeaderBlock?: boolean;
+  showHeaderQr?: boolean;
+  headerSubtitle?: string;
+  showComments?: boolean;
+}) {
+  const showHeaderBlock = options.showHeaderBlock !== false;
+  const showHeaderQr = options.showHeaderQr !== false;
+  const requestedReviewItems = options.showComments ? collectReviewItems(options.kind, options.games) : [];
+  const reviewSectionLayout = buildReviewSectionLayout(requestedReviewItems);
+  const showComments = Boolean(reviewSectionLayout);
+
+  const headerExtraHeight = showHeaderBlock ? ENHANCED_EXTRA_HEIGHT : 0;
+  const reviewExtraHeight = reviewSectionLayout?.height ?? 0;
+
+  const { canvas, covers } = await createBoardCanvas({
+    items: toShareGridItems(options.kind, options.games),
+    totalHeight: CANVAS_HEIGHT + headerExtraHeight + reviewExtraHeight,
+    panelHeight: BASE_PANEL_HEIGHT + headerExtraHeight + reviewExtraHeight,
+    showNames: options.showNames !== false,
+  });
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("无法创建导出画布");
+  }
+
+  const kindMeta = options.kind ? getSubjectKindMeta(options.kind) : null;
+  const reviewCount = requestedReviewItems.length;
+  let currentY = PANEL_Y + BASE_PANEL_HEIGHT;
+  let qrUrl: string | null = null;
+
+  if (showHeaderBlock) {
+    if (!options.kind) {
+      throw new Error("缺少分享链接所需参数");
+    }
+
+    if (showHeaderQr && options.shareId) {
+      const origin = options.origin ?? window.location.origin;
+      qrUrl = `${origin}/${options.kind}/s/${options.shareId}`;
+    }
+
+    const line1 = kindMeta
+      ? buildDefaultShareImageHeaderTitle(options.kind, options.creatorName)
+      : options.title?.trim() || "我的九宫格";
+    const line2 =
+      options.headerSubtitle ??
+      (kindMeta
+        ? buildDefaultShareImageHeaderSubtitle(options.kind, options.creatorName, reviewCount)
+        : "扫码查看分享页");
+
+    drawSectionDivider(ctx, currentY);
+    await drawHeaderSection(ctx, currentY, {
+      title: line1,
+      subtitle: line2,
+      qrUrl,
+      showQr: showHeaderQr,
+    });
+    currentY += ENHANCED_EXTRA_HEIGHT;
+  }
+
+  if (reviewSectionLayout) {
+    drawSectionDivider(ctx, currentY);
+    drawReviewSection(ctx, currentY, reviewSectionLayout, covers);
+  }
+
+  (window as typeof window & Record<string, unknown>).__MY9_LAST_SHARE_EXPORT__ = {
+    width: canvas.width,
+    height: canvas.height,
+    showNames: options.showNames !== false,
+    showHeaderBlock,
+    showHeaderQr,
+    headerSubtitle: options.headerSubtitle ?? null,
+    showComments,
+    reviewCount,
+    qrUrl,
+  };
+
+  return canvasToBlob(canvas);
+}
+
 async function generateQrGridImageBlob(options: {
   title: string;
   subtitle: string;
@@ -351,7 +805,7 @@ async function generateQrGridImageBlob(options: {
   debugInfoKey?: string;
   debugInfo?: Record<string, unknown>;
 }) {
-  const canvas = await createBoardCanvas({
+  const { canvas } = await createBoardCanvas({
     items: options.items,
     totalHeight: CANVAS_HEIGHT + ENHANCED_EXTRA_HEIGHT,
     panelHeight: BASE_PANEL_HEIGHT + ENHANCED_EXTRA_HEIGHT,
@@ -363,41 +817,13 @@ async function generateQrGridImageBlob(options: {
     throw new Error("无法创建导出画布");
   }
 
-  const qrDataUrl = await QRCode.toDataURL(options.qrUrl, {
-    width: 180,
-    margin: 1,
-  });
-  const qrImage = await dataUrlToImage(qrDataUrl);
-
   const extY = PANEL_Y + BASE_PANEL_HEIGHT;
-  const extHeight = ENHANCED_EXTRA_HEIGHT;
-
-  ctx.strokeStyle = "#e2e8f0";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(PANEL_X + 22, extY + 2);
-  ctx.lineTo(PANEL_X + PANEL_WIDTH - 22, extY + 2);
-  ctx.stroke();
-
-  const qrSize = 150;
-  const qrX = PANEL_X + PANEL_WIDTH - qrSize - 26;
-  const qrY = extY + Math.round((extHeight - qrSize) / 2);
-  ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
-
-  const textX = PANEL_X + 26;
-  const textMaxWidth = qrX - textX - 20;
-  const trimmedTitle = options.title.trim();
-
-  ctx.textAlign = "left";
-  if (trimmedTitle) {
-    ctx.fillStyle = "#0f172a";
-    ctx.font = "700 38px sans-serif";
-    ctx.fillText(trimTextToWidth(ctx, trimmedTitle, textMaxWidth), textX, extY + 86);
-  }
-
-  ctx.fillStyle = "#334155";
-  ctx.font = "600 30px sans-serif";
-  ctx.fillText(trimTextToWidth(ctx, options.subtitle, textMaxWidth), textX, extY + 142);
+  drawSectionDivider(ctx, extY);
+  await drawHeaderSection(ctx, extY, {
+    title: options.title,
+    subtitle: options.subtitle,
+    qrUrl: options.qrUrl,
+  });
 
   if (options.debugInfoKey) {
     (window as typeof window & Record<string, unknown>)[options.debugInfoKey] = {
@@ -418,20 +844,21 @@ export async function generateStandardShareImageBlob(options: {
   creatorName?: string | null;
   showNames?: boolean;
 }) {
-  const canvas = await createBoardCanvas({
-    items: toShareGridItems(options.kind, options.games),
-    totalHeight: CANVAS_HEIGHT,
-    panelHeight: BASE_PANEL_HEIGHT,
-    showNames: options.showNames !== false,
+  return generateShareImageBlob({
+    kind: options.kind,
+    games: options.games,
+    creatorName: options.creatorName,
+    showNames: options.showNames,
+    showHeaderBlock: false,
+    showComments: false,
   });
-  return canvasToBlob(canvas);
 }
 
 export async function generateStandardCustomShareImageBlob(options: {
   entries: Array<CustomEntry | null>;
   showNames?: boolean;
 }) {
-  const canvas = await createBoardCanvas({
+  const { canvas } = await createBoardCanvas({
     items: toCustomGridItems(options.entries),
     totalHeight: CANVAS_HEIGHT,
     panelHeight: BASE_PANEL_HEIGHT,
@@ -456,32 +883,22 @@ export async function generateEnhancedShareImageBlob(options: {
   creatorName?: string | null;
   origin?: string;
   showNames?: boolean;
+  showHeaderQr?: boolean;
+  headerSubtitle?: string;
+  showComments?: boolean;
 }) {
-  const origin = options.origin ?? window.location.origin;
-  const shareUrl = `${origin}/${options.kind}/s/${options.shareId}`;
-  const kindMeta = getSubjectKindMeta(options.kind);
-
-  const userName = displayUserName(options.creatorName);
-  const reviewCount = options.games.filter(
-    (game) => Boolean(game?.comment && game.comment.trim().length > 0)
-  ).length;
-
-  const line1 = `构成${userName}的九${kindMeta.selectionUnit}${kindMeta.label}`;
-  const line2 =
-    reviewCount > 0
-      ? `扫码查看${userName}的${reviewCount}条评价`
-      : `扫码查看${kindMeta.label}详情`;
-
-  return generateQrGridImageBlob({
-    title: line1,
-    subtitle: line2,
-    qrUrl: shareUrl,
-    items: toShareGridItems(options.kind, options.games),
+  return generateShareImageBlob({
+    kind: options.kind,
+    shareId: options.shareId,
+    title: options.title,
+    games: options.games,
+    creatorName: options.creatorName,
+    origin: options.origin,
     showNames: options.showNames,
-    debugInfoKey: "__MY9_LAST_SHARE_EXPORT__",
-    debugInfo: {
-      shareUrl,
-    },
+    showHeaderBlock: true,
+    showHeaderQr: options.showHeaderQr,
+    headerSubtitle: options.headerSubtitle,
+    showComments: options.showComments,
   });
 }
 
@@ -553,6 +970,9 @@ export async function exportEnhancedShareImage(options: {
   creatorName?: string | null;
   origin?: string;
   showNames?: boolean;
+  showHeaderQr?: boolean;
+  headerSubtitle?: string;
+  showComments?: boolean;
 }) {
   const blob = await generateEnhancedShareImageBlob(options);
   const fileName = `${options.title}.png`;

@@ -13,6 +13,7 @@ import {
   TREND_COUNT_HOUR_TABLE,
   TRENDS_CACHE_TABLE,
   chunkArray,
+  parsePositiveInt,
   readEnv,
 } from "@/lib/share/storage-common";
 
@@ -156,10 +157,33 @@ type GlobalRuntimeWithEnv = typeof globalThis & {
 let localPlatformPromise: Promise<LocalPlatformEnv | null> | null = null;
 let d1DatabasePromise: Promise<D1DatabaseLike | null> | null = null;
 let d1SchemaReadyPromise: Promise<boolean> | null = null;
+const LOCAL_PLATFORM_TIMEOUT_MS = parsePositiveInt(
+  readEnv("MY9_D1_LOCAL_PROXY_TIMEOUT_MS"),
+  4000
+);
 
 async function dynamicRuntimeImport<T = unknown>(specifier: string): Promise<T> {
   const importer = new Function("s", "return import(s);") as (s: string) => Promise<T>;
   return importer(specifier);
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 async function getCloudflareBoundD1(): Promise<D1DatabaseLike | null> {
@@ -185,12 +209,15 @@ async function getLocalPlatformEnv(): Promise<LocalPlatformEnv | null> {
       try {
         const { getPlatformProxy } = await dynamicRuntimeImport<typeof import("wrangler")>("wrangler");
         const environment = readEnv("MY9_DB_WRANGLER_ENV", "NEXT_DEV_WRANGLER_ENV") ?? undefined;
-        const platform = await getPlatformProxy<LocalPlatformEnv>({
-          configPath: path.resolve(process.cwd(), "wrangler.jsonc"),
-          environment,
-          persist: true,
-          remoteBindings: false,
-        });
+        const platform = await withTimeout(
+          getPlatformProxy<LocalPlatformEnv>({
+            configPath: path.resolve(process.cwd(), "wrangler.jsonc"),
+            environment,
+            persist: true,
+            remoteBindings: false,
+          }),
+          LOCAL_PLATFORM_TIMEOUT_MS
+        );
         return platform.env ?? null;
       } catch {
         return null;

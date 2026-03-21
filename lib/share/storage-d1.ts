@@ -125,6 +125,10 @@ const TREND_ROLLUP_CHECKPOINT_CACHE_TTL_MS = 60 * 1000;
 // D1 starts rejecting statements once bound variables exceed 100.
 const D1_SAFE_SQL_VARIABLES = 96;
 const D1_IN_CLAUSE_CHUNK_SIZE = D1_SAFE_SQL_VARIABLES;
+const REMOTE_D1_DATABASE_ID_BY_ENV = {
+  production: "6953e552-443b-479d-b6fa-3ffdeac2e60a",
+  test: "bdaef170-8163-4c9b-a47a-1086c9e1f54f",
+} as const;
 type TrendUpdateMode = "auto" | "realtime" | "rollup";
 let trendRollupCheckpointCache:
   | {
@@ -132,6 +136,20 @@ let trendRollupCheckpointCache:
       hasCheckpoint: boolean;
     }
   | null = null;
+
+type RemoteShareLookupResult =
+  | { status: "hit"; share: StoredShareV1 }
+  | { status: "miss" }
+  | { status: "unavailable" };
+
+type CloudflareD1QueryResponse<T> = {
+  success?: boolean;
+  errors?: Array<{ message?: string }>;
+  result?: Array<{
+    success?: boolean;
+    results?: T[];
+  }>;
+};
 
 function resolveCompactPayload(row: ShareRegistryRow) {
   return normalizeCompactPayload(parseJsonValue<unknown>(row.hot_payload));
@@ -455,6 +473,192 @@ async function fetchSubjectSnapshots(db: D1DatabaseLike, kind: SubjectKind, subj
     }
   }
   return snapshots;
+}
+
+function shouldUseRemoteShareReadFallback() {
+  return process.env.NODE_ENV === "development";
+}
+
+function resolveRemoteShareReadEnv() {
+  return readEnv("MY9_DB_WRANGLER_ENV", "NEXT_DEV_WRANGLER_ENV") === "test" ? "test" : "production";
+}
+
+function resolveRemoteShareReadDatabaseId(targetEnv: "production" | "test") {
+  const envDatabaseId =
+    targetEnv === "test"
+      ? readEnv("MY9_REMOTE_D1_DATABASE_ID_TEST", "MY9_REMOTE_D1_DATABASE_ID")
+      : readEnv("MY9_REMOTE_D1_DATABASE_ID");
+  return envDatabaseId || REMOTE_D1_DATABASE_ID_BY_ENV[targetEnv];
+}
+
+async function queryRemoteD1<T = Record<string, unknown>>(
+  sql: string,
+  params: Array<string | number | null> = []
+): Promise<T[] | null> {
+  if (!shouldUseRemoteShareReadFallback()) {
+    return null;
+  }
+
+  const accountId = readEnv("CLOUDFLARE_ACCOUNT_ID");
+  const token = readEnv("MY9_SQL_API_TOKEN", "CLOUDFLARE_API_TOKEN");
+  const databaseId = resolveRemoteShareReadDatabaseId(resolveRemoteShareReadEnv());
+
+  if (!accountId || !token || !databaseId) {
+    return null;
+  }
+
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ sql, params }),
+      cache: "no-store",
+    }
+  );
+
+  const payload = (await response.json()) as CloudflareD1QueryResponse<T>;
+  const errors = Array.isArray(payload?.errors)
+    ? payload.errors.map((item) => item?.message).filter((item): item is string => Boolean(item))
+    : [];
+
+  if (!response.ok || payload?.success === false) {
+    throw new Error(errors[0] || `remote d1 query failed with status ${response.status}`);
+  }
+
+  return payload?.result?.[0]?.results ?? [];
+}
+
+async function queryRemoteD1First<T = Record<string, unknown>>(
+  sql: string,
+  params: Array<string | number | null> = []
+): Promise<T | null | undefined> {
+  const rows = await queryRemoteD1<T>(sql, params);
+  if (!rows) {
+    return undefined;
+  }
+  return rows[0] ?? null;
+}
+
+async function fetchRemoteSubjectSnapshots(kind: SubjectKind, subjectIds: string[]) {
+  const snapshots = new Map<string, ReturnType<typeof toSubjectSnapshot>>();
+  for (const ids of chunkArray(subjectIds, D1_IN_CLAUSE_CHUNK_SIZE)) {
+    if (ids.length === 0) continue;
+
+    const rows = await queryRemoteD1<SubjectDimRow>(
+      `
+      SELECT subject_id, name, localized_name, cover, release_year, genres
+      FROM ${SUBJECT_DIM_TABLE}
+      WHERE kind = ?
+        AND subject_id IN (${buildPlaceholders(ids.length)})
+      `,
+      [kind, ...ids]
+    );
+    if (!rows) {
+      return null;
+    }
+
+    for (const row of rows) {
+      snapshots.set(row.subject_id, toSubjectSnapshot(row));
+    }
+  }
+  return snapshots;
+}
+
+async function inflateShareFromRemoteRegistryRow(
+  row: ShareRegistryRow,
+  shareIdOverride?: string
+): Promise<StoredShareV1 | null | undefined> {
+  const kind = parseSubjectKind(row.kind) ?? DEFAULT_SUBJECT_KIND;
+  const payload = resolveCompactPayload(row);
+  if (!payload) return null;
+
+  const subjectSnapshots = await fetchRemoteSubjectSnapshots(kind, collectSubjectIdsFromPayload(payload));
+  if (!subjectSnapshots) {
+    return undefined;
+  }
+
+  return normalizeStoredShare({
+    shareId: shareIdOverride || String(row.share_id),
+    kind,
+    creatorName: typeof row.creator_name === "string" ? row.creator_name : null,
+    games: compactPayloadToGames({ payload, subjectSnapshots }),
+    createdAt: toNumber(row.created_at, Date.now()),
+    updatedAt: toNumber(row.updated_at, Date.now()),
+    lastViewedAt: toNumber(row.last_viewed_at, Date.now()),
+  });
+}
+
+async function getShareFromRemoteFallback(shareId: string): Promise<RemoteShareLookupResult> {
+  if (!shouldUseRemoteShareReadFallback()) {
+    return { status: "unavailable" };
+  }
+
+  try {
+    const row = await queryRemoteD1First<ShareRegistryRow>(
+      `
+      SELECT share_id, kind, creator_name, hot_payload, created_at, updated_at, last_viewed_at
+      FROM ${SHARES_V2_TABLE}
+      WHERE share_id = ?
+      LIMIT 1
+      `,
+      [shareId]
+    );
+    if (row === undefined) {
+      return { status: "unavailable" };
+    }
+    if (row) {
+      const inflated = await inflateShareFromRemoteRegistryRow(row);
+      if (inflated === undefined) {
+        return { status: "unavailable" };
+      }
+      return inflated ? { status: "hit", share: inflated } : { status: "miss" };
+    }
+
+    const aliasRow = await queryRemoteD1First<{ target_share_id: string }>(
+      `
+      SELECT target_share_id
+      FROM ${SHARE_ALIAS_TABLE}
+      WHERE share_id = ?
+      LIMIT 1
+      `,
+      [shareId]
+    );
+    if (aliasRow === undefined) {
+      return { status: "unavailable" };
+    }
+    if (!aliasRow?.target_share_id) {
+      return { status: "miss" };
+    }
+
+    const targetRow = await queryRemoteD1First<ShareRegistryRow>(
+      `
+      SELECT share_id, kind, creator_name, hot_payload, created_at, updated_at, last_viewed_at
+      FROM ${SHARES_V2_TABLE}
+      WHERE share_id = ?
+      LIMIT 1
+      `,
+      [aliasRow.target_share_id]
+    );
+    if (targetRow === undefined) {
+      return { status: "unavailable" };
+    }
+    if (!targetRow) {
+      return { status: "miss" };
+    }
+
+    const inflated = await inflateShareFromRemoteRegistryRow(targetRow, shareId);
+    if (inflated === undefined) {
+      return { status: "unavailable" };
+    }
+    return inflated ? { status: "hit", share: inflated } : { status: "miss" };
+  } catch (error) {
+    console.warn("[share] remote read fallback failed", error);
+    return { status: "unavailable" };
+  }
 }
 
 async function inflateShareFromRegistryRow(db: D1DatabaseLike, row: ShareRegistryRow): Promise<StoredShareV1 | null> {
@@ -1137,6 +1341,13 @@ const d1StorageBackend: StorageBackend = {
   async getShare(shareId) {
     const db = await getD1Database();
     if (!db || !(await ensureD1Schema())) {
+      const remoteFallback = await getShareFromRemoteFallback(shareId);
+      if (remoteFallback.status === "hit") {
+        return remoteFallback.share;
+      }
+      if (remoteFallback.status === "miss") {
+        return null;
+      }
       throw new Error("getShare failed: d1 is not ready");
     }
 

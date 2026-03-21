@@ -17,6 +17,13 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-21", name: "CheungYeung", amount: "50", message: "title能加修饰词自定义就好了（开发者注：刚好又想做又缺动力……！）" },
+  { date: "2026-03-21", name: "R.M.T.", amount: "3", message: "但搜出来好像和电视剧似的，我看它那个图标类型是书籍啊（开发者注：现实人物和书籍都缺少好用的API呢……）" },
+  { date: "2026-03-21", name: "R.M.T.", amount: "3", message: "却搜不到沈从文和叶圣陶。作品也是，想搜查拉图斯特拉和朝花夕拾" },
+  { date: "2026-03-21", name: "R.M.T.", amount: "3", message: "希望后面的人物和作品的搜索范围再大一点，能搜到郑渊洁和鲁迅，" },
+  { date: "2026-03-21", name: "匿名", amount: "20", message: "涉猎真广₍₍Ϡ(੭•̀ω•́)੭✧⃛" },
+  { date: "2026-03-21", name: "匿名", amount: "1.88", message: "很有意思的网站！" },
+  { date: "2026-03-21", name: "Raistlin", amount: "3", message: "" },
   { date: "2026-03-21", name: "匿名", amount: "2.33", message: "加个查询作品选定数的功能+1。作者加油呀" },
   { date: "2026-03-21", name: "酷狗_🎶", amount: "6", message: "很有趣的想法💡" },
   { date: "2026-03-21", name: "酷狗_🎶", amount: "6", message: "" },

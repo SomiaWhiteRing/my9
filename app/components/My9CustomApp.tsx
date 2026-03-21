@@ -492,7 +492,7 @@ export default function My9CustomApp() {
             使用须知
             <ChevronRight className="h-4 w-4 text-amber-500 dark:text-amber-300" aria-hidden="true" />
           </button>
-          <p className="text-sm text-amber-600 dark:text-amber-400">3月20日23:55开始的服务器问题已于3月21日01:07修复！<span style={{ textDecoration: "line-through" }}>cloudflare的账单系统有毛病……</span></p>
+          <p className="text-sm text-amber-600 dark:text-amber-400">在导出图片时增加了更多自定义选项！</p>
           <SupportButton />
         </header>
 
