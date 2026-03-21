@@ -17,6 +17,10 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-21", name: "匿名", amount: "2.33", message: "加个查询作品选定数的功能+1。作者加油呀" },
+  { date: "2026-03-21", name: "酷狗_🎶", amount: "6", message: "很有趣的想法💡" },
+  { date: "2026-03-21", name: "酷狗_🎶", amount: "6", message: "" },
+  { date: "2026-03-21", name: "酷狗_🎶", amount: "6", message: "" },
   { date: "2026-03-21", name: "匿名", amount: "3", message: "快修快修快把分享按钮端上来" },
   { date: "2026-03-21", name: "wabbajack16", amount: "6", message: "" },
   { date: "2026-03-20", name: "学海无涯", amount: "2", message: "作者加油啊，路过随两块钱份子" },
