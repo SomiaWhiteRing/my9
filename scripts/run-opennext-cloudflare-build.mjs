@@ -109,6 +109,20 @@ function syncNestedServerFunctionBuildOutputs() {
   }
 }
 
+async function refreshShareCountSnapshot(targetEnv, env) {
+  const args = ["scripts/write-share-count-snapshot.mjs", "--remote"];
+
+  if (targetEnv === "test") {
+    args.push("--test");
+  }
+
+  // OpenNext invokes Next directly, so npm prebuild hooks do not run here.
+  const exitCode = await run("node", args, env);
+  if (exitCode !== 0) {
+    throw new Error(`share count snapshot refresh failed with exit code ${exitCode}`);
+  }
+}
+
 async function main() {
   loadLocalEnvFiles();
 
@@ -122,13 +136,17 @@ async function main() {
 
   console.log(`[cf:build] target=${targetEnv} siteUrl=${siteUrl}`);
 
-  const exitCode = await run("opennextjs-cloudflare", args, {
+  const buildEnv = {
     ...process.env,
     SITE_URL: siteUrl,
     NEXT_PUBLIC_SITE_URL: siteUrl,
     NEXT_DIST_DIR: `${CF_BUILD_OUTPUT_DIR}/.next`,
     NODE_OPTIONS: process.env.NODE_OPTIONS ?? "--max-old-space-size=6144",
-  });
+  };
+
+  await refreshShareCountSnapshot(targetEnv, buildEnv);
+
+  const exitCode = await run("opennextjs-cloudflare", args, buildEnv);
 
   if (exitCode === 0) {
     const sourceBuildDir = path.join(process.cwd(), CF_BUILD_OUTPUT_DIR, ".open-next", ".build");
