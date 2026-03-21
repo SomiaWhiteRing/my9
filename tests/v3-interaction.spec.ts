@@ -503,12 +503,6 @@ test.describe("v3 interaction", () => {
     await expect(page.getByRole("heading", { name: "构成我的九部" })).toBeVisible();
   });
 
-  test("非法分享路径会回落首页", async ({ page }) => {
-    await page.goto("/game/s/%20");
-    await expect(page).toHaveURL("/", { timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: "构成我的九部" })).toBeVisible();
-  });
-
   test("搜索键盘选择、重复项互换与评论剧透折叠生效", async ({ page }) => {
     await page.goto("/game");
 

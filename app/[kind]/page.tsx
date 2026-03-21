@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import My9V3App from "@/app/components/My9V3App";
 import { SUBJECT_KIND_ORDER, getSubjectKindMeta, parseSubjectKind } from "@/lib/subject-kind";
 
@@ -38,7 +38,7 @@ export default async function SubjectKindPage({
   const { kind: rawKind } = await params;
   const kind = parseSubjectKind(rawKind);
   if (!kind) {
-    redirect("/");
+    notFound();
   }
 
   return <My9V3App kind={kind} />;
