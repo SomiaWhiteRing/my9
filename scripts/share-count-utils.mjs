@@ -23,12 +23,23 @@ export function parseShareCount(value) {
   return toNonNegativeInt(value);
 }
 
+function buildWranglerEnv() {
+  const env = { ...process.env };
+  const sqlToken = env.MY9_SQL_API_TOKEN?.trim();
+
+  if (sqlToken) {
+    env.CLOUDFLARE_API_TOKEN = sqlToken;
+  }
+
+  return env;
+}
+
 function run(command, args) {
   return new Promise((resolve, reject) => {
     const commandLine = [command, ...args.map((arg) => (/[\s()*;]/.test(arg) ? `"${arg.replaceAll('"', '\\"')}"` : arg))].join(" ");
     const child = spawn(commandLine, {
       cwd: process.cwd(),
-      env: process.env,
+      env: buildWranglerEnv(),
       shell: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
