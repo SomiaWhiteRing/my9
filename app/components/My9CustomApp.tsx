@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { UpdateLogNotice } from "@/app/components/v3/UpdateLogNotice";
 import { SupportButton } from "@/components/SupportButton";
 import { InlineToast, type ToastKind } from "@/app/components/v3/InlineToast";
 import { CustomActionCluster } from "@/app/components/custom/CustomActionCluster";
@@ -492,7 +493,7 @@ export default function My9CustomApp() {
             使用须知
             <ChevronRight className="h-4 w-4 text-amber-500 dark:text-amber-300" aria-hidden="true" />
           </button>
-          <p className="text-sm text-amber-600 dark:text-amber-400">在导出图片时增加了更多自定义选项！</p>
+          <UpdateLogNotice />
           <SupportButton />
         </header>
 

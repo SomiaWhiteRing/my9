@@ -15,6 +15,7 @@ import { InlineToast, ToastKind } from "@/app/components/v3/InlineToast";
 import { NineGridBoard } from "@/app/components/v3/NineGridBoard";
 import { SearchDialog } from "@/app/components/v3/SearchDialog";
 import { SelectedGamesList } from "@/app/components/v3/SelectedGamesList";
+import { UpdateLogNotice } from "@/app/components/v3/UpdateLogNotice";
 import { SupportButton } from "@/components/SupportButton";
 import {
   SubjectKind,
@@ -721,7 +722,7 @@ export default function My9V3App({
             大家的构成
             <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
           </button>
-          <p className="text-sm text-amber-600 dark:text-amber-400">在导出图片时增加了更多自定义选项！</p>
+          <UpdateLogNotice />
           <SupportButton/>
         </header>
 

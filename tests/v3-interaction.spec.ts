@@ -497,6 +497,19 @@ test.describe("v3 interaction", () => {
     await expect(page.getByRole("button", { name: "生成分享图片" })).toHaveCount(0);
   });
 
+  test("填写页更新日志默认显示最新一条并可打开完整历史", async ({ page }) => {
+    await page.goto("/game");
+
+    const latestUpdateLogButton = page.getByRole("button", { name: /在导出图片时增加了更多自定义选项！/ });
+    await expect(latestUpdateLogButton).toBeVisible();
+
+    await latestUpdateLogButton.click();
+    await expect(page.getByRole("heading", { name: "更新日志" })).toBeVisible();
+    await expect(page.getByText("2026-03-21 23:59")).toBeVisible();
+    await expect(page.getByText("自定义模式现已追加！")).toBeVisible();
+    await expect(page.getByText("感谢 MiQieR 的贡献，现已追加电影/电视剧的支持！")).toBeVisible();
+  });
+
   test("非法 kind 路径会回落首页", async ({ page }) => {
     await page.goto("/76c33a16-ef44-47ed-b239-d38b24206d95");
     await expect(page).toHaveURL("/", { timeout: 30_000 });

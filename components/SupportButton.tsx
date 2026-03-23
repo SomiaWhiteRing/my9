@@ -17,6 +17,11 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-03-23", name: "糯米丝儿", amount: "1", message: "" },
+  { date: "2026-03-23", name: "明晰梦", amount: "3", message: "d(^^*)" },
+  { date: "2026-03-22", name: "骆雨祁_", amount: "3", message: "可以可以" },
+  { date: "2026-03-22", name: "匿名", amount: "3", message: "希望多点专辑和作品数据，挺多都搜不到的" },
+  { date: "2026-03-22", name: "匿名", amount: "6", message: "" },
   { date: "2026-03-21", name: "CheungYeung", amount: "50", message: "title能加修饰词自定义就好了（开发者注：刚好又想做又缺动力……！）" },
   { date: "2026-03-21", name: "R.M.T.", amount: "3", message: "但搜出来好像和电视剧似的，我看它那个图标类型是书籍啊（开发者注：现实人物和书籍都缺少好用的API呢……）" },
   { date: "2026-03-21", name: "R.M.T.", amount: "3", message: "却搜不到沈从文和叶圣陶。作品也是，想搜查拉图斯特拉和朝花夕拾" },
