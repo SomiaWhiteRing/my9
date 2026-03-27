@@ -17,7 +17,10 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
-  { date: "2026-03-24", name: "奏", amount: "3", message: "加油哦(｡･ω･｡）" },
+  { date: "2026-03-27", name: "初雪", amount: "1.11", message: "谢谢喵" },
+  { date: "2026-03-26", name: "匿名", amount: "10", message: "希望热爱动漫的我们都变得更幸福" },
+  { date: "2026-03-26", name: "凛", amount: "15", message: "做的很棒 加油 ψ(｀∇´)ψ" },
+  { date: "2026-03-25", name: "匿名", amount: "3", message: "支持" },
   { date: "2026-03-24", name: "匿名", amount: "3", message: "不赖" },
   { date: "2026-03-24", name: "匿名", amount: "20", message: "赞美阿嬷" },
   { date: "2026-03-24", name: "匿名", amount: "10", message: "" },
