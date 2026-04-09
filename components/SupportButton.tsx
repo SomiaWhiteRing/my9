@@ -17,6 +17,9 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-04-07", name: "五色石", amount: "50", message: "能不能加个支持2dfan数据库接入，球球了（开发者注：2dfan没有开放API并且管理员也没有开放的意愿(https://2dfan.com/posts/28938)……bangumi的游戏准入门槛很宽松可以试着自己建条目）" },
+  { date: "2026-04-06", name: "看云的瓜", amount: "1", message: "" },
+  { date: "2026-04-04", name: "吾与春风皆过客", amount: "6", message: "" },
   { date: "2026-04-02", name: "旧城以西", amount: "3", message: "做得很好" },
   { date: "2026-03-31", name: "匿名", amount: "50", message: "加油" },
   { date: "2026-03-30", name: "barabaranomama", amount: "3", message: "感谢🥹" },
