@@ -72,7 +72,7 @@ const YEAR_PAGE_OPTIONS: Array<{ value: TrendYearPage; label: string }> = [
   { value: "legacy", label: "经典" },
 ];
 const DEFAULT_TREND_KIND: SubjectKind = "game";
-const DEFAULT_TREND_PERIOD: TrendPeriod = "7d";
+const DEFAULT_TREND_PERIOD: TrendPeriod = "30d";
 const DEFAULT_TREND_VIEW: TrendView = "overall";
 const DEFAULT_TREND_OVERALL_PAGE = 1;
 const DEFAULT_TREND_YEAR_PAGE: TrendYearPage = "recent";

@@ -4,7 +4,7 @@ import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subje
 
 export const VALID_TREND_PERIODS: TrendPeriod[] = ["today", "24h", "7d", "30d", "90d", "180d", "all"];
 export const VALID_TREND_VIEWS: TrendView[] = ["overall", "genre", "decade", "year"];
-export const DEFAULT_TREND_PERIOD: TrendPeriod = "7d";
+export const DEFAULT_TREND_PERIOD: TrendPeriod = "30d";
 export const DEFAULT_TREND_VIEW: TrendView = "overall";
 export const DEFAULT_TREND_KIND: SubjectKind = DEFAULT_SUBJECT_KIND;
 export const DEFAULT_TREND_OVERALL_PAGE = 1;
