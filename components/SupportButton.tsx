@@ -17,6 +17,10 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-05-09", name: "打哈欠的梦神", amount: "6", message: "加油⛽" },
+  { date: "2026-05-06", name: "夜藏", amount: "6", message: "好👍" },
+  { date: "2026-04-29", name: "青鸟", amount: "20", message: "" },
+  { date: "2026-04-27", name: "匿名", amount: "0.52", message: "" },
   { date: "2026-04-17", name: "🔘TASKKILL", amount: "20", message: "感谢您！！特别喜欢这个项目🫶" },
   { date: "2026-04-11", name: "匿名", amount: "3", message: "" },
   { date: "2026-04-07", name: "五色石", amount: "50", message: "能不能加个支持2dfan数据库接入，球球了（开发者注：2dfan没有开放API并且管理员也没有开放的意愿(https://2dfan.com/posts/28938)……bangumi的游戏准入门槛很宽松可以试着自己建条目）" },
