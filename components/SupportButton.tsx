@@ -17,6 +17,8 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-05-18", name: "匿名", amount: "20", message: "" },
+  { date: "2026-05-18", name: "81194", amount: "9", message: "长长久久" },
   { date: "2026-05-09", name: "打哈欠的梦神", amount: "6", message: "加油⛽" },
   { date: "2026-05-06", name: "夜藏", amount: "6", message: "好👍" },
   { date: "2026-04-29", name: "青鸟", amount: "20", message: "" },
