@@ -29,7 +29,7 @@ const UPDATE_LOG_ENTRIES: UpdateLogEntry[] = [
   {
     id: "2026-05-29-1545-bangumi-image-proxy",
     publishedAt: "2026-05-29 15:45",
-    headline: "（大概）解决了 Bangumi 图片被墙无法展示的问题",
+    headline: "（大概）解决了因Bangumi被墙图片无法展示的问题~",
     lines: [{ className: amberPrimaryClassName, content: <>因 Bangumi 图片服务近期访问异常，现已追加站内图片代理！</> }],
   },
   {
