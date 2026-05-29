@@ -1,16 +1,20 @@
 import {
   BANGUMI_IMAGE_CACHE_CONTROL,
   BANGUMI_IMAGE_ERROR_CACHE_CONTROL,
+  BANGUMI_IMAGE_FORBIDDEN_CACHE_CONTROL,
+  getBangumiImageProxyCorsOrigin,
+  isAllowedBangumiImageProxyRequest,
   normalizeBangumiImageProxyTarget,
 } from "@/lib/image-proxy";
 
 export const dynamic = "force-dynamic";
 
-function buildProxyHeaders(upstream: Response): Headers {
+function buildProxyHeaders(request: Request, upstream: Response): Headers {
   const headers = new Headers();
   const contentType = upstream.headers.get("content-type");
   const etag = upstream.headers.get("etag");
   const lastModified = upstream.headers.get("last-modified");
+  const corsOrigin = getBangumiImageProxyCorsOrigin(request);
 
   if (contentType) headers.set("Content-Type", contentType);
   if (etag) headers.set("ETag", etag);
@@ -24,12 +28,25 @@ function buildProxyHeaders(upstream: Response): Headers {
     "CDN-Cache-Control",
     upstream.ok ? BANGUMI_IMAGE_CACHE_CONTROL : BANGUMI_IMAGE_ERROR_CACHE_CONTROL
   );
-  headers.set("Access-Control-Allow-Origin", "*");
+  if (corsOrigin) {
+    headers.set("Access-Control-Allow-Origin", corsOrigin);
+  }
+  headers.set("Vary", "Origin, Referer, Sec-Fetch-Site");
   headers.set("X-Content-Type-Options", "nosniff");
   return headers;
 }
 
 async function handleBangumiImageProxy(request: Request): Promise<Response> {
+  if (!isAllowedBangumiImageProxyRequest(request)) {
+    return new Response("Forbidden", {
+      status: 403,
+      headers: {
+        "Cache-Control": BANGUMI_IMAGE_FORBIDDEN_CACHE_CONTROL,
+        "Vary": "Origin, Referer, Sec-Fetch-Site",
+      },
+    });
+  }
+
   const requestUrl = new URL(request.url);
   const targetUrl = normalizeBangumiImageProxyTarget(requestUrl.searchParams.get("url"));
 
@@ -51,7 +68,7 @@ async function handleBangumiImageProxy(request: Request): Promise<Response> {
     return new Response(request.method === "HEAD" ? null : upstream.body, {
       status: upstream.status,
       statusText: upstream.statusText,
-      headers: buildProxyHeaders(upstream),
+      headers: buildProxyHeaders(request, upstream),
     });
   } catch {
     return new Response("Bangumi image fetch failed", {

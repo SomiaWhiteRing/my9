@@ -7,9 +7,12 @@ const TREND_ROLLUP_CRON = "30 * * * *";
 const DAILY_MAINTENANCE_CRON = "5 16 * * *";
 const BANGUMI_IMAGE_PROXY_PATH = "/api/image/bgm";
 const BANGUMI_IMAGE_HOSTS = new Set(["lain.bgm.tv", "img.bgm.tv"]);
+const ALLOWED_SITE_ROOT = "shatranj.space";
+const LOCAL_DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
 const BANGUMI_IMAGE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
 const BANGUMI_IMAGE_CACHE_CONTROL = `public, max-age=${BANGUMI_IMAGE_CACHE_TTL_SECONDS}, s-maxage=${BANGUMI_IMAGE_CACHE_TTL_SECONDS}, immutable`;
 const BANGUMI_IMAGE_ERROR_CACHE_CONTROL = "public, max-age=300, s-maxage=300";
+const BANGUMI_IMAGE_FORBIDDEN_CACHE_CONTROL = "no-store";
 
 function bindRuntimeEnv(env) {
   globalThis.__MY9_CF_ENV = env;
@@ -42,6 +45,100 @@ function normalizeBangumiImageProxyTarget(value) {
   }
 }
 
+function normalizeHostname(hostname) {
+  return hostname.trim().toLowerCase().replace(/\.$/, "");
+}
+
+function isAllowedSiteHostname(hostname) {
+  const normalized = normalizeHostname(hostname);
+  return normalized === ALLOWED_SITE_ROOT || normalized.endsWith(`.${ALLOWED_SITE_ROOT}`);
+}
+
+function isLocalDevelopmentHostname(hostname) {
+  return LOCAL_DEVELOPMENT_HOSTS.has(normalizeHostname(hostname));
+}
+
+function parseHeaderHostname(value) {
+  if (!value) return null;
+
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function isAllowedSourceHostname(requestHostname, sourceHostname) {
+  if (isAllowedSiteHostname(sourceHostname)) {
+    return true;
+  }
+
+  return isLocalDevelopmentHostname(requestHostname) && isLocalDevelopmentHostname(sourceHostname);
+}
+
+function isAllowedBangumiImageProxyRequest(request) {
+  const requestHostname = new URL(request.url).hostname;
+  const originHostname = parseHeaderHostname(request.headers.get("origin"));
+  const refererHostname = parseHeaderHostname(request.headers.get("referer"));
+
+  if (originHostname) {
+    return isAllowedSourceHostname(requestHostname, originHostname);
+  }
+
+  if (refererHostname) {
+    return isAllowedSourceHostname(requestHostname, refererHostname);
+  }
+
+  const fetchSite = request.headers.get("sec-fetch-site")?.toLowerCase();
+  if (fetchSite === "same-origin") {
+    return isAllowedSiteHostname(requestHostname) || isLocalDevelopmentHostname(requestHostname);
+  }
+  if (fetchSite === "same-site") {
+    return isAllowedSiteHostname(requestHostname);
+  }
+
+  return isLocalDevelopmentHostname(requestHostname);
+}
+
+function getBangumiImageProxyCorsOrigin(request) {
+  const origin = request.headers.get("origin");
+  const originHostname = parseHeaderHostname(origin);
+  if (!origin || !originHostname) return null;
+
+  const requestHostname = new URL(request.url).hostname;
+  if (!isAllowedSourceHostname(requestHostname, originHostname)) {
+    return null;
+  }
+
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return null;
+  }
+}
+
+function appendBangumiImageProxyAccessHeaders(headers, request) {
+  const corsOrigin = getBangumiImageProxyCorsOrigin(request);
+
+  if (corsOrigin) {
+    headers.set("Access-Control-Allow-Origin", corsOrigin);
+  } else {
+    headers.delete("Access-Control-Allow-Origin");
+  }
+
+  headers.set("Vary", "Origin, Referer, Sec-Fetch-Site");
+}
+
+function withBangumiImageProxyAccessHeaders(response, request) {
+  const headers = new Headers(response.headers);
+  appendBangumiImageProxyAccessHeaders(headers, request);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function buildBangumiImageProxyHeaders(upstream) {
   const headers = new Headers();
   const contentType = upstream.headers.get("content-type");
@@ -60,7 +157,6 @@ function buildBangumiImageProxyHeaders(upstream) {
     "CDN-Cache-Control",
     upstream.ok ? BANGUMI_IMAGE_CACHE_CONTROL : BANGUMI_IMAGE_ERROR_CACHE_CONTROL
   );
-  headers.set("Access-Control-Allow-Origin", "*");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-My9-Image-Proxy", "bangumi");
   return headers;
@@ -74,14 +170,28 @@ function toBangumiImageProxyCacheRequest(requestUrl, targetUrl) {
 }
 
 async function handleBangumiImageProxy(request, ctx) {
+  const isAllowedRequest = isAllowedBangumiImageProxyRequest(request);
+
   if (request.method === "OPTIONS") {
+    if (!isAllowedRequest) {
+      return new Response("Forbidden", {
+        status: 403,
+        headers: {
+          "Cache-Control": BANGUMI_IMAGE_FORBIDDEN_CACHE_CONTROL,
+          "Vary": "Origin, Referer, Sec-Fetch-Site",
+        },
+      });
+    }
+
+    const corsOrigin = getBangumiImageProxyCorsOrigin(request);
     return new Response(null, {
       status: 204,
       headers: {
-        "Access-Control-Allow-Origin": "*",
+        ...(corsOrigin ? { "Access-Control-Allow-Origin": corsOrigin } : {}),
         "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Cache-Control": "no-store",
+        Vary: "Origin, Referer, Sec-Fetch-Site",
       },
     });
   }
@@ -92,6 +202,16 @@ async function handleBangumiImageProxy(request, ctx) {
       headers: {
         Allow: "GET, HEAD, OPTIONS",
         "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  if (!isAllowedRequest) {
+    return new Response("Forbidden", {
+      status: 403,
+      headers: {
+        "Cache-Control": BANGUMI_IMAGE_FORBIDDEN_CACHE_CONTROL,
+        "Vary": "Origin, Referer, Sec-Fetch-Site",
       },
     });
   }
@@ -113,7 +233,7 @@ async function handleBangumiImageProxy(request, ctx) {
 
   if (request.method === "GET" && cache) {
     const cached = await cache.match(cacheRequest);
-    if (cached) return cached;
+    if (cached) return withBangumiImageProxyAccessHeaders(cached, request);
   }
 
   try {
@@ -140,7 +260,7 @@ async function handleBangumiImageProxy(request, ctx) {
       ctx.waitUntil(cache.put(cacheRequest, response.clone()));
     }
 
-    return response;
+    return withBangumiImageProxyAccessHeaders(response, request);
   } catch {
     return new Response("Bangumi image fetch failed", {
       status: 502,
