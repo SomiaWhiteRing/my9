@@ -2,6 +2,7 @@
 
 import QRCode from "qrcode";
 import { getCustomEntryExportTitle, type CustomEntry } from "@/lib/custom/types";
+import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 import { SubjectKind, getSubjectKindMeta } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
 
@@ -273,6 +274,10 @@ function toWsrvUrl(value: string): string | null {
   if (!normalized) return null;
   if (normalized.startsWith("data:") || normalized.startsWith("blob:")) {
     return normalized;
+  }
+  const proxiedBangumiUrl = toProxiedBangumiImageUrl(normalized);
+  if (proxiedBangumiUrl && proxiedBangumiUrl !== normalized) {
+    return proxiedBangumiUrl;
   }
   return `https://wsrv.nl/?url=${encodeURIComponent(normalized)}&w=640&output=webp`;
 }

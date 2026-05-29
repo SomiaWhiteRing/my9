@@ -17,6 +17,7 @@ import {
   CustomSearchItem,
   CustomSearchSource,
 } from "@/lib/custom/types";
+import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 import { normalizeSearchQuery } from "@/lib/search/query";
 import { cn } from "@/lib/utils";
 
@@ -255,7 +256,7 @@ export function CustomSearchDialog({
                       <div className="relative h-0 w-full overflow-hidden rounded bg-muted pb-[133.33%]">
                         {item.cover ? (
                           <Image
-                            src={item.cover}
+                            src={toProxiedBangumiImageUrl(item.cover) ?? item.cover}
                             alt={displayName(item)}
                             fill
                             unoptimized
@@ -288,7 +289,7 @@ export function CustomSearchDialog({
                 <div className="relative h-20 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
                   {pendingSelection.cover ? (
                     <Image
-                      src={pendingSelection.cover}
+                      src={toProxiedBangumiImageUrl(pendingSelection.cover) ?? pendingSelection.cover}
                       alt={pendingSelection.fallbackName || "待填入作品"}
                       fill
                       unoptimized

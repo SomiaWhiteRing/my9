@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
 import { SubjectKind } from "@/lib/subject-kind";
+import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 import { normalizeSearchQuery } from "@/lib/search/query";
 import { ShareGame } from "@/lib/share/types";
 import { cn } from "@/lib/utils";
@@ -229,7 +230,7 @@ export function SearchDialog({
                   <div className="relative h-0 w-full overflow-hidden rounded bg-muted pb-[133.33%]">
                     {game.cover ? (
                       <Image
-                        src={game.cover}
+                        src={toProxiedBangumiImageUrl(game.cover) ?? game.cover}
                         alt={displayName(game)}
                         fill
                         className={cn("object-cover", shouldTopCropCover(kind) && "object-top")}

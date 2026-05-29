@@ -8,6 +8,7 @@ import { Feedback, AutoScroller, Cursor } from "@dnd-kit/dom";
 import { useSortable, isSortable } from "@dnd-kit/react/sortable";
 import { arrayMove } from "@dnd-kit/helpers";
 import { CustomEntry, getCustomEntryDisplayTitle } from "@/lib/custom/types";
+import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 import { cn } from "@/lib/utils";
 
 interface CustomNineGridBoardProps {
@@ -69,7 +70,7 @@ function GridCell({
       >
         {entry?.cover ? (
           <Image
-            src={entry.cover}
+            src={toProxiedBangumiImageUrl(entry.cover) ?? entry.cover}
             alt={getCustomEntryDisplayTitle(entry)}
             fill
             unoptimized

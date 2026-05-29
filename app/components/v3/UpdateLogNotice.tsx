@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -24,10 +23,15 @@ type UpdateLogEntry = {
 };
 
 const amberPrimaryClassName = "text-amber-600 dark:text-amber-400";
-const amberSecondaryClassName = "text-amber-300 dark:text-amber-200";
 const yellowPrimaryClassName = "text-yellow-500";
 
 const UPDATE_LOG_ENTRIES: UpdateLogEntry[] = [
+  {
+    id: "2026-05-29-1545-bangumi-image-proxy",
+    publishedAt: "2026-05-29 15:45",
+    headline: "（大概）解决了 Bangumi 图片被墙无法展示的问题",
+    lines: [{ className: amberPrimaryClassName, content: <>因 Bangumi 图片服务近期访问异常，现已追加站内图片代理！</> }],
+  },
   {
     id: "2026-03-21-2359-export-options",
     publishedAt: "2026-03-21 23:59",

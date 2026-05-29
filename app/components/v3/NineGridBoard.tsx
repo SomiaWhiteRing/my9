@@ -8,6 +8,7 @@ import { useSortable, isSortable } from "@dnd-kit/react/sortable";
 import { arrayMove } from "@dnd-kit/helpers";
 import { ShareGame } from "@/lib/share/types";
 import { SubjectKind } from "@/lib/subject-kind";
+import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 import { cn } from "@/lib/utils";
 
 interface NineGridBoardProps {
@@ -94,7 +95,7 @@ function GridCell({
       >
         {game?.cover ? (
           <Image
-            src={game.cover}
+            src={toProxiedBangumiImageUrl(game.cover) ?? game.cover}
             alt={displayTitle(game)}
             fill
             unoptimized

@@ -18,6 +18,7 @@ import {
 } from "@/lib/subject-kind";
 import type { TrendGameItem, TrendResponse, TrendPeriod, TrendView, TrendYearPage } from "@/lib/share/types";
 import { resolveSubjectLink } from "@/lib/subject-source";
+import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 import { cn } from "@/lib/utils";
 
 type TrendsApiResponse = TrendResponse & { ok: boolean };
@@ -161,7 +162,7 @@ function toTrendsCoverUrl(cover: string | null | undefined): string | null {
       const normalizedPath = parsed.pathname.replace(/^\/+/, "");
       const pathWithoutResize = normalizedPath.replace(/^r\/\d+\//, "");
       parsed.pathname = `/r/${BANGUMI_TRENDS_COVER_WIDTH}/${pathWithoutResize}`;
-      return parsed.toString();
+      return toProxiedBangumiImageUrl(parsed.toString()) ?? parsed.toString();
     }
 
     if (parsed.hostname === "image.tmdb.org") {

@@ -3,6 +3,7 @@ import { Globe } from "lucide-react";
 import { ShareGame } from "@/lib/share/types";
 import type { SubjectKind } from "@/lib/subject-kind";
 import { ReadonlySpoilerComment } from "@/app/components/v3/ReadonlySpoilerComment";
+import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 import { resolveSubjectLink } from "@/lib/subject-source";
 
 interface ReadonlySelectedGamesListProps {
@@ -57,7 +58,7 @@ export function ReadonlySelectedGamesList({
                 <div className="-ml-0.5 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-border bg-muted shadow-sm sm:-ml-1 sm:w-16">
                   {game.cover ? (
                     <Image
-                      src={game.cover}
+                      src={toProxiedBangumiImageUrl(game.cover) ?? game.cover}
                       alt={game.name}
                       width={64}
                       height={86}

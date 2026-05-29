@@ -4,6 +4,7 @@ import Image from "next/image";
 import { AlertTriangle, Globe, MessageCircle } from "lucide-react";
 import { ShareGame } from "@/lib/share/types";
 import type { SubjectKind } from "@/lib/subject-kind";
+import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 import { resolveSubjectLink } from "@/lib/subject-source";
 
 interface SelectedGamesListProps {
@@ -66,7 +67,7 @@ export function SelectedGamesList({
                 <div className="-ml-0.5 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-border bg-muted shadow-sm sm:-ml-1 sm:w-16">
                   {game.cover ? (
                     <Image
-                      src={game.cover}
+                      src={toProxiedBangumiImageUrl(game.cover) ?? game.cover}
                       alt={game.name}
                       width={64}
                       height={86}

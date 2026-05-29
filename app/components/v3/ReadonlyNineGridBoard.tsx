@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Plus } from "lucide-react";
 import { ShareGame } from "@/lib/share/types";
 import { SubjectKind } from "@/lib/subject-kind";
+import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 import { cn } from "@/lib/utils";
 
 interface ReadonlyNineGridBoardProps {
@@ -28,7 +29,7 @@ export function ReadonlyNineGridBoard({ games, subjectLabel, kind }: ReadonlyNin
             <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
               {game?.cover ? (
                 <Image
-                  src={game.cover}
+                  src={toProxiedBangumiImageUrl(game.cover) ?? game.cover}
                   alt={displayTitle(game)}
                   fill
                   unoptimized

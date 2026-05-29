@@ -6,6 +6,7 @@ import {
   CustomEntry,
   getCustomEntryDisplayTitle,
 } from "@/lib/custom/types";
+import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 
 interface CustomSelectedEntriesListProps {
   entries: Array<CustomEntry | null>;
@@ -49,7 +50,7 @@ export function CustomSelectedEntriesList({
                 <div className="-ml-0.5 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-border bg-muted shadow-sm sm:-ml-1 sm:w-16">
                   {entry.cover ? (
                     <Image
-                      src={entry.cover}
+                      src={toProxiedBangumiImageUrl(entry.cover) ?? entry.cover}
                       alt={getCustomEntryDisplayTitle(entry)}
                       width={64}
                       height={86}
