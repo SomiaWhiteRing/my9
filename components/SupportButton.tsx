@@ -17,6 +17,13 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-06-29", name: "逆回十六夜", amount: "6", message: "" },
+  { date: "2026-06-27", name: "阳光快车", amount: "3", message: "快车" },
+  { date: "2026-06-26", name: "伯芳", amount: "1", message: "" },
+  { date: "2026-06-24", name: "dxjg1101", amount: "10", message: "" },
+  { date: "2026-06-22", name: "匿名", amount: "6", message: "九首单曲的iTunes连不上" },
+  { date: "2026-06-12", name: "巫蚀", amount: "3", message: "vx：***" },
+  { date: "2026-06-06", name: "舞", amount: "10", message: "嘿嘿，创意真不错，在挑选的时候也就像是回忆起了自己的过去" },
   { date: "2026-05-18", name: "匿名", amount: "20", message: "" },
   { date: "2026-05-18", name: "81194", amount: "9", message: "长长久久" },
   { date: "2026-05-09", name: "打哈欠的梦神", amount: "6", message: "加油⛽" },
