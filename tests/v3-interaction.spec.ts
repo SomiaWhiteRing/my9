@@ -620,6 +620,58 @@ test.describe("v3 interaction", () => {
     expect(searchRequestCount).toBe(1);
   });
 
+  test("单曲搜索在站内 iTunes 代理失败时会走浏览器直连兜底", async ({ page }) => {
+    await page.unroute(/\/api\/subjects\/search\?/);
+    await page.route(/\/api\/subjects\/search\?/, async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: false,
+          source: "itunes",
+          kind: "song",
+          items: [],
+          noResultQuery: "love story",
+          error: "iTunes search failed: 429",
+        }),
+      });
+    });
+    await page.route(/https:\/\/itunes\.apple\.com\/search\?/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          resultCount: 1,
+          results: [
+            {
+              wrapperType: "track",
+              artistName: "Taylor Swift",
+              collectionId: 1452859090,
+              trackId: 1452859410,
+              trackName: "Love Story",
+              artworkUrl100: "https://is1-ssl.mzstatic.com/image/thumb/Music123/v4/mock/100x100bb.jpg",
+              releaseDate: "2008-09-12T07:00:00Z",
+              primaryGenreName: "Pop",
+              trackViewUrl: "https://music.apple.com/us/album/love-story/1452859090?i=1452859410",
+            },
+          ],
+        }),
+      });
+    });
+
+    await page.goto("/song");
+    await fillSlotByKind(page, {
+      slot: 1,
+      subjectLabel: "单曲",
+      searchPlaceholder: "输入单曲/歌曲名称",
+      query: "love story",
+    });
+
+    await expect(page.getByText("1 / 9 已选择")).toBeVisible();
+    await expect(page.locator("article h3", { hasText: "Love Story" }).first()).toBeVisible();
+    await expect(page.getByText("Taylor Swift")).toBeVisible();
+  });
+
   test("填写页刷新后保留本地缓存草稿", async ({ page }) => {
     await page.goto("/game");
     await page.getByPlaceholder("输入你的昵称").fill("缓存玩家");

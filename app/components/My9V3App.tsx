@@ -24,6 +24,7 @@ import {
   parseSubjectKind,
 } from "@/lib/subject-kind";
 import { FILL_MODE_ORDER, FillMode, getFillModeMeta } from "@/lib/fill-mode";
+import { resolveItunesStorefrontForQuery } from "@/lib/itunes/storefront";
 import { normalizeSearchQuery } from "@/lib/search/query";
 import { SubjectSearchResponse, ShareGame } from "@/lib/share/types";
 import { cn } from "@/lib/utils";
@@ -76,11 +77,166 @@ const SEARCH_CLIENT_CACHE_TTL_MS = 15 * 60 * 1000;
 const SEARCH_CLIENT_CACHE_MAX = 192;
 const SEARCH_REQUEST_COOLDOWN_MS = 400;
 const SHARE_NAVIGATION_FALLBACK_MS = 1400;
+const ITUNES_CLIENT_SEARCH_LIMIT = 20;
 
 type SearchClientCacheEntry = {
   expiresAt: number;
   response: SubjectSearchResponse;
 };
+
+type ItunesClientTrackResult = {
+  wrapperType: "track";
+  artistName: string;
+  collectionId?: number;
+  collectionName?: string;
+  collectionViewUrl?: string;
+  trackId?: number;
+  trackName: string;
+  trackViewUrl?: string;
+  artworkUrl100?: string;
+  releaseDate?: string;
+  primaryGenreName?: string;
+};
+
+type ItunesClientCollectionResult = {
+  wrapperType: "collection";
+  artistName: string;
+  collectionId: number;
+  collectionName: string;
+  collectionViewUrl?: string;
+  artworkUrl100?: string;
+  releaseDate?: string;
+  primaryGenreName?: string;
+};
+
+type ItunesClientResult = ItunesClientTrackResult | ItunesClientCollectionResult;
+
+function extractItunesYear(raw?: string | null): number | undefined {
+  if (!raw) return undefined;
+  const year = Number.parseInt(raw.slice(0, 4), 10);
+  if (!Number.isFinite(year) || year < 1970 || year > 2100) {
+    return undefined;
+  }
+  return year;
+}
+
+function enhanceItunesArtworkUrl(url?: string | null): string | null {
+  return url ? url.replace("100x100bb", "1000x1000bb") : null;
+}
+
+function isItunesClientTrackResult(result: ItunesClientResult): result is ItunesClientTrackResult {
+  return (
+    result.wrapperType === "track" &&
+    typeof result.artistName === "string" &&
+    typeof result.trackName === "string"
+  );
+}
+
+function isItunesClientCollectionResult(result: ItunesClientResult): result is ItunesClientCollectionResult {
+  return (
+    result.wrapperType === "collection" &&
+    typeof result.artistName === "string" &&
+    typeof result.collectionName === "string" &&
+    typeof result.collectionId === "number" &&
+    Number.isFinite(result.collectionId)
+  );
+}
+
+function toSongFromClientResult(result: ItunesClientResult): ShareGame | null {
+  if (!isItunesClientTrackResult(result)) {
+    return null;
+  }
+
+  const id =
+    typeof result.trackId === "number" && Number.isFinite(result.trackId)
+      ? result.trackId
+      : typeof result.collectionId === "number" && Number.isFinite(result.collectionId)
+        ? result.collectionId
+        : null;
+  if (id === null) return null;
+
+  return {
+    id,
+    name: result.artistName,
+    localizedName: result.trackName,
+    cover: enhanceItunesArtworkUrl(result.artworkUrl100),
+    releaseYear: extractItunesYear(result.releaseDate),
+    genres: result.primaryGenreName ? [result.primaryGenreName] : [],
+    storeUrls: {
+      apple: result.trackViewUrl || result.collectionViewUrl || "",
+    },
+  };
+}
+
+function toAlbumFromClientResult(result: ItunesClientResult): ShareGame | null {
+  if (!isItunesClientCollectionResult(result)) {
+    return null;
+  }
+
+  return {
+    id: result.collectionId,
+    name: result.artistName,
+    localizedName: result.collectionName,
+    cover: enhanceItunesArtworkUrl(result.artworkUrl100),
+    releaseYear: extractItunesYear(result.releaseDate),
+    genres: result.primaryGenreName ? [result.primaryGenreName] : [],
+    storeUrls: {
+      apple: result.collectionViewUrl || "",
+    },
+  };
+}
+
+async function searchItunesInBrowser(query: string, kind: SubjectKind): Promise<SubjectSearchResponse | null> {
+  if (kind !== "song" && kind !== "album") return null;
+
+  const normalizedQuery = normalizeSearchQuery(query);
+  if (!normalizedQuery) return null;
+
+  const url = new URL("https://itunes.apple.com/search");
+  url.searchParams.set("term", normalizedQuery);
+  url.searchParams.set("media", "music");
+  url.searchParams.set("entity", kind === "song" ? "musicTrack" : "album");
+  url.searchParams.set("country", resolveItunesStorefrontForQuery(normalizedQuery));
+  url.searchParams.set("limit", String(ITUNES_CLIENT_SEARCH_LIMIT));
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    if (!response.ok) return null;
+
+    const json = (await response.json()) as { results?: ItunesClientResult[] };
+    const results = Array.isArray(json.results) ? json.results : [];
+    // ponytail: this browser fallback mirrors only the direct Apple search; if album recall matters, share the server fallback/ranking path.
+    const items = results
+      .map((result) => (kind === "song" ? toSongFromClientResult(result) : toAlbumFromClientResult(result)))
+      .filter((item): item is ShareGame => item !== null);
+
+    return {
+      ok: true,
+      source: "itunes",
+      kind,
+      items,
+      noResultQuery: items.length === 0 ? normalizedQuery : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function toSearchFailureMessage(kind: SubjectKind, error?: string) {
+  if ((kind === "song" || kind === "album") && error?.startsWith("iTunes search failed:")) {
+    return "Apple Music 搜索暂时不可用，请稍后再试";
+  }
+  return error || "搜索失败，请稍后再试";
+}
+
+function canUseItunesBrowserFallback(kind: SubjectKind, error?: string) {
+  return (kind === "song" || kind === "album") && error?.startsWith("iTunes search failed:");
+}
 
 function buildSearchClientCacheKey(kind: SubjectKind, query: string) {
   return `${kind}:${normalizeSearchQuery(query)}`;
@@ -469,6 +625,23 @@ export default function My9V3App({
     setSearchActiveIndex(-1);
     setSearchCommittedQuery(normalizedQuery);
 
+    async function applySearchResponse(nextResponse: SubjectSearchResponse) {
+      searchClientCacheRef.current.set(cacheKey, {
+        expiresAt: Date.now() + SEARCH_CLIENT_CACHE_TTL_MS,
+        response: nextResponse,
+      });
+      pruneExpiredSearchClientCache(searchClientCacheRef.current);
+      trimSearchClientCache(searchClientCacheRef.current);
+      persistSearchClientCache();
+
+      setSearchError("");
+      setSearchResults(nextResponse.items);
+      setSearchMeta({
+        noResultQuery: nextResponse.noResultQuery,
+      });
+      setSearchActiveIndex(nextResponse.items.length > 0 ? 0 : -1);
+    }
+
     try {
       const response = await fetch(
         `/api/subjects/search?q=${encodeURIComponent(normalizedQuery)}&kind=${encodeURIComponent(kind)}`
@@ -479,7 +652,15 @@ export default function My9V3App({
       };
 
       if (!response.ok || !json?.ok) {
-        setSearchError(json?.error || "搜索失败，请稍后再试");
+        if (canUseItunesBrowserFallback(kind, json?.error)) {
+          const fallbackResponse = await searchItunesInBrowser(normalizedQuery, kind);
+          if (fallbackResponse) {
+            await applySearchResponse(fallbackResponse);
+            return;
+          }
+        }
+
+        setSearchError(toSearchFailureMessage(kind, json?.error));
         setSearchResults([]);
         setSearchMeta(createSearchMeta(normalizedQuery));
         return;
@@ -500,21 +681,15 @@ export default function My9V3App({
         noResultQuery: typeof json.noResultQuery === "string" ? json.noResultQuery : null,
       };
 
-      searchClientCacheRef.current.set(cacheKey, {
-        expiresAt: Date.now() + SEARCH_CLIENT_CACHE_TTL_MS,
-        response: nextResponse,
-      });
-      pruneExpiredSearchClientCache(searchClientCacheRef.current);
-      trimSearchClientCache(searchClientCacheRef.current);
-      persistSearchClientCache();
-
-      setSearchResults(nextResponse.items);
-      setSearchMeta({
-        noResultQuery: nextResponse.noResultQuery,
-      });
-      setSearchActiveIndex(nextResponse.items.length > 0 ? 0 : -1);
+      await applySearchResponse(nextResponse);
     } catch {
-      setSearchError("搜索失败，请稍后再试");
+      const fallbackResponse = await searchItunesInBrowser(normalizedQuery, kind);
+      if (fallbackResponse) {
+        await applySearchResponse(fallbackResponse);
+        return;
+      }
+
+      setSearchError(toSearchFailureMessage(kind));
       setSearchResults([]);
       setSearchMeta(createSearchMeta(normalizedQuery));
     } finally {
