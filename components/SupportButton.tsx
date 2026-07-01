@@ -17,6 +17,8 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-07-02", name: "我要成功", amount: "10", message: "九首单曲有Bug！感谢开发！" },
+  { date: "2026-06-29", name: "SpringField", amount: "6", message: "" },
   { date: "2026-06-29", name: "逆回十六夜", amount: "6", message: "" },
   { date: "2026-06-27", name: "阳光快车", amount: "3", message: "快车" },
   { date: "2026-06-26", name: "伯芳", amount: "1", message: "" },

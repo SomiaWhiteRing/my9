@@ -27,6 +27,12 @@ const yellowPrimaryClassName = "text-yellow-500";
 
 const UPDATE_LOG_ENTRIES: UpdateLogEntry[] = [
   {
+    id: "2026-07-02-0530-iTunes-Music-502",
+    publishedAt: "2026-07-02 05:30",
+    headline: "解决了单曲无法搜索的问题",
+    lines: [{ className: amberPrimaryClassName, content: <>当站点代理搜索失败时，降级为用户本地发起搜索（可能需要翻墙）</> }],
+  },
+  {
     id: "2026-05-29-1545-bangumi-image-proxy",
     publishedAt: "2026-05-29 15:45",
     headline: "（大概）解决了因Bangumi被墙图片无法展示的问题~",
