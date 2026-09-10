@@ -17,7 +17,13 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
-  { date: "2026-07-02", name: "我要成功", amount: "10", message: "九首单曲有Bug！感谢开发！" },
+  { date: "2026-08-29", name: "D", amount: "0.91", message: "" },
+  { date: "2026-08-18", name: "阿米奥", amount: "3", message: "" },
+  { date: "2026-07-25", name: "浮舟", amount: "20", message: "专辑/音乐建议加bangumi源" },
+  { date: "2026-07-22", name: "L", amount: "6", message: "" },
+  { date: "2026-07-14", name: "心依戀你", amount: "3", message: "太好了" },
+  { date: "2026-07-11", name: "万科", amount: "10", message: "干巴爹" },
+  { date: "2026-07-02", name: "戒骄戒躁", amount: "10", message: "九首单曲有Bug！感谢开发！" },
   { date: "2026-06-29", name: "SpringField", amount: "6", message: "" },
   { date: "2026-06-29", name: "逆回十六夜", amount: "6", message: "" },
   { date: "2026-06-27", name: "阳光快车", amount: "3", message: "快车" },
