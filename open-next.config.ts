@@ -3,6 +3,7 @@ import staticAssetsIncrementalCache from "@opennextjs/cloudflare/overrides/incre
 
 const config = defineCloudflareConfig({
   incrementalCache: staticAssetsIncrementalCache,
+  enableCacheInterception: true,
 });
 
 // OpenNext's Cloudflare runtime does not currently support Turbopack server builds.

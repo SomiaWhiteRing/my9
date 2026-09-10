@@ -655,6 +655,7 @@ export default function TrendsClientPage({
         <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6">
           <Link
             href={`/${kind}`}
+            prefetch={false}
             className="inline-flex items-center rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             返回主页面
