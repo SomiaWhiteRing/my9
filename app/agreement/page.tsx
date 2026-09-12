@@ -1,8 +1,11 @@
 import { LegalDocumentPage } from "@/components/legal/LegalDocumentPage";
+import { createPageMetadata } from "@/lib/page-metadata";
 
-export const metadata = {
-  title: "使用条款",
-};
+export const metadata = createPageMetadata(
+  "使用条款",
+  "My9「构成我的九部」使用条款：了解填写内容的使用要求、分享页的公开访问方式及服务规则。",
+  "/agreement",
+);
 
 export default function AgreementPage() {
   const paragraphs = [

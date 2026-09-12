@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import My9V3App from "@/app/components/My9V3App";
+import { createPageMetadata } from "@/lib/page-metadata";
 import { SUBJECT_KIND_ORDER, getSubjectKindMeta, parseSubjectKind } from "@/lib/subject-kind";
 
 export const dynamicParams = false;
@@ -27,9 +28,11 @@ export async function generateMetadata({
   }
 
   const meta = getSubjectKindMeta(kind);
-  return {
-    title: `构成我的${meta.longLabel}`,
-  };
+  return createPageMetadata(
+    `构成我的${meta.longLabel}`,
+    `制作「构成我的${meta.longLabel}」九宫格：搜索并挑选最能代表你的${meta.label}，添加评论，生成分享页面与图片，向世界传达你所爱的${meta.label}。`,
+    `/${kind}`,
+  );
 }
 
 export default async function SubjectKindPage({

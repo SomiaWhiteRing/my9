@@ -1,8 +1,11 @@
 import { LegalDocumentPage } from "@/components/legal/LegalDocumentPage";
+import { createPageMetadata } from "@/lib/page-metadata";
 
-export const metadata = {
-  title: "隐私政策",
-};
+export const metadata = createPageMetadata(
+  "隐私政策",
+  "My9「构成我的九部」隐私政策：了解昵称、所选内容和评论的保存与展示方式，以及第三方服务的数据处理说明。",
+  "/privacy-policy",
+);
 
 export default function PrivacyPolicyPage() {
   const paragraphs = [

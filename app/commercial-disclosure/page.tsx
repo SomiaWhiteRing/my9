@@ -1,8 +1,11 @@
 import { LegalDocumentPage } from "@/components/legal/LegalDocumentPage";
+import { createPageMetadata } from "@/lib/page-metadata";
 
-export const metadata = {
-  title: "商业声明",
-};
+export const metadata = createPageMetadata(
+  "商业声明",
+  "My9「构成我的九部」商业声明：了解当前服务的商业模式、赞助与合作标注原则，以及名称、封面和商标的权利归属。",
+  "/commercial-disclosure",
+);
 
 export default function CommercialDisclosurePage() {
   const paragraphs = [

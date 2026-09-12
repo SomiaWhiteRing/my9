@@ -4,6 +4,7 @@ import My9ReadonlyApp from "@/app/components/My9ReadonlyApp";
 import My9ReadonlyPage, { type InitialReadonlyShareData } from "@/app/components/My9ReadonlyPage";
 import { isCanonicalShareId, normalizeShareId } from "@/lib/share/id";
 import { getShare } from "@/lib/share/storage";
+import { createPageMetadata } from "@/lib/page-metadata";
 import { getSubjectKindShareTitle, parseSubjectKind } from "@/lib/subject-kind";
 
 type ShareReadonlyPageParams = {
@@ -18,15 +19,19 @@ type ShareReadonlyPageProps = {
 export async function generateMetadata({
   params,
 }: ShareReadonlyPageProps): Promise<Metadata> {
-  const { kind: rawKind } = await params;
+  const { kind: rawKind, shareId: rawShareId } = await params;
   const kind = parseSubjectKind(rawKind);
-  if (!kind) {
+  const shareId = normalizeShareId(rawShareId);
+  if (!kind || !shareId) {
     return { title: "页面不存在" };
   }
 
-  return {
-    title: `${getSubjectKindShareTitle(kind)}分享页`,
-  };
+  const shareTitle = getSubjectKindShareTitle(kind);
+  return createPageMetadata(
+    `${shareTitle}分享页`,
+    `查看这份「${shareTitle}」的选择与评论，也可以创建属于自己的构成。`,
+    `/${kind}/s/${shareId}`,
+  );
 }
 
 export default async function ShareReadonlyPage({
