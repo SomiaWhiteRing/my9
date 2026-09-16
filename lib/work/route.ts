@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { normalizeSearchQuery } from "@/lib/search/query";
 import { buildWorkSearchResponse, searchWorkSubjects } from "@/lib/work/search";
 
@@ -208,7 +207,7 @@ export async function handleWorkSearchRequest(request: Request) {
   const query = normalizeSearchQuery(searchParams.get("q"));
 
   if (!query) {
-    return NextResponse.json(buildWorkSearchResponse({ query: "", items: [] }), {
+    return Response.json(buildWorkSearchResponse({ query: "", items: [] }), {
       headers: createSearchCacheHeaders(),
     });
   }
@@ -216,7 +215,7 @@ export async function handleWorkSearchRequest(request: Request) {
   const rateLimit = checkSearchRateLimit(request);
   if (rateLimit.limited) {
     const payload = buildWorkSearchResponse({ query, items: [] });
-    return NextResponse.json(
+    return Response.json(
       {
         ...payload,
         ok: false,
@@ -236,12 +235,12 @@ export async function handleWorkSearchRequest(request: Request) {
 
   try {
     const items = await getCachedSearchItems(query);
-    return NextResponse.json(buildWorkSearchResponse({ query, items }), {
+    return Response.json(buildWorkSearchResponse({ query, items }), {
       headers: createSearchCacheHeaders(),
     });
   } catch (error) {
     const payload = buildWorkSearchResponse({ query, items: [] });
-    return NextResponse.json(
+    return Response.json(
       {
         ...payload,
         ok: false,

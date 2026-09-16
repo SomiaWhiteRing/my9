@@ -2,8 +2,6 @@ import { SubjectKind, getSubjectKindMeta } from "@/lib/subject-kind";
 import { ShareSubject, SubjectSearchResponse } from "@/lib/share/types";
 
 const BANGUMI_API_BASE_URL = "https://api.bgm.tv";
-const BANGUMI_ACCESS_TOKEN = process.env.BANGUMI_ACCESS_TOKEN;
-const BANGUMI_USER_AGENT = process.env.BANGUMI_USER_AGENT;
 const BANGUMI_EXACT_KEYWORD_OVERRIDES: Record<string, string> = {
   // Bangumi API currently misses this query under simplified Chinese.
   仙剑奇侠传: "仙劍奇俠傳",
@@ -304,11 +302,13 @@ export async function searchBangumiSubjects(
 }
 
 function toBangumiRequestHeaders() {
+  // Worker bindings are populated on the first request, after module evaluation.
+  const accessToken = process.env.BANGUMI_ACCESS_TOKEN;
   return {
-    "User-Agent": BANGUMI_USER_AGENT || "My9/4.0",
+    "User-Agent": process.env.BANGUMI_USER_AGENT || "My9/4.0",
     Accept: "application/json",
     "Content-Type": "application/json",
-    ...(BANGUMI_ACCESS_TOKEN ? { Authorization: `Bearer ${BANGUMI_ACCESS_TOKEN}` } : {}),
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
 }
 

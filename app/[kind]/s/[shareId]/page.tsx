@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import My9ReadonlyApp from "@/app/components/My9ReadonlyApp";
 import My9ReadonlyPage, { type InitialReadonlyShareData } from "@/app/components/My9ReadonlyPage";
-import { isCanonicalShareId, normalizeShareId } from "@/lib/share/id";
-import { getShare } from "@/lib/share/storage";
+import { normalizeShareId } from "@/lib/share/id";
+import { resolveSharePage } from "@/lib/share/page-data";
 import { createPageMetadata } from "@/lib/page-metadata";
 import { getSubjectKindShareTitle, parseSubjectKind } from "@/lib/subject-kind";
 
@@ -38,40 +38,23 @@ export default async function ShareReadonlyPage({
   params,
 }: ShareReadonlyPageProps) {
   const { kind: rawKind, shareId: rawShareId } = await params;
-  const kind = parseSubjectKind(rawKind);
-  const shareId = normalizeShareId(rawShareId);
-  if (!kind || !shareId) {
-    notFound();
+  const page = await resolveSharePage(rawKind, rawShareId);
+  if (page.type === "not-found") notFound();
+  if (page.type === "redirect") {
+    if (page.status === 308) permanentRedirect(page.location);
+    redirect(page.location);
   }
-
-  if (!isCanonicalShareId(rawShareId) || rawShareId.trim().toLowerCase() !== shareId) {
-    permanentRedirect(`/${kind}/s/${shareId}`);
-  }
-
-  let initialShareData: InitialReadonlyShareData | null = null;
-
-  try {
-    const share = await getShare(shareId);
-    if (share) {
-      const shareKind = parseSubjectKind(share.kind) ?? kind;
-      if (shareKind !== kind) {
-        redirect(`/${shareKind}/s/${share.shareId}`);
-      }
-
-      initialShareData = {
-        shareId: share.shareId,
-        kind: shareKind,
-        creatorName: share.creatorName,
-        games: share.games,
-      };
-    }
-  } catch {
-    initialShareData = null;
-  }
-
-  if (!initialShareData) {
+  const { kind, shareId } = page;
+  if (page.type === "fallback") {
     return <My9ReadonlyApp kind={kind} initialShareId={shareId} initialShareData={null} />;
   }
+  const { share } = page;
+  const initialShareData: InitialReadonlyShareData = {
+    shareId: share.shareId,
+    kind,
+    creatorName: share.creatorName,
+    games: share.games,
+  };
 
   return <My9ReadonlyPage kind={kind} shareId={shareId} initialShareData={initialShareData} />;
 }

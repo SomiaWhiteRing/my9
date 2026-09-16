@@ -3,6 +3,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { patchOpenNextIndexCache } from "./patch-opennext-index-cache.mjs";
 
 const DEFAULT_SITE_URLS = {
   production: "https://my9.shatranj.space",
@@ -125,6 +126,7 @@ async function refreshShareCountSnapshot(targetEnv, env) {
 
 async function main() {
   loadLocalEnvFiles();
+  patchOpenNextIndexCache();
 
   const targetEnv = resolveTargetEnv();
   const siteUrl = resolveSiteUrl(targetEnv);

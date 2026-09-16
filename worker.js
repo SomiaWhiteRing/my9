@@ -1,7 +1,11 @@
 import { runDailyShareMaintenance } from "./lib/share/daily-maintenance";
 import { runHourlyTrendMaintenance } from "./lib/share/hourly-trend-maintenance";
 import { trackShareViewRequest } from "./lib/share/view-stats";
+import { handleSubjectSearchRequest } from "./lib/search/route";
+import { handleShareGetRequest } from "./lib/share/read-route";
+import { handleShareHeadRequest } from "./lib/share/head-route";
 import openNextWorker from "./.cf-build/.open-next/worker.js";
+import { runWithCloudflareRequestContext } from "./.cf-build/.open-next/cloudflare/init.js";
 
 const TREND_ROLLUP_CRON = "30 * * * *";
 const DAILY_MAINTENANCE_CRON = "5 16 * * *";
@@ -272,12 +276,37 @@ async function handleBangumiImageProxy(request, ctx) {
 }
 
 const worker = {
-  fetch(request, env, ctx) {
+  async fetch(request, env, ctx) {
     bindRuntimeEnv(env);
 
     const requestUrl = new URL(request.url);
     if (requestUrl.pathname === BANGUMI_IMAGE_PROXY_PATH) {
       return handleBangumiImageProxy(request, ctx);
+    }
+
+    // Only these read endpoints bypass Next routing. Other methods and URL
+    // normalization (including trailing slashes) remain handled by Next.
+    if (request.method === "GET") {
+      const handler = requestUrl.pathname === "/api/subjects/search"
+        ? handleSubjectSearchRequest
+        : requestUrl.pathname === "/api/share"
+          ? handleShareGetRequest
+          : null;
+      if (handler) {
+        // Reuse OpenNext's env initialization and request context without
+        // loading NextServer or converting the request/response through it.
+        return runWithCloudflareRequestContext(request, env, ctx, async () => {
+          const response = await handler(request);
+          response.headers.set("Vary", "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch");
+          response.headers.set("x-opennext", "1");
+          return response;
+        });
+      }
+    }
+
+    if (request.method === "HEAD") {
+      const response = await runWithCloudflareRequestContext(request, env, ctx, () => handleShareHeadRequest(request));
+      if (response) return response;
     }
 
     trackShareViewRequest(request, env.MY9_SHARE_VIEW_ANALYTICS ?? null);

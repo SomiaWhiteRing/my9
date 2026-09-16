@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 import {
   buildBangumiSearchResponse,
@@ -225,7 +224,7 @@ export async function handleBangumiSearchRequest(
   const kind = options?.forcedKind ?? requestedKind ?? DEFAULT_SUBJECT_KIND;
 
   if (!query) {
-    return NextResponse.json(buildBangumiSearchResponse({ query: "", kind, items: [] }), {
+    return Response.json(buildBangumiSearchResponse({ query: "", kind, items: [] }), {
       headers: createSearchCacheHeaders(),
     });
   }
@@ -233,7 +232,7 @@ export async function handleBangumiSearchRequest(
   const rateLimit = checkSearchRateLimit(request, kind);
   if (rateLimit.limited) {
     const payload = buildBangumiSearchResponse({ query, kind, items: [] });
-    return NextResponse.json(
+    return Response.json(
       {
         ...payload,
         ok: false,
@@ -253,12 +252,12 @@ export async function handleBangumiSearchRequest(
 
   try {
     const items = await getCachedSearchItems(query, kind);
-    return NextResponse.json(buildBangumiSearchResponse({ query, kind, items }), {
+    return Response.json(buildBangumiSearchResponse({ query, kind, items }), {
       headers: createSearchCacheHeaders(),
     });
   } catch (error) {
     const payload = buildBangumiSearchResponse({ query, kind, items: [] });
-    return NextResponse.json(
+    return Response.json(
       {
         ...payload,
         ok: false,

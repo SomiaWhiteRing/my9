@@ -186,14 +186,24 @@ const collectedCountFromEnv = process.env.NEXT_PUBLIC_SHARE_COUNT
   ? parseInt(process.env.NEXT_PUBLIC_SHARE_COUNT, 10)
   : null;
 const collectedCount = SHARE_COUNT_SNAPSHOT > 0 ? SHARE_COUNT_SNAPSHOT : collectedCountFromEnv;
+let collectedCountText: string | undefined;
+
+function getCollectedCountText() {
+  return collectedCountText ??= collectedCount === null ? "..." : collectedCount.toLocaleString("zh-CN");
+}
 
 export function SupportButton() {
+  const [open, setOpen] = useState(false);
+  const [hasOpened, setHasOpened] = useState(false);
   const wechatPayQrUrl = process.env.NEXT_PUBLIC_WECHAT_PAY_QR_URL?.trim();
   const fallbackWechatPayQrUrl = "/wechatpay.png";
   const [wechatPayQrSrc, setWechatPayQrSrc] = useState(wechatPayQrUrl ?? fallbackWechatPayQrUrl);
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      if (nextOpen) setHasOpened(true);
+      setOpen(nextOpen);
+    }}>
       <DialogTrigger asChild>
         <button
           type="button"
@@ -202,14 +212,15 @@ export function SupportButton() {
           支援开发者
         </button>
       </DialogTrigger>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-xl max-h-[88dvh] overflow-y-auto rounded-2xl p-4 md:w-[92vw] md:max-h-[85vh] md:p-5">
+      {/* Keep Radix mounted after the first open for its exit animation and focus restoration. */}
+      {hasOpened && <DialogContent className="w-[calc(100vw-1rem)] max-w-xl max-h-[88dvh] overflow-y-auto rounded-2xl p-4 md:w-[92vw] md:max-h-[85vh] md:p-5">
         <DialogHeader className="text-left">
           <DialogTitle>感谢支持</DialogTitle>
           <DialogDescription className="space-y-1.5 text-muted-foreground">
             <span className="block">
               本项目上线至今已经建构了{" "}
               <span className="font-semibold text-sky-600">
-                {collectedCount === null ? "..." : collectedCount.toLocaleString("zh-CN")}
+                {getCollectedCountText()}
               </span>{" "}
               份大家的构成！可喜可贺（啪叽啪叽）
             </span>
@@ -374,7 +385,7 @@ export function SupportButton() {
             </ul>
           </div>
         </section>
-      </DialogContent>
+      </DialogContent>}
     </Dialog>
   );
 }

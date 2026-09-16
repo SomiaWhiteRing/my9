@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 import { normalizeSearchQuery } from "@/lib/search/query";
 import { buildItunesSearchResponse, searchItunesSong, searchItunesAlbum } from "@/lib/itunes/search";
@@ -207,7 +206,7 @@ export async function handleItunesSearchRequest(
   const kind = options?.forcedKind ?? requestedKind ?? DEFAULT_SUBJECT_KIND;
 
   if (!query) {
-    return NextResponse.json(buildItunesSearchResponse({ query: "", kind, items: [] }), {
+    return Response.json(buildItunesSearchResponse({ query: "", kind, items: [] }), {
       headers: createSearchCacheHeaders(),
     });
   }
@@ -215,7 +214,7 @@ export async function handleItunesSearchRequest(
   const rateLimit = checkSearchRateLimit(request, kind);
   if (rateLimit.limited) {
     const payload = buildItunesSearchResponse({ query, kind, items: [] });
-    return NextResponse.json(
+    return Response.json(
       {
         ...payload,
         ok: false,
@@ -235,12 +234,12 @@ export async function handleItunesSearchRequest(
 
   try {
     const items = await getCachedSearchItems(query, kind);
-    return NextResponse.json(buildItunesSearchResponse({ query, kind, items }), {
+    return Response.json(buildItunesSearchResponse({ query, kind, items }), {
       headers: createSearchCacheHeaders(),
     });
   } catch (error) {
     const payload = buildItunesSearchResponse({ query, kind, items: [] });
-    return NextResponse.json(
+    return Response.json(
       {
         ...payload,
         ok: false,

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 import { buildTmdbSearchResponse, searchTmdbTv, searchTmdbMovie } from "@/lib/tmdb/search";
 import { normalizeSearchQuery } from "@/lib/search/query";
@@ -215,7 +214,7 @@ export async function handleTmdbSearchRequest(request: Request) {
   const kind = requestedKind ?? DEFAULT_SUBJECT_KIND;
 
   if (!query) {
-    return NextResponse.json(buildTmdbSearchResponse({ query: "", kind, items: [] }), {
+    return Response.json(buildTmdbSearchResponse({ query: "", kind, items: [] }), {
       headers: createSearchCacheHeaders(),
     });
   }
@@ -223,7 +222,7 @@ export async function handleTmdbSearchRequest(request: Request) {
   const rateLimit = checkSearchRateLimit(request, kind);
   if (rateLimit.limited) {
     const payload = buildTmdbSearchResponse({ query, kind, items: [] });
-    return NextResponse.json(
+    return Response.json(
       {
         ...payload,
         ok: false,
@@ -243,12 +242,12 @@ export async function handleTmdbSearchRequest(request: Request) {
 
   try {
     const items = await getCachedSearchItems(query, kind);
-    return NextResponse.json(buildTmdbSearchResponse({ query, kind, items }), {
+    return Response.json(buildTmdbSearchResponse({ query, kind, items }), {
       headers: createSearchCacheHeaders(),
     });
   } catch (error) {
     const payload = buildTmdbSearchResponse({ query, kind, items: [] });
-    return NextResponse.json(
+    return Response.json(
       {
         ...payload,
         ok: false,

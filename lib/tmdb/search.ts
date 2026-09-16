@@ -2,7 +2,6 @@ import { SubjectKind } from "@/lib/subject-kind";
 import { ShareSubject, SubjectSearchResponse } from "@/lib/share/types";
 
 const TMDB_API_BASE_URL = "https://api.themoviedb.org/3";
-const TMDB_API_READ_ACCESS_TOKEN = process.env.TMDB_API_READ_ACCESS_TOKEN;
 
 // 动画 genre ID，用于过滤动画类电视剧
 const TMDB_ANIMATION_GENRE_ID = 16;
@@ -96,7 +95,7 @@ async function fetchTmdbSearch<T>(
     method: "GET",
     headers: {
       Accept: "application/json",
-      Authorization: `Bearer ${TMDB_API_READ_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${process.env.TMDB_API_READ_ACCESS_TOKEN}`,
     },
     next: { revalidate: 0 },
   });
@@ -251,7 +250,7 @@ export async function searchTmdbTv(params: {
   const q = query.trim();
   if (!q) return [];
 
-  if (!TMDB_API_READ_ACCESS_TOKEN) {
+  if (!process.env.TMDB_API_READ_ACCESS_TOKEN) {
     throw new Error("TMDB_API_READ_ACCESS_TOKEN 未配置");
   }
 
@@ -289,7 +288,7 @@ export async function searchTmdbMovie(params: {
   const q = query.trim();
   if (!q) return [];
 
-  if (!TMDB_API_READ_ACCESS_TOKEN) {
+  if (!process.env.TMDB_API_READ_ACCESS_TOKEN) {
     throw new Error("TMDB_API_READ_ACCESS_TOKEN 未配置");
   }
 

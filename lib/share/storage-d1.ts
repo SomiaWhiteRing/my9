@@ -1597,14 +1597,8 @@ const d1StorageBackend: StorageBackend = {
     const expiresAt = toNumber(row.expires_at, 0);
     const updatedAt = resolveTrendCacheUpdatedAt(expiresAt, row.updated_at);
     if (isTrendCacheExpired(expiresAt, updatedAt, Date.now()) && options?.allowExpired !== true) {
-      await execute(
-        db,
-        `
-        DELETE FROM ${TRENDS_CACHE_TABLE}
-        WHERE cache_key = ?
-        `,
-        [key]
-      );
+      // An expired row is a miss. The next successful refresh replaces it via
+      // upsert; deleting here adds a write and can race with that refresh.
       return null;
     }
 
@@ -1662,14 +1656,8 @@ const d1StorageBackend: StorageBackend = {
     const expiresAt = toNumber(row.expires_at, 0);
     const updatedAt = resolveTrendCacheUpdatedAt(expiresAt, row.updated_at);
     if (isTrendCacheExpired(expiresAt, updatedAt, Date.now()) && options?.allowExpired !== true) {
-      await execute(
-        db,
-        `
-        DELETE FROM ${TRENDS_CACHE_TABLE}
-        WHERE cache_key = ?
-        `,
-        [key]
-      );
+      // An expired row is a miss. The next successful refresh replaces it via
+      // upsert; deleting here adds a write and can race with that refresh.
       return null;
     }
 

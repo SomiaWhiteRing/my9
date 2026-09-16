@@ -1,22 +1,11 @@
 import { NextResponse } from "next/server";
-import { createShareId, normalizeShareId } from "@/lib/share/id";
-import { saveShare, getShare } from "@/lib/share/storage";
+import { createShareId } from "@/lib/share/id";
+import { saveShare } from "@/lib/share/storage";
 import { ShareGame, StoredShareV1 } from "@/lib/share/types";
 import { parseSubjectKind } from "@/lib/subject-kind";
 
 const MAX_CREATOR_LENGTH = 40;
 const MAX_COMMENT_LENGTH = 140;
-const SHARE_GET_CDN_TTL_SECONDS = 3600;
-const SHARE_GET_STALE_TTL_SECONDS = 86400;
-const SHARE_GET_CACHE_CONTROL_VALUE = `public, max-age=0, s-maxage=${SHARE_GET_CDN_TTL_SECONDS}, stale-while-revalidate=${SHARE_GET_STALE_TTL_SECONDS}`;
-
-function createShareGetCacheHeaders() {
-  return {
-    "Cache-Control": SHARE_GET_CACHE_CONTROL_VALUE,
-    "CDN-Cache-Control": SHARE_GET_CACHE_CONTROL_VALUE,
-  };
-}
-
 function sanitizeString(value: unknown): string {
   if (typeof value !== "string") return "";
   return value.trim();
@@ -169,50 +158,4 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = normalizeShareId(searchParams.get("id"));
-    if (!id) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "无效的分享 ID",
-        },
-        { status: 400 }
-      );
-    }
-
-    const share = await getShare(id);
-    if (!share) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "分享不存在",
-        },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        ok: true,
-        shareId: share.shareId,
-        kind: share.kind,
-        creatorName: share.creatorName,
-        games: share.games,
-      },
-      {
-        headers: createShareGetCacheHeaders(),
-      }
-    );
-  } catch (error) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "读取失败",
-      },
-      { status: 500 }
-    );
-  }
-}
+export { handleShareGetRequest as GET } from "@/lib/share/read-route";
