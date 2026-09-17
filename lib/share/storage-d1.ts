@@ -770,47 +770,84 @@ function buildTrendSampleQuery(
   sql: string;
   bindValues: (kind: SubjectKind, fromTimestamp: number, checkpoint: TrendRollupCheckpoint | null) => Array<string | number>;
 } {
-  if (period === "all") {
-    return hasCheckpoint
-      ? {
-          sql: `
-          SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
-          FROM ${SHARES_V2_TABLE}
-          WHERE kind = ?
-            AND created_at <= ?
-          `,
-          bindValues: (kind, _fromTimestamp, checkpoint) => [kind, checkpoint?.createdAt ?? 0],
+  const conditions = ["kind = ?1"];
+  if (period !== "all") {
+    conditions.push("created_at >= ?2");
+  }
+  if (hasCheckpoint) {
+    conditions.push(`created_at <= ?${conditions.length + 1}`);
+  }
+  const sourceSql = `FROM ${SHARES_V2_TABLE} WHERE ${conditions.join(" AND ")}`;
+
+  // Keep all three values in one statement/snapshot. The existing kind/created
+  // index supplies the endpoints without running MIN/MAX for every counted row.
+  return {
+    sql: `
+    SELECT
+      (SELECT COUNT(*) ${sourceSql}) AS sample_count,
+      (SELECT created_at ${sourceSql} ORDER BY created_at ASC LIMIT 1) AS min_created,
+      (SELECT created_at ${sourceSql} ORDER BY created_at DESC LIMIT 1) AS max_created
+    `,
+    bindValues: (kind, fromTimestamp, checkpoint) => [
+      kind,
+      ...(period === "all" ? [] : [fromTimestamp]),
+      ...(hasCheckpoint ? [checkpoint?.createdAt ?? 0] : []),
+    ],
+  };
+}
+
+function buildAllHistorySampleQuery(hasCheckpoint: boolean): string {
+  const sourceSql = `FROM ${SHARES_V2_TABLE} WHERE kind = ?1${hasCheckpoint ? " AND created_at <= ?2" : ""}`;
+  const pendingCountSql = hasCheckpoint
+    ? `(SELECT COUNT(*) FROM ${SHARES_V2_TABLE} WHERE kind = ?1 AND created_at > ?2)`
+    : "0";
+
+  // Total, unrolled tail and endpoints must share one SQL snapshot. Keep the
+  // original inclusive timestamp cutoff, even when rollup stops within a share.
+  return `
+    SELECT
+      COALESCE(c.share_count, 0) - ${pendingCountSql} AS sample_count,
+      (SELECT created_at ${sourceSql} ORDER BY created_at ASC LIMIT 1) AS min_created,
+      (SELECT created_at ${sourceSql} ORDER BY created_at DESC LIMIT 1) AS max_created
+    FROM my9_share_count_state_v1 AS s
+    LEFT JOIN my9_share_count_kind_v1 AS c ON c.kind = ?1
+    WHERE s.id = 1 AND s.ready = 1
+  `;
+}
+
+async function loadTrendSampleRow(
+  db: D1DatabaseLike,
+  period: TrendPeriod,
+  kind: SubjectKind,
+  fromTimestamp: number,
+  checkpoint: TrendRollupCheckpoint | null
+): Promise<TrendSampleRow | null> {
+  if (period === "all" && readEnv("MY9_TRENDS_ALL_COUNT_SOURCE") !== "registry") {
+    try {
+      const row = await queryFirst<TrendSampleRow>(
+        db,
+        buildAllHistorySampleQuery(Boolean(checkpoint)),
+        [kind, ...(checkpoint ? [checkpoint.createdAt] : [])]
+      );
+      if (row) {
+        const count = Number(row.sample_count);
+        const hasBothEndpoints = row.min_created !== null && row.max_created !== null;
+        const hasNoEndpoints = row.min_created === null && row.max_created === null;
+        if (Number.isSafeInteger(count) && count >= 0 &&
+          ((count === 0 && hasNoEndpoints) || (count > 0 && hasBothEndpoints))) {
+          return row;
         }
-      : {
-          sql: `
-          SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
-          FROM ${SHARES_V2_TABLE}
-          WHERE kind = ?
-          `,
-          bindValues: (kind) => [kind],
-        };
+        console.warn("[trends] Invalid all-history count; using registry statistics.");
+      }
+    } catch {
+      // Older/local databases may not have migration 0003 yet. Never backfill
+      // during a request; preserve the existing exact read path on failure.
+      console.warn("[trends] All-history count unavailable; using registry statistics.");
+    }
   }
 
-  return hasCheckpoint
-    ? {
-        sql: `
-        SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
-        FROM ${SHARES_V2_TABLE}
-        WHERE kind = ?
-          AND created_at >= ?
-          AND created_at <= ?
-        `,
-        bindValues: (kind, fromTimestamp, checkpoint) => [kind, fromTimestamp, checkpoint?.createdAt ?? 0],
-      }
-    : {
-        sql: `
-        SELECT COUNT(*) AS sample_count, MIN(created_at) AS min_created, MAX(created_at) AS max_created
-        FROM ${SHARES_V2_TABLE}
-        WHERE kind = ?
-          AND created_at >= ?
-        `,
-        bindValues: (kind, fromTimestamp) => [kind, fromTimestamp],
-      };
+  const query = buildTrendSampleQuery(period, Boolean(checkpoint));
+  return await queryFirst<TrendSampleRow>(db, query.sql, query.bindValues(kind, fromTimestamp, checkpoint));
 }
 
 async function resolveTrendRollupHead(db: D1DatabaseLike): Promise<TrendRollupCheckpoint | null> {
@@ -1002,13 +1039,20 @@ async function loadOverallTrendBuckets(
     `
     WITH subject_counts AS (
       ${countSource.sql}
+    ),
+    page AS (
+      SELECT c.kind, c.subject_id, c.count
+      FROM subject_counts c
+      -- Missing subjects must be excluded before applying the page boundary.
+      JOIN ${SUBJECT_DIM_TABLE} d ON d.subject_id = c.subject_id AND d.kind = c.kind
+      ORDER BY c.count DESC, c.subject_id ASC
+      LIMIT ?
+      OFFSET ?
     )
-    SELECT c.subject_id, c.count, d.name, d.localized_name, d.cover, d.release_year
-    FROM subject_counts c
-    JOIN ${SUBJECT_DIM_TABLE} d ON d.subject_id = c.subject_id AND d.kind = c.kind
-    ORDER BY c.count DESC, c.subject_id ASC
-    LIMIT ?
-    OFFSET ?
+    SELECT p.subject_id, p.count, d.name, d.localized_name, d.cover, d.release_year
+    FROM page p
+    CROSS JOIN ${SUBJECT_DIM_TABLE} d ON d.subject_id = p.subject_id AND d.kind = p.kind
+    ORDER BY p.count DESC, p.subject_id ASC
     `,
     [...countSource.params, OVERALL_TREND_PAGE_SIZE, Math.max(0, (overallPage - 1) * OVERALL_TREND_PAGE_SIZE)]
   );
@@ -1041,7 +1085,7 @@ async function loadGenreTrendBuckets(
       ${countSource.sql}
     ),
     subject_rows AS (
-      SELECT sc.kind, sc.subject_id, sc.count, d.name, d.localized_name, d.cover, d.release_year
+      SELECT sc.kind, sc.subject_id, sc.count
       FROM subject_counts sc
       JOIN ${SUBJECT_DIM_TABLE} d ON d.subject_id = sc.subject_id AND d.kind = sc.kind
     ),
@@ -1050,11 +1094,7 @@ async function loadGenreTrendBuckets(
         g.genre AS bucket_key,
         g.genre AS bucket_label,
         sr.subject_id,
-        sr.count,
-        sr.name,
-        sr.localized_name,
-        sr.cover,
-        sr.release_year
+        sr.count
       FROM subject_rows sr
       JOIN ${SUBJECT_GENRE_DIM_TABLE} g ON g.kind = sr.kind AND g.subject_id = sr.subject_id
       ${genreFilterSql ? `WHERE ${genreFilterSql}` : ""}
@@ -1065,11 +1105,7 @@ async function loadGenreTrendBuckets(
         '未分类' AS bucket_key,
         '未分类' AS bucket_label,
         sr.subject_id,
-        sr.count,
-        sr.name,
-        sr.localized_name,
-        sr.cover,
-        sr.release_year
+        sr.count
       FROM subject_rows sr
       WHERE NOT EXISTS (
         SELECT 1
@@ -1084,10 +1120,6 @@ async function loadGenreTrendBuckets(
         bucket_label,
         subject_id,
         count,
-        name,
-        localized_name,
-        cover,
-        release_year,
         SUM(count) OVER (PARTITION BY bucket_key) AS bucket_total,
         ROW_NUMBER() OVER (PARTITION BY bucket_key ORDER BY count DESC, subject_id ASC) AS row_number
       FROM bucketed
@@ -1098,22 +1130,22 @@ async function loadGenreTrendBuckets(
         bucket_label,
         subject_id,
         count,
-        name,
-        localized_name,
-        cover,
-        release_year,
         bucket_total,
         DENSE_RANK() OVER (ORDER BY bucket_total DESC, bucket_label ASC) AS bucket_rank,
         row_number
       FROM bucket_totals
+      -- Every bucket keeps at least one row, so its DENSE_RANK is unchanged.
+      WHERE row_number <= ${GROUPED_TOP_GAMES_LIMIT}
     )
-    SELECT bucket_key, bucket_label, bucket_total, subject_id, count, name, localized_name, cover, release_year
-    FROM ranked
-    WHERE row_number <= ${GROUPED_TOP_GAMES_LIMIT}
-      AND bucket_rank <= ${GROUPED_BUCKET_LIMIT}
-    ORDER BY bucket_rank ASC, row_number ASC
+    SELECT r.bucket_key, r.bucket_label, r.bucket_total, r.subject_id, r.count,
+      d.name, d.localized_name, d.cover, d.release_year
+    FROM ranked r
+    -- Keep winners as the outer loop even for small time windows.
+    CROSS JOIN ${SUBJECT_DIM_TABLE} d ON d.kind = ? AND d.subject_id = r.subject_id
+    WHERE r.bucket_rank <= ${GROUPED_BUCKET_LIMIT}
+    ORDER BY r.bucket_rank ASC, r.row_number ASC
     `,
-    countSource.params
+    [...countSource.params, kind]
   );
 
   return buildBucketsFromRankedRows(rows);
@@ -1146,11 +1178,7 @@ async function loadTemporalTrendBuckets(
         ${bucketKeySql} AS bucket_label,
         ${sortKeySql} AS sort_key,
         sc.subject_id,
-        sc.count,
-        d.name,
-        d.localized_name,
-        d.cover,
-        d.release_year
+        sc.count
       FROM subject_counts sc
       JOIN ${SUBJECT_DIM_TABLE} d ON d.subject_id = sc.subject_id AND d.kind = sc.kind
       WHERE d.release_year IS NOT NULL
@@ -1162,21 +1190,20 @@ async function loadTemporalTrendBuckets(
         bucket_label,
         subject_id,
         count,
-        name,
-        localized_name,
-        cover,
-        release_year,
         sort_key,
         SUM(count) OVER (PARTITION BY bucket_key) AS bucket_total,
         ROW_NUMBER() OVER (PARTITION BY bucket_key ORDER BY count DESC, subject_id ASC) AS row_number
       FROM bucketed
     )
-    SELECT bucket_key, bucket_label, bucket_total, subject_id, count, name, localized_name, cover, release_year
-    FROM ranked
-    WHERE row_number <= ${GROUPED_TOP_GAMES_LIMIT}
-    ORDER BY sort_key DESC, row_number ASC
+    SELECT r.bucket_key, r.bucket_label, r.bucket_total, r.subject_id, r.count,
+      d.name, d.localized_name, d.cover, d.release_year
+    FROM ranked r
+    -- Avoid scanning the entire dimension to hydrate a small winning subset.
+    CROSS JOIN ${SUBJECT_DIM_TABLE} d ON d.kind = ? AND d.subject_id = r.subject_id
+    WHERE r.row_number <= ${GROUPED_TOP_GAMES_LIMIT}
+    ORDER BY r.sort_key DESC, r.row_number ASC
     `,
-    countSource.params
+    [...countSource.params, kind]
   );
 
   return buildBucketsFromRankedRows(rows);
@@ -1509,11 +1536,12 @@ const d1StorageBackend: StorageBackend = {
 
     const fromTimestamp = getPeriodStart(params.period);
     const trendRollupCheckpoint = await getTrendRollupCheckpoint(db);
-    const sampleQuery = buildTrendSampleQuery(params.period, Boolean(trendRollupCheckpoint));
-    const sampleRow = await queryFirst<TrendSampleRow>(
+    const sampleRow = await loadTrendSampleRow(
       db,
-      sampleQuery.sql,
-      sampleQuery.bindValues(params.kind, fromTimestamp, trendRollupCheckpoint)
+      params.period,
+      params.kind,
+      fromTimestamp,
+      trendRollupCheckpoint
     );
 
     const sampleCount = toNumber(sampleRow?.sample_count, 0);
@@ -1557,11 +1585,12 @@ const d1StorageBackend: StorageBackend = {
 
     const fromTimestamp = getPeriodStart(period);
     const trendRollupCheckpoint = await getTrendRollupCheckpoint(db);
-    const sampleQuery = buildTrendSampleQuery(period, Boolean(trendRollupCheckpoint));
-    const row = await queryFirst<TrendSampleRow>(
+    const row = await loadTrendSampleRow(
       db,
-      sampleQuery.sql,
-      sampleQuery.bindValues(kind, fromTimestamp, trendRollupCheckpoint)
+      period,
+      kind,
+      fromTimestamp,
+      trendRollupCheckpoint
     );
 
     return {
