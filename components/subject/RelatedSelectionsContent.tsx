@@ -60,9 +60,9 @@ export function RelatedSelectionsContent({
             ) : null}
             {Number.isSafeInteger(result.matchedShares) && result.matchedShares > 0 ? (
               <p className="text-xs text-muted-foreground sm:text-sm">
-                本{subjectLabel}也成为了
+                本{subjectLabel}构成了
                 <span className="font-semibold tabular-nums text-sky-600">{result.matchedShares.toLocaleString("zh-CN")}</span>
-                人的构成
+                人
               </p>
             ) : null}
           </div>
