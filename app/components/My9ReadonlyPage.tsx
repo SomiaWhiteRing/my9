@@ -5,22 +5,25 @@ import { SharePlatformActions } from "@/components/share/SharePlatformActions";
 import { ReadonlyNineGridBoard } from "@/app/components/v3/ReadonlyNineGridBoard";
 import { ReadonlySelectedGamesList } from "@/app/components/v3/ReadonlySelectedGamesList";
 import { SubjectKind, getSubjectKindMeta, getSubjectKindShareTitle } from "@/lib/subject-kind";
-import { ShareGame } from "@/lib/share/types";
+import { ShareGame, type ShareSelectionStats } from "@/lib/share/types";
+import type { RelatedSelectionPreviews } from "@/lib/share/related-selections";
 
 export type InitialReadonlyShareData = {
   shareId: string;
   kind: SubjectKind;
   creatorName: string | null;
   games: Array<ShareGame | null>;
+  selectionStats?: ShareSelectionStats | null;
 };
 
 interface My9ReadonlyPageProps {
   kind: SubjectKind;
   shareId: string;
   initialShareData: InitialReadonlyShareData;
+  relatedSelectionPreviews?: RelatedSelectionPreviews;
 }
 
-export default function My9ReadonlyPage({ kind, shareId, initialShareData }: My9ReadonlyPageProps) {
+export default function My9ReadonlyPage({ kind, shareId, initialShareData, relatedSelectionPreviews }: My9ReadonlyPageProps) {
   const kindMeta = getSubjectKindMeta(kind);
   const shareTitle = getSubjectKindShareTitle(kind);
   const games = initialShareData.games;
@@ -63,17 +66,21 @@ export default function My9ReadonlyPage({ kind, shareId, initialShareData }: My9
           <ReadonlyNineGridBoard games={games} subjectLabel={kindMeta.label} kind={kind} />
         </div>
 
-        <div className="flex w-full flex-col items-center gap-3">
-          <SharePlatformActions
-            kind={kind}
-            shareId={finalShareId}
-            games={games}
-            creatorName={creatorName}
-          />
-        </div>
+        {!relatedSelectionPreviews ? (
+          <div className="flex w-full flex-col items-center gap-3">
+            <SharePlatformActions
+              kind={kind}
+              shareId={finalShareId}
+              games={games}
+              creatorName={creatorName}
+            />
+          </div>
+        ) : null}
 
         <ReadonlySelectedGamesList
           games={games}
+          selectionStats={initialShareData.selectionStats}
+          relatedSelectionPreviews={relatedSelectionPreviews}
           subjectLabel={kindMeta.label}
           bangumiSearchCat={kindMeta.search.bangumiSearchCat}
           kind={kind}

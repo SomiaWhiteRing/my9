@@ -1,5 +1,5 @@
 import { normalizeShareId } from "@/lib/share/id";
-import { getShare } from "@/lib/share/storage";
+import { getShare, getShareSelectionStats } from "@/lib/share/storage";
 
 const SHARE_GET_CDN_TTL_SECONDS = 3600;
 const SHARE_GET_STALE_TTL_SECONDS = 86400;
@@ -37,6 +37,12 @@ export async function handleShareGetRequest(request: Request) {
       );
     }
 
+    // The client retry path requests counts together with the existing payload.
+    // Other share API consumers do not pay for the additional statistics query.
+    const selectionStats = searchParams.get("includeSelectionStats") === "1"
+      ? await getShareSelectionStats(share)
+      : undefined;
+
     return Response.json(
       {
         ok: true,
@@ -44,6 +50,7 @@ export async function handleShareGetRequest(request: Request) {
         kind: share.kind,
         creatorName: share.creatorName,
         games: share.games,
+        ...(selectionStats !== undefined ? { selectionStats } : {}),
       },
       {
         headers: createShareGetCacheHeaders(),

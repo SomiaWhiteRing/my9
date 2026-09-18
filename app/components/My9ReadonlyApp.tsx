@@ -9,7 +9,7 @@ import { InlineToast, ToastKind } from "@/app/components/v3/InlineToast";
 import { NineGridBoard } from "@/app/components/v3/NineGridBoard";
 import { SelectedGamesList } from "@/app/components/v3/SelectedGamesList";
 import { SubjectKind, getSubjectKindMeta, getSubjectKindShareTitle, parseSubjectKind } from "@/lib/subject-kind";
-import { ShareGame } from "@/lib/share/types";
+import { ShareGame, type ShareSelectionStats } from "@/lib/share/types";
 
 type ToastState = {
   kind: ToastKind;
@@ -21,6 +21,7 @@ export type InitialReadonlyShareData = {
   kind: SubjectKind;
   creatorName: string | null;
   games: Array<ShareGame | null>;
+  selectionStats?: ShareSelectionStats | null;
 };
 
 function createEmptyGames() {
@@ -56,6 +57,7 @@ export default function My9ReadonlyApp({
     normalizeGamesForState(initialShareData?.games)
   );
   const [creatorName, setCreatorName] = useState(initialShareData?.creatorName || "");
+  const [selectionStats, setSelectionStats] = useState(initialShareData?.selectionStats ?? null);
   const [shareId, setShareId] = useState<string | null>(initialShareData?.shareId || initialShareId);
   const [loadingShare, setLoadingShare] = useState(Boolean(initialShareId) && !initialShareData);
   const [toast, setToast] = useState<ToastState>(null);
@@ -73,6 +75,7 @@ export default function My9ReadonlyApp({
 
     setGames(normalizeGamesForState(initialShareData.games));
     setCreatorName(initialShareData.creatorName || "");
+    setSelectionStats(initialShareData.selectionStats ?? null);
     setShareId(initialShareData.shareId);
     setLoadingShare(false);
   }, [initialShareData, kind]);
@@ -88,7 +91,7 @@ export default function My9ReadonlyApp({
       setLoadingShare(true);
 
       try {
-        const response = await fetch(`/api/share?id=${encodeURIComponent(currentShareId)}`);
+        const response = await fetch(`/api/share?id=${encodeURIComponent(currentShareId)}&includeSelectionStats=1`);
         const json = await response.json();
         if (!active) return;
 
@@ -108,6 +111,7 @@ export default function My9ReadonlyApp({
 
         const payloadGames = Array.isArray(json.games) ? json.games : createEmptyGames();
         setGames(normalizeGamesForState(payloadGames));
+        setSelectionStats(json.selectionStats ?? null);
         setCreatorName(typeof json.creatorName === "string" ? json.creatorName : "");
         setShareId(json.shareId || currentShareId);
       } catch {
@@ -213,6 +217,7 @@ export default function My9ReadonlyApp({
 
         <SelectedGamesList
           games={games}
+          selectionStats={selectionStats}
           subjectLabel={kindMeta.label}
           bangumiSearchCat={kindMeta.search.bangumiSearchCat}
           kind={kind}

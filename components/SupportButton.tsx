@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { SHARE_COUNT_SNAPSHOT } from "@/lib/generated/share-count-snapshot";
+import { getCollectedCountText } from "@/lib/share/collected-count";
 
 const donationAcknowledgements: Array<{
   date: string;
@@ -181,16 +181,6 @@ const donationAcknowledgements: Array<{
   { date: "2026-03-10", name: "国栋", amount: "79.2", message: "" },
   { date: "2026-03-10", name: "Jackpot", amount: "100", message: "加油啊旻妈妈……" },
 ];
-
-const collectedCountFromEnv = process.env.NEXT_PUBLIC_SHARE_COUNT
-  ? parseInt(process.env.NEXT_PUBLIC_SHARE_COUNT, 10)
-  : null;
-const collectedCount = SHARE_COUNT_SNAPSHOT > 0 ? SHARE_COUNT_SNAPSHOT : collectedCountFromEnv;
-let collectedCountText: string | undefined;
-
-function getCollectedCountText() {
-  return collectedCountText ??= collectedCount === null ? "..." : collectedCount.toLocaleString("zh-CN");
-}
 
 export function SupportButton() {
   const [open, setOpen] = useState(false);

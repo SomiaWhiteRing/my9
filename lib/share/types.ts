@@ -40,6 +40,11 @@ export interface StoredShareV1 {
   lastViewedAt: number;
 }
 
+export interface ShareSelectionStats {
+  counts: Record<string, number>;
+  updatedAt: number | null;
+}
+
 export type TrendPeriod = "today" | "24h" | "7d" | "30d" | "90d" | "180d" | "all";
 export type TrendView = "overall" | "genre" | "decade" | "year";
 export type TrendYearPage = "recent" | "legacy";

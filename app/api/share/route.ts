@@ -148,6 +148,7 @@ export async function POST(request: Request) {
       deduped: saveResult.deduped,
     });
   } catch (error) {
+    console.error("[share] save failed", error);
     return NextResponse.json(
       {
         ok: false,

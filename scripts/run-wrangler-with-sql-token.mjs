@@ -18,7 +18,8 @@ if (args.length === 0) {
 }
 
 const env = { ...process.env };
-const sqlToken = env.MY9_SQL_API_TOKEN?.trim();
+const isMigrationApply = args[0] === "d1" && args[1] === "migrations" && args[2] === "apply";
+const sqlToken = (isMigrationApply ? env.MY9_SQL_MIGRATION_TOKEN : undefined)?.trim() || env.MY9_SQL_API_TOKEN?.trim();
 if (sqlToken) {
   env.CLOUDFLARE_API_TOKEN = sqlToken;
 }

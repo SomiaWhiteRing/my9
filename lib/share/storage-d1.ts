@@ -1424,6 +1424,47 @@ const d1StorageBackend: StorageBackend = {
     return inflated ? { ...inflated, shareId } : null;
   },
 
+  async getSubjectSelectionStats(kind, subjectIds) {
+    const ids = Array.from(new Set(subjectIds.slice(0, 9).map((id) => id.trim()).filter(Boolean)));
+    if (ids.length === 0) return null;
+
+    try {
+      const db = await getD1Database();
+      if (!db) return null;
+
+      // One statement for up to nine subjects. Correlated primary-key lookups
+      // avoid the kind/count index scan that D1 can choose for a plain IN query.
+      // This optional display must never initialize schema or rebuild statistics.
+      const rows = await queryAll<{
+        subject_id: string;
+        count: number | string;
+        last_updated_at: number | string | null;
+      }>(db, `
+        WITH requested(subject_id) AS (VALUES ${ids.map((_, index) => `(?${index + 2})`).join(", ")})
+        SELECT r.subject_id,
+          COALESCE((
+            SELECT count FROM ${TREND_COUNT_ALL_TABLE} t
+            WHERE t.kind = ?1 AND t.subject_id = r.subject_id
+          ), 0) AS count,
+          (SELECT updated_at FROM ${SYSTEM_CHECKPOINT_TABLE}
+           WHERE checkpoint_key = '${TREND_ROLLUP_CHECKPOINT_KEY}') AS last_updated_at
+        FROM requested r
+      `, [kind, ...ids]);
+
+      return {
+        counts: Object.fromEntries(rows.flatMap((row) => {
+          const count = Number(row.count);
+          return Number.isSafeInteger(count) && count > 0 ? [[row.subject_id, count]] : [];
+        })),
+        updatedAt: toOptionalNumber(rows[0]?.last_updated_at),
+      };
+    } catch {
+      // A statistics failure must not prevent reading the share itself.
+      console.warn("[share] Selection statistics unavailable.");
+      return null;
+    }
+  },
+
   async touchShare(shareId, now = Date.now()) {
     const db = await getD1Database();
     if (!db || !(await ensureD1Schema())) {

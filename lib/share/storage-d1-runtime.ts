@@ -17,7 +17,7 @@ import {
   readEnv,
 } from "@/lib/share/storage-common";
 
-export type D1Scalar = string | number | null;
+export type D1Scalar = string | number | null | ArrayBuffer;
 
 export type D1PreparedStatementLike = {
   bind: (...values: D1Scalar[]) => D1PreparedStatementLike;
@@ -219,7 +219,8 @@ async function getLocalPlatformEnv(): Promise<LocalPlatformEnv | null> {
           LOCAL_PLATFORM_TIMEOUT_MS
         );
         return platform.env ?? null;
-      } catch {
+      } catch (error) {
+        console.error("[d1] local platform initialization failed", error);
         return null;
       }
     })();
@@ -254,9 +255,16 @@ export async function ensureD1Schema(): Promise<boolean> {
   if (!d1SchemaReadyPromise) {
     d1SchemaReadyPromise = (async () => {
       try {
-        await db.exec(D1_SCHEMA_SQL);
+        // D1 exec() splits on newlines, but these DDL statements span multiple lines.
+        // This fixed schema contains no triggers or semicolons inside SQL literals.
+        const statements = D1_SCHEMA_SQL.split(";")
+          .map((sql) => sql.trim())
+          .filter(Boolean)
+          .map((sql) => db.prepare(sql));
+        await db.batch(statements);
         return true;
-      } catch {
+      } catch (error) {
+        console.error("[d1] schema initialization failed", error);
         d1SchemaReadyPromise = null;
         return false;
       }

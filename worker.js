@@ -4,11 +4,14 @@ import { trackShareViewRequest } from "./lib/share/view-stats";
 import { handleSubjectSearchRequest } from "./lib/search/route";
 import { handleShareGetRequest } from "./lib/share/read-route";
 import { handleShareHeadRequest } from "./lib/share/head-route";
+import { handleRelatedSelectionsRequest } from "./lib/share/cooccurrence-read";
+import { runCooccurrenceMaintenance } from "./lib/share/cooccurrence-maintenance";
 import openNextWorker from "./.cf-build/.open-next/worker.js";
 import { runWithCloudflareRequestContext } from "./.cf-build/.open-next/cloudflare/init.js";
 
 const TREND_ROLLUP_CRON = "30 * * * *";
 const DAILY_MAINTENANCE_CRON = "5 16 * * *";
+const COOCCURRENCE_CRON = "*/10 * * * *";
 const BANGUMI_IMAGE_PROXY_PATH = "/api/image/bgm";
 const BANGUMI_IMAGE_HOSTS = new Set(["lain.bgm.tv", "img.bgm.tv"]);
 const ALLOWED_SITE_ROOT = "shatranj.space";
@@ -291,7 +294,9 @@ const worker = {
         ? handleSubjectSearchRequest
         : requestUrl.pathname === "/api/share"
           ? handleShareGetRequest
-          : null;
+          : requestUrl.pathname === "/api/subjects/related"
+            ? handleRelatedSelectionsRequest
+            : null;
       if (handler) {
         // Reuse OpenNext's env initialization and request context without
         // loading NextServer or converting the request/response through it.
@@ -314,6 +319,13 @@ const worker = {
   },
   scheduled(controller, env, ctx) {
     bindRuntimeEnv(env);
+
+    if (controller.cron === COOCCURRENCE_CRON) {
+      ctx.waitUntil(runCooccurrenceMaintenance().then((result) => {
+        if (result.phase !== "idle") console.log("[cooccurrence]", JSON.stringify(result));
+      }));
+      return;
+    }
 
     if (controller.cron === TREND_ROLLUP_CRON) {
       ctx.waitUntil(

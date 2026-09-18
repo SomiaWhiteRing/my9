@@ -1,13 +1,20 @@
 import Image from "next/image";
 import { Globe } from "lucide-react";
-import { ShareGame } from "@/lib/share/types";
+import { ShareGame, type ShareSelectionStats } from "@/lib/share/types";
 import type { SubjectKind } from "@/lib/subject-kind";
 import { ReadonlySpoilerComment } from "@/app/components/v3/ReadonlySpoilerComment";
 import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 import { resolveSubjectLink } from "@/lib/subject-source";
+import { ShareSelectionCount, ShareSelectionStatsTimestamp } from "@/app/components/v3/ShareSelectionStats";
+import { SelectedGamesSection } from "@/app/components/v3/SelectedGamesSection";
+import { SelectedGameCard } from "@/app/components/v3/SelectedGameCard";
+import { RelatedSelectionsButton } from "@/app/components/v3/RelatedSelections";
+import type { RelatedSelectionPreviews } from "@/lib/share/related-selections";
 
 interface ReadonlySelectedGamesListProps {
   games: Array<ShareGame | null>;
+  selectionStats?: ShareSelectionStats | null;
+  relatedSelectionPreviews?: RelatedSelectionPreviews;
   subjectLabel: string;
   bangumiSearchCat?: number;
   kind?: SubjectKind;
@@ -19,6 +26,8 @@ function displayName(game: ShareGame): string {
 
 export function ReadonlySelectedGamesList({
   games,
+  selectionStats,
+  relatedSelectionPreviews,
   subjectLabel,
   bangumiSearchCat,
   kind,
@@ -28,11 +37,7 @@ export function ReadonlySelectedGamesList({
     .filter((item): item is { index: number; game: ShareGame } => Boolean(item.game));
 
   return (
-    <section className="w-full max-w-2xl px-1 sm:px-4">
-      <div className="border-b border-border pb-3">
-        <h2 className="text-lg font-bold text-foreground">选择的{subjectLabel}</h2>
-      </div>
-
+    <SelectedGamesSection subjectLabel={subjectLabel} enableResonance>
       <div className="space-y-6">
         {selected.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">还没有选择任何{subjectLabel}。</p>
@@ -46,9 +51,13 @@ export function ReadonlySelectedGamesList({
           });
 
           return (
-            <article
+            <SelectedGameCard
               key={`${String(game.id)}-${index}`}
-              className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 transition-all hover:shadow-md"
+              subjectName={displayName(game)}
+              subjectId={String(game.id)}
+              kind={kind}
+              bangumiSearchCat={bangumiSearchCat}
+              relatedPreview={relatedSelectionPreviews?.[String(game.id)]}
             >
               <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div className="-ml-1 -mt-1 w-6 flex-shrink-0 text-center font-mono text-xl font-bold text-sky-400 sm:-ml-1.5">
@@ -83,6 +92,8 @@ export function ReadonlySelectedGamesList({
                     </p>
                   ) : null}
 
+                  <ShareSelectionCount subjectLabel={subjectLabel} count={selectionStats?.counts[String(game.id)]} />
+
                   {game.comment ? (
                     <div className="mt-1">
                       {game.spoiler ? (
@@ -106,12 +117,14 @@ export function ReadonlySelectedGamesList({
                   >
                     <Globe className="h-4 w-4" />
                   </a>
+                  <RelatedSelectionsButton />
                 </div>
               </div>
-            </article>
+            </SelectedGameCard>
           );
         })}
       </div>
-    </section>
+      <ShareSelectionStatsTimestamp stats={selectionStats} />
+    </SelectedGamesSection>
   );
 }

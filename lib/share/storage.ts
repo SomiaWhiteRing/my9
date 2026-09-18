@@ -10,6 +10,13 @@ export function getShare(shareId: string) {
   return d1StorageBackend.getShare(shareId);
 }
 
+export function getShareSelectionStats(share: Pick<StoredShareV1, "kind" | "games">) {
+  return d1StorageBackend.getSubjectSelectionStats(
+    share.kind,
+    share.games.flatMap((subject) => subject ? [String(subject.id)] : [])
+  );
+}
+
 export function touchShare(shareId: string, now = Date.now()) {
   return d1StorageBackend.touchShare(shareId, now);
 }

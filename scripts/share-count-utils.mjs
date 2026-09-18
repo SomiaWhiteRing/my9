@@ -80,13 +80,14 @@ function parseWranglerJson(stdout) {
 
 async function queryCountFromWranglerD1(targetEnv, mode) {
   const databaseName = DEFAULT_D1_DATABASE_NAMES[targetEnv === "test" ? "test" : "production"];
+  const countSql = `SELECT CASE WHEN (SELECT ready FROM my9_share_count_state_v1 WHERE id = 1) = 1 THEN (SELECT COALESCE(SUM(share_count), 0) FROM my9_share_count_kind_v1) ELSE (SELECT COUNT(*) FROM ${SHARES_V2_TABLE}) END AS total_count`;
   const args = [
     "wrangler",
     "d1",
     "execute",
     databaseName,
     `--${mode}`,
-    `--command=SELECT COUNT(*) AS total_count FROM ${SHARES_V2_TABLE}`,
+    `--command=${countSql}`,
     "--json",
   ];
 

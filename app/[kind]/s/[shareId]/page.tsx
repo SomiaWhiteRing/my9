@@ -4,6 +4,7 @@ import My9ReadonlyApp from "@/app/components/My9ReadonlyApp";
 import My9ReadonlyPage, { type InitialReadonlyShareData } from "@/app/components/My9ReadonlyPage";
 import { normalizeShareId } from "@/lib/share/id";
 import { resolveSharePage } from "@/lib/share/page-data";
+import { getShareSelectionStats } from "@/lib/share/storage";
 import { createPageMetadata } from "@/lib/page-metadata";
 import { getSubjectKindShareTitle, parseSubjectKind } from "@/lib/subject-kind";
 
@@ -54,6 +55,7 @@ export default async function ShareReadonlyPage({
     kind,
     creatorName: share.creatorName,
     games: share.games,
+    selectionStats: await getShareSelectionStats(share),
   };
 
   return <My9ReadonlyPage kind={kind} shareId={shareId} initialShareData={initialShareData} />;
