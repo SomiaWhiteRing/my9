@@ -11,6 +11,7 @@
 
 # next.js
 /.next/
+/.next-dev/
 /.open-next/
 /.cf-build/
 /out/
@@ -48,3 +49,5 @@ next-env.d.ts
 *.csv
 
 yarn.lock
+
+/docs/

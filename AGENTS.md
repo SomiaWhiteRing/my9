@@ -20,7 +20,7 @@
 
 ## 构建、开发与测试命令
 - `npm install`：安装依赖（建议 Node 20.9+）。
-- `npm run dev`：本地开发（默认 `http://localhost:3000`）。
+- `npm run dev`：本地开发，从 `3000` 开始检测可用端口，占用时自动递增并跳过测试专用端口 `3001`；可用 `npm run dev -- --port 3005` 或 `PORT` 指定起始端口。非 `3000` 实例默认使用 `.next-dev/<port>` 隔离缓存，`NEXT_DIST_DIR` 可显式覆盖。
 - `npm run build`：生产构建。
 - `npm start`：启动生产构建产物。
 - `npm run cf:verify-access`：只读核验 Cloudflare account token、zone、Workers routes 与 R2 bucket 对齐情况。

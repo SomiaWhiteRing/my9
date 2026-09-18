@@ -8,6 +8,7 @@ const eslintConfig = [
     ignores: [
       ".cf-build/**",
       ".next/**",
+      ".next-dev/**",
       ".next-e2e/**",
       ".open-next/**",
       ".wrangler/**",
