@@ -35,7 +35,7 @@ export function RelatedSelectionsContent({
   return (
     <div className="min-w-0">
       {presentation === "dialog" && subject ? (
-        <div className="mb-4 flex min-w-0 items-start gap-3 border-b border-border pb-4 sm:gap-4">
+        <div className="mb-4 flex min-w-0 items-start gap-3 border-b border-border pb-4 pr-6 sm:gap-4">
           <div className="aspect-[3/4] w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted shadow-sm sm:w-16">
             {subject.cover ? (
               <Image
@@ -83,7 +83,10 @@ export function RelatedSelectionsContent({
           {result.items.slice(0, 10).map((item, index) => {
             const percentage = firstCount > 0 ? Math.max(0, Math.min(100, item.count / firstCount * 100)) : 0;
             return (
-              <li key={item.subjectId} className="relative isolate flex min-h-10 items-start gap-2 overflow-hidden rounded px-2 py-2.5 text-xs sm:gap-3 sm:px-3 sm:text-sm">
+              <li key={item.subjectId} className={cn(
+                "relative isolate flex items-start gap-2 overflow-hidden rounded px-2 text-xs sm:gap-3 sm:px-3 sm:text-sm",
+                presentation === "dialog" ? "min-h-9 py-2" : "min-h-10 py-2.5"
+              )}>
                 <span
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-y-0 left-0 -z-10 bg-sky-100/70 dark:bg-sky-900/25"

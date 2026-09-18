@@ -185,7 +185,7 @@ export function RelatedSelectionsCard({
             {result || error ? (
               <DialogContent
                 id={panelId}
-                className="max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-lg px-4 pb-5 pt-12 sm:px-6 sm:pb-6"
+                className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-lg px-4 pb-5 pt-6 sm:px-6 sm:pb-6"
                 onCloseAutoFocus={(event) => {
                   event.preventDefault();
                   buttonRef.current?.focus();
