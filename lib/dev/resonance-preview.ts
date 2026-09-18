@@ -82,7 +82,7 @@ export function createResonancePreview(empty = false): {
   return {
     games,
     selectionStats: {
-      counts: Object.fromEntries(games.map((game, index) => [game.id, 48216 - index * 4129])),
+      counts: Object.fromEntries(games.map((game, index) => [game.id, empty ? 0 : 48215 - index * 4129])),
       updatedAt: UPDATED_AT,
     },
     relatedSelectionPreviews,

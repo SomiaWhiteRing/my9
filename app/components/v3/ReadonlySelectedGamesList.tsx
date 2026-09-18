@@ -12,6 +12,7 @@ import { RelatedSelectionsButton } from "@/components/subject/RelatedSelections"
 import type { RelatedSelectionPreviews } from "@/lib/share/related-selections";
 
 interface ReadonlySelectedGamesListProps {
+  shareId: string;
   games: Array<ShareGame | null>;
   selectionStats?: ShareSelectionStats | null;
   relatedSelectionPreviews?: RelatedSelectionPreviews;
@@ -25,6 +26,7 @@ function displayName(game: ShareGame): string {
 }
 
 export function ReadonlySelectedGamesList({
+  shareId,
   games,
   selectionStats,
   relatedSelectionPreviews,
@@ -56,6 +58,7 @@ export function ReadonlySelectedGamesList({
               subjectName={displayName(game)}
               subjectId={String(game.id)}
               kind={kind}
+              excludeShareId={shareId}
               highlightedSubjectIds={selected.filter((item) => item.index !== index).map(({ game }) => String(game.id))}
               relatedPreview={relatedSelectionPreviews?.[String(game.id)]}
             >
@@ -117,7 +120,7 @@ export function ReadonlySelectedGamesList({
                   >
                     <Globe className="h-4 w-4" />
                   </a>
-                  <RelatedSelectionsButton />
+                  {selectionStats?.counts[String(game.id)] !== 0 ? <RelatedSelectionsButton /> : null}
                 </div>
               </div>
             </SelectedGameCard>

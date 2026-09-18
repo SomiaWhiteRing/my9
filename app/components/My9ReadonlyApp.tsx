@@ -220,6 +220,7 @@ export default function My9ReadonlyApp({
         </div>
 
         <SelectedGamesList
+          shareId={shareId}
           games={games}
           selectionStats={selectionStats}
           subjectLabel={kindMeta.label}

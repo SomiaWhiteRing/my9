@@ -13,6 +13,7 @@ export function SelectedGameCard({
   subjectName: string;
   kind?: SubjectKind;
   highlightedSubjectIds?: readonly string[];
+  excludeShareId?: string;
   children: ReactNode;
 }) {
   const className = "rounded-2xl border border-border bg-card p-5 transition-shadow hover:shadow-md";

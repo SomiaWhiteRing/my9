@@ -13,6 +13,7 @@ import { RelatedSelectionsButton } from "@/components/subject/RelatedSelections"
 import type { RelatedSelectionPreviews } from "@/lib/share/related-selections";
 
 interface SelectedGamesListProps {
+  shareId?: string | null;
   games: Array<ShareGame | null>;
   selectionStats?: ShareSelectionStats | null;
   relatedSelectionPreviews?: RelatedSelectionPreviews;
@@ -30,6 +31,7 @@ function displayName(game: ShareGame): string {
 }
 
 export function SelectedGamesList({
+  shareId,
   games,
   selectionStats,
   relatedSelectionPreviews,
@@ -65,6 +67,7 @@ export function SelectedGamesList({
               subjectName={displayName(game)}
               subjectId={readOnly ? String(game.id) : undefined}
               kind={kind}
+              excludeShareId={readOnly ? shareId ?? undefined : undefined}
               highlightedSubjectIds={readOnly ? selected.filter((item) => item.index !== index).map(({ game }) => String(game.id)) : undefined}
               relatedPreview={readOnly ? relatedSelectionPreviews?.[String(game.id)] : undefined}
             >
@@ -136,7 +139,7 @@ export function SelectedGamesList({
                     <Globe className="h-4 w-4" />
                   </a>
 
-                  {readOnly ? <RelatedSelectionsButton /> : null}
+                  {readOnly && selectionStats?.counts[String(game.id)] !== 0 ? <RelatedSelectionsButton /> : null}
                   {!readOnly ? (
                     <button
                       type="button"

@@ -1,15 +1,19 @@
 import { getD1Database, queryAll, queryFirst } from "@/lib/share/storage-d1-runtime";
-import { unpackCounters } from "@/lib/share/cooccurrence-codec";
+import { checkedCount, unpackCounters, type Counter } from "@/lib/share/cooccurrence-codec";
+import { readCooccurrenceSnapshots } from "@/lib/share/cooccurrence-snapshot";
+import { normalizeShareId } from "@/lib/share/id";
 import { parseSubjectKind } from "@/lib/subject-kind";
 
 export async function handleRelatedSelectionsRequest(request: Request) {
   const url = new URL(request.url);
   const kind = parseSubjectKind(url.searchParams.get("kind"));
   const subjectId = url.searchParams.get("subjectId")?.trim();
+  const rawExcludeShareId = url.searchParams.get("excludeShareId");
+  const excludeShareId = normalizeShareId(rawExcludeShareId);
   const unavailable = () => Response.json({ error: "共同构成统计正在更新，请稍后再试。" }, {
     status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "60" },
   });
-  if (!kind || !subjectId || subjectId.length > 512) {
+  if (!kind || !subjectId || subjectId.length > 512 || (rawExcludeShareId !== null && !excludeShareId)) {
     return Response.json({ error: "无效的作品" }, { status: 400 });
   }
   try {
@@ -26,13 +30,44 @@ export async function handleRelatedSelectionsRequest(request: Request) {
     `, [kind]);
     if (!state?.ready || !state.valid || state.count_ready !== 1 ||
         !Number.isSafeInteger(state.kind_shares) || state.kind_shares < 0) return unavailable();
-    // Do not select the complete vector on the user-facing path.
-    const row = await queryFirst<{ top10: number[]; matched: number; ready: number; updated_at: number }>(db,
-      "SELECT top10, matched, ready, updated_at FROM my9_cooccurrence_subject_v1 WHERE kind = ? AND subject_id = ?",
-      [kind, subjectId]);
+    const [row] = await readCooccurrenceSnapshots(db, kind, [subjectId], excludeShareId ?? undefined, true);
     // A newly submitted subject may not have entered the next daily window yet.
-    if (!row?.ready) return unavailable();
-    const top = unpackCounters(row.top10);
+    if (!row?.top10) return unavailable();
+    const originalTop = unpackCounters(row.top10);
+    let top = originalTop;
+    if (row.excludedSubjectIds.length) {
+      const peers = await queryAll<{ id: number }>(db, `
+        SELECT s.id FROM json_each(?) j CROSS JOIN my9_cooccurrence_subject_v1 s
+        ON s.kind = ? AND s.subject_id = j.value
+      `, [JSON.stringify(row.excludedSubjectIds), kind]);
+      if (peers.length !== row.excludedSubjectIds.length) return unavailable();
+      const excluded = new Set(peers.map(({ id }) => id));
+      const compare = (a: Counter, b: Counter) => b[1] - a[1] || a[0] - b[0];
+      const subtract = (entries: Counter[]) => {
+        const ranked: Counter[] = [];
+        for (const [id, count] of entries) {
+          const adjusted = checkedCount(count - (excluded.has(id) ? 1 : 0));
+          if (!adjusted) continue;
+          const entry: Counter = [id, adjusted];
+          const position = ranked.findIndex((other) => compare(entry, other) < 0);
+          if (position >= 0) ranked.splice(position, 0, entry);
+          else if (ranked.length < 10) ranked.push(entry);
+          if (ranked.length > 10) ranked.pop();
+        }
+        return ranked;
+      };
+      top = subtract(originalTop);
+      // Only fetch the full vector if an unseen candidate could enter the top
+      // ten after subtraction. Preserve the aggregate's count/ID tie-break.
+      if (originalTop.length === 10 && (top.length < 10 || compare(top[9], originalTop[9]) > 0)) {
+        const complete = await queryFirst<{ counts: number[] }>(db, `
+          SELECT counts FROM my9_cooccurrence_subject_v1
+          WHERE id = ? AND applied_seq = ? AND ready = 1
+        `, [row.id, row.applied_seq]);
+        if (!complete) return unavailable();
+        top = subtract(unpackCounters(complete.counts));
+      }
+    }
     const names = top.length ? await queryAll<{ id: number; subject_id: string; name: string }>(db, `
       SELECT s.id, s.subject_id,
         COALESCE((SELECT COALESCE(NULLIF(d.localized_name, ''), d.name)

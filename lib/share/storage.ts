@@ -1,6 +1,8 @@
 import type { TrendPeriod, TrendResponse, TrendView, TrendYearPage, StoredShareV1 } from "@/lib/share/types";
 import type { SubjectKind } from "@/lib/subject-kind";
 import d1StorageBackend from "@/lib/share/storage-d1";
+import { getD1Database } from "@/lib/share/storage-d1-runtime";
+import { readCooccurrenceSnapshots } from "@/lib/share/cooccurrence-snapshot";
 
 export function saveShare(record: StoredShareV1) {
   return d1StorageBackend.saveShare(record);
@@ -10,11 +12,20 @@ export function getShare(shareId: string) {
   return d1StorageBackend.getShare(shareId);
 }
 
-export function getShareSelectionStats(share: Pick<StoredShareV1, "kind" | "games">) {
-  return d1StorageBackend.getSubjectSelectionStats(
-    share.kind,
-    share.games.flatMap((subject) => subject ? [String(subject.id)] : [])
-  );
+export async function getShareSelectionStats(share: Pick<StoredShareV1, "shareId" | "kind" | "games">) {
+  try {
+    const db = await getD1Database();
+    if (!db) return null;
+    const rows = await readCooccurrenceSnapshots(db, share.kind,
+      share.games.flatMap((subject) => subject ? [String(subject.id)] : []), share.shareId);
+    return {
+      counts: Object.fromEntries(rows.map((row) => [row.subject_id, row.matched])),
+      updatedAt: rows.length ? Math.min(...rows.map((row) => row.updated_at)) : null,
+    };
+  } catch {
+    console.warn("[share] Selection statistics unavailable.");
+    return null;
+  }
 }
 
 export function touchShare(shareId: string, now = Date.now()) {

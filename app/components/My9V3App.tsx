@@ -985,6 +985,7 @@ export default function My9V3App({
         ) : null}
 
         <SelectedGamesList
+          shareId={shareId}
           games={games}
           subjectLabel={kindMeta.label}
           bangumiSearchCat={kindMeta.search.bangumiSearchCat}

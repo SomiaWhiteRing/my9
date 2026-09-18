@@ -62,6 +62,7 @@ export function RelatedSelectionsCard({
   subject,
   kind,
   highlightedSubjectIds,
+  excludeShareId,
   className,
   children,
   presentation = "inline",
@@ -72,6 +73,7 @@ export function RelatedSelectionsCard({
   subject?: Pick<ShareSubject, "name" | "localizedName" | "cover" | "releaseYear">;
   kind?: SubjectKind;
   highlightedSubjectIds?: readonly string[];
+  excludeShareId?: string;
   className: string;
   children: ReactNode;
   presentation?: "inline" | "dialog";
@@ -117,6 +119,7 @@ export function RelatedSelectionsCard({
     const timeout = setTimeout(() => abort.abort(), 15_000);
     try {
       const params = new URLSearchParams({ kind: kind ?? "game", subjectId: subjectId ?? "" });
+      if (excludeShareId) params.set("excludeShareId", excludeShareId);
       const response = await fetch(`/api/subjects/related?${params}`, { signal: abort.signal });
       const data = await response.json();
       if (controller.current !== abort) return;

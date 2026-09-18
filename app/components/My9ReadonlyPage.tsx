@@ -84,6 +84,7 @@ export default function My9ReadonlyPage({ kind, shareId, initialShareData, relat
         ) : null}
 
         <ReadonlySelectedGamesList
+          shareId={finalShareId}
           games={games}
           selectionStats={initialShareData.selectionStats}
           relatedSelectionPreviews={relatedSelectionPreviews}

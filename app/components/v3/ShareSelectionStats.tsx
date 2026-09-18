@@ -7,19 +7,23 @@ export function ShareSelectionCount({
   subjectLabel: string;
   count?: number;
 }) {
-  if (typeof count !== "number" || !Number.isSafeInteger(count) || count <= 0) return null;
+  if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) return null;
 
   return (
     <p className="mb-2 text-xs text-muted-foreground group-data-[show-resonance=false]/selection:hidden sm:text-sm">
-      本{subjectLabel}也成为了
-      <span className="font-semibold tabular-nums text-sky-600">{count.toLocaleString("zh-CN")}</span>
-      人的构成
+      {count === 0 ? `本${subjectLabel}作为你的构成独一无二` : (
+        <>
+          本{subjectLabel}也成为了
+          <span className="font-semibold tabular-nums text-sky-600">{count.toLocaleString("zh-CN")}</span>
+          人的构成
+        </>
+      )}
     </p>
   );
 }
 
 export function ShareSelectionStatsTimestamp({ stats }: { stats?: ShareSelectionStats | null }) {
-  if (!stats?.updatedAt || !Object.values(stats.counts).some((count) => count > 0)) return null;
+  if (!stats?.updatedAt || !Object.values(stats.counts).some((count) => Number.isSafeInteger(count) && count >= 0)) return null;
   const updatedAt = new Date(stats.updatedAt);
   if (!Number.isFinite(updatedAt.getTime())) return null;
 
