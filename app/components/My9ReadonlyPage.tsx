@@ -1,7 +1,9 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
+import { ShareDiscovery } from "@/components/share/ShareDiscovery";
 import { ReadonlyNineGridBoard } from "@/app/components/v3/ReadonlyNineGridBoard";
 import { ReadonlySelectedGamesList } from "@/app/components/v3/ReadonlySelectedGamesList";
 import { SubjectKind, getSubjectKindMeta, getSubjectKindShareTitle } from "@/lib/subject-kind";
@@ -21,9 +23,10 @@ interface My9ReadonlyPageProps {
   shareId: string;
   initialShareData: InitialReadonlyShareData;
   relatedSelectionPreviews?: RelatedSelectionPreviews;
+  headerActions?: ReactNode;
 }
 
-export default function My9ReadonlyPage({ kind, shareId, initialShareData, relatedSelectionPreviews }: My9ReadonlyPageProps) {
+export default function My9ReadonlyPage({ kind, shareId, initialShareData, relatedSelectionPreviews, headerActions }: My9ReadonlyPageProps) {
   const kindMeta = getSubjectKindMeta(kind);
   const shareTitle = getSubjectKindShareTitle(kind);
   const games = initialShareData.games;
@@ -38,14 +41,17 @@ export default function My9ReadonlyPage({ kind, shareId, initialShareData, relat
             {shareTitle}
           </h1>
           <p className="text-sm text-muted-foreground">{kindMeta.subtitle}</p>
-          <Link
-            href={`/trends?kind=${kind}`}
-            prefetch={false}
-            className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60"
-          >
-            大家的构成
-            <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Link
+              href={`/trends?kind=${kind}`}
+              prefetch={false}
+              className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60"
+            >
+              大家的构成
+              <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
+            </Link>
+            {headerActions ?? <ShareDiscovery />}
+          </div>
         </header>
 
         <div className="flex flex-col items-center gap-2">

@@ -5,6 +5,7 @@ import { handleSubjectSearchRequest } from "./lib/search/route";
 import { handleShareGetRequest } from "./lib/share/read-route";
 import { handleShareHeadRequest } from "./lib/share/head-route";
 import { handleRelatedSelectionsRequest } from "./lib/share/cooccurrence-read";
+import { handleShareDiscoveryRequest } from "./lib/share/discovery-server";
 import { runCooccurrenceMaintenance } from "./lib/share/cooccurrence-maintenance";
 import openNextWorker from "./.cf-build/.open-next/worker.js";
 import { runWithCloudflareRequestContext } from "./.cf-build/.open-next/cloudflare/init.js";
@@ -296,7 +297,9 @@ const worker = {
           ? handleShareGetRequest
           : requestUrl.pathname === "/api/subjects/related"
             ? handleRelatedSelectionsRequest
-            : null;
+            : requestUrl.pathname === "/api/shares/discover"
+              ? handleShareDiscoveryRequest
+              : null;
       if (handler) {
         // Reuse OpenNext's env initialization and request context without
         // loading NextServer or converting the request/response through it.

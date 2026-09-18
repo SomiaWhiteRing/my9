@@ -1,0 +1,951 @@
+{
+  "scope": "Share discovery: exact creator-name search, daily top-20 snapshot, CSS type tiles. No production writes.",
+  "repository": {
+    "source": "https://api.github.com/repos/SomiaWhiteRing/my9",
+    "verifiedOn": "2026-09-18",
+    "status": 200,
+    "full_name": "SomiaWhiteRing/my9",
+    "private": false,
+    "visibility": "public",
+    "runner": "ubuntu-latest"
+  },
+  "queriedAt": "2026-09-18T07:01:17.226Z",
+  "database": "my9-prod",
+  "productionQueries": [
+    {
+      "label": "top20_plan",
+      "at": "2026-09-18T07:01:19.385Z",
+      "sql": "EXPLAIN QUERY PLAN WITH kinds(kind) AS (VALUES (?),(?),(?),(?),(?),(?),(?),(?),(?),(?),(?)),\n candidates AS MATERIALIZED (\n   SELECT v.share_id, v.kind, v.view_count FROM kinds k CROSS JOIN my9_share_view_total_v1 v\n   WHERE v.rowid IN (\n     SELECT v2.rowid FROM my9_share_view_total_v1 v2\n     JOIN my9_share_registry_v2 r2 ON r2.share_id = v2.share_id\n     WHERE v2.kind = k.kind ORDER BY v2.view_count DESC, v2.share_id ASC LIMIT 20\n   )\n ), top_shares AS MATERIALIZED (\n   SELECT * FROM candidates ORDER BY view_count DESC, share_id ASC LIMIT 20\n )\n SELECT t.share_id, r.kind, t.view_count, r.creator_name, r.created_at\n FROM top_shares t JOIN my9_share_registry_v2 r ON r.share_id = t.share_id\n ORDER BY t.view_count DESC, t.share_id ASC",
+      "params": [
+        "game",
+        "anime",
+        "tv",
+        "movie",
+        "manga",
+        "lightnovel",
+        "work",
+        "song",
+        "album",
+        "character",
+        "person"
+      ],
+      "results": [
+        {
+          "id": 3,
+          "parent": 0,
+          "notused": 0,
+          "detail": "MATERIALIZE top_shares"
+        },
+        {
+          "id": 6,
+          "parent": 3,
+          "notused": 0,
+          "detail": "MATERIALIZE candidates"
+        },
+        {
+          "id": 8,
+          "parent": 6,
+          "notused": 0,
+          "detail": "CO-ROUTINE kinds"
+        },
+        {
+          "id": 9,
+          "parent": 8,
+          "notused": 0,
+          "detail": "SCAN 11 CONSTANT ROWS"
+        },
+        {
+          "id": 35,
+          "parent": 6,
+          "notused": 27,
+          "detail": "SCAN k"
+        },
+        {
+          "id": 38,
+          "parent": 6,
+          "notused": 91,
+          "detail": "SEARCH v USING INTEGER PRIMARY KEY (rowid=?)"
+        },
+        {
+          "id": 40,
+          "parent": 6,
+          "notused": 0,
+          "detail": "CORRELATED LIST SUBQUERY 12"
+        },
+        {
+          "id": 45,
+          "parent": 40,
+          "notused": 56,
+          "detail": "SEARCH v2 USING COVERING INDEX my9_share_view_total_v1_kind_count_idx (kind=?)"
+        },
+        {
+          "id": 51,
+          "parent": 40,
+          "notused": 44,
+          "detail": "SEARCH r2 USING COVERING INDEX sqlite_autoindex_my9_share_registry_v2_1 (share_id=?)"
+        },
+        {
+          "id": 79,
+          "parent": 3,
+          "notused": 73,
+          "detail": "SCAN candidates"
+        },
+        {
+          "id": 95,
+          "parent": 3,
+          "notused": 0,
+          "detail": "USE TEMP B-TREE FOR ORDER BY"
+        },
+        {
+          "id": 107,
+          "parent": 0,
+          "notused": 59,
+          "detail": "SCAN t"
+        },
+        {
+          "id": 109,
+          "parent": 0,
+          "notused": 46,
+          "detail": "SEARCH r USING INDEX sqlite_autoindex_my9_share_registry_v2_1 (share_id=?)"
+        }
+      ],
+      "success": true,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.6386
+        },
+        "duration": 0.6386,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 1981272064,
+        "rows_read": 0,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "label": "top20_type_tiles",
+      "at": "2026-09-18T07:01:19.912Z",
+      "sql": "WITH kinds(kind) AS (VALUES (?),(?),(?),(?),(?),(?),(?),(?),(?),(?),(?)),\n candidates AS MATERIALIZED (\n   SELECT v.share_id, v.kind, v.view_count FROM kinds k CROSS JOIN my9_share_view_total_v1 v\n   WHERE v.rowid IN (\n     SELECT v2.rowid FROM my9_share_view_total_v1 v2\n     JOIN my9_share_registry_v2 r2 ON r2.share_id = v2.share_id\n     WHERE v2.kind = k.kind ORDER BY v2.view_count DESC, v2.share_id ASC LIMIT 20\n   )\n ), top_shares AS MATERIALIZED (\n   SELECT * FROM candidates ORDER BY view_count DESC, share_id ASC LIMIT 20\n )\n SELECT t.share_id, r.kind, t.view_count, r.creator_name, r.created_at\n FROM top_shares t JOIN my9_share_registry_v2 r ON r.share_id = t.share_id\n ORDER BY t.view_count DESC, t.share_id ASC",
+      "params": [
+        "game",
+        "anime",
+        "tv",
+        "movie",
+        "manga",
+        "lightnovel",
+        "work",
+        "song",
+        "album",
+        "character",
+        "person"
+      ],
+      "success": true,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 82.2862
+        },
+        "duration": 82.2862,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 1981272064,
+        "rows_read": 1360,
+        "rows_written": 0,
+        "total_attempts": 1
+      },
+      "returnedRows": 20
+    },
+    {
+      "label": "view_rollup_checkpoint",
+      "at": "2026-09-18T07:01:20.701Z",
+      "sql": "SELECT payload, updated_at FROM my9_system_checkpoint_v1 WHERE checkpoint_key = ?",
+      "params": [
+        "system:share-view-rollup:v1"
+      ],
+      "results": [
+        {
+          "payload": "{\"rolledThroughMs\":1789660800000}",
+          "updated_at": 1789661158261
+        }
+      ],
+      "success": true,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.3304
+        },
+        "duration": 0.3304,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 1981272064,
+        "rows_read": 1,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "label": "recent_named_sample",
+      "at": "2026-09-18T07:01:21.166Z",
+      "sql": "SELECT share_id, kind, creator_name, created_at FROM my9_share_registry_v2 WHERE kind = ? AND creator_name IS NOT NULL AND creator_name <> '' ORDER BY created_at DESC LIMIT 21",
+      "params": [
+        "game"
+      ],
+      "success": true,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 1.8526
+        },
+        "duration": 1.8526,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 1981272064,
+        "rows_read": 25,
+        "rows_written": 0,
+        "total_attempts": 1
+      },
+      "returnedRows": 21
+    },
+    {
+      "label": "search_page_hydration_by_id",
+      "at": "2026-09-18T07:01:21.660Z",
+      "sql": "SELECT r.share_id, r.kind, r.creator_name, r.created_at, COALESCE(v.view_count, 0) AS view_count\n    FROM my9_share_registry_v2 r LEFT JOIN my9_share_view_total_v1 v ON v.share_id = r.share_id\n    WHERE r.share_id IN (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      "params": [
+        "21 sampled share IDs omitted"
+      ],
+      "success": true,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 12.0119
+        },
+        "duration": 12.0119,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 1981272064,
+        "rows_read": 44,
+        "rows_written": 0,
+        "total_attempts": 1
+      },
+      "returnedRows": 21
+    }
+  ],
+  "platform": {
+    "databaseSizes": {
+      "at": "2026-09-18T07:02:11.352Z",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "databases": [
+        {
+          "name": "viprpg-archive-staging",
+          "bytes": 1126400
+        },
+        {
+          "name": "viprpg-archive-prod",
+          "bytes": 458752
+        },
+        {
+          "name": "my9-test",
+          "bytes": 176128
+        },
+        {
+          "name": "my9-prod",
+          "bytes": 1981263872
+        },
+        {
+          "name": "rin",
+          "bytes": 1232896
+        }
+      ]
+    },
+    "workerSettings": {
+      "at": "2026-09-18T07:02:11.777Z",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result": {
+        "usage_model": "standard",
+        "logpush": false,
+        "observability": {
+          "enabled": false,
+          "head_sampling_rate": 1,
+          "redact_query_string": false,
+          "logs": {
+            "enabled": true,
+            "head_sampling_rate": 0.2,
+            "persist": true,
+            "invocation_logs": true
+          },
+          "traces": {
+            "enabled": false,
+            "persist": true,
+            "head_sampling_rate": 1
+          }
+        }
+      }
+    },
+    "usage30d": {
+      "at": "2026-09-18T07:02:13.785Z",
+      "status": 200,
+      "data": {
+        "viewer": {
+          "accounts": [
+            {
+              "d1AnalyticsAdaptiveGroups": [
+                {
+                  "dimensions": {
+                    "databaseId": "6953e552-443b-479d-b6fa-3ffdeac2e60a"
+                  },
+                  "sum": {
+                    "readQueries": 424203,
+                    "rowsRead": 2997166801,
+                    "rowsWritten": 1612731,
+                    "writeQueries": 233768
+                  }
+                },
+                {
+                  "dimensions": {
+                    "databaseId": "bdaef170-8163-4c9b-a47a-1086c9e1f54f"
+                  },
+                  "sum": {
+                    "readQueries": 4,
+                    "rowsRead": 2,
+                    "rowsWritten": 0,
+                    "writeQueries": 0
+                  }
+                },
+                {
+                  "dimensions": {
+                    "databaseId": "821231ae-c13b-4d93-bc94-e66fa5a013e7"
+                  },
+                  "sum": {
+                    "readQueries": 10271,
+                    "rowsRead": 111537,
+                    "rowsWritten": 2449,
+                    "writeQueries": 2449
+                  }
+                },
+                {
+                  "dimensions": {
+                    "databaseId": "ac01dcad-919e-4c5c-9cd4-41763f48cb80"
+                  },
+                  "sum": {
+                    "readQueries": 170,
+                    "rowsRead": 26651,
+                    "rowsWritten": 267,
+                    "writeQueries": 84
+                  }
+                },
+                {
+                  "dimensions": {
+                    "databaseId": "b323b0bc-6fd5-4007-a26a-71672b7e1074"
+                  },
+                  "sum": {
+                    "readQueries": 142,
+                    "rowsRead": 909,
+                    "rowsWritten": 189,
+                    "writeQueries": 89
+                  }
+                },
+                {
+                  "dimensions": {
+                    "databaseId": "f3b063ff-7d21-43d0-abf5-f224a54d227d"
+                  },
+                  "sum": {
+                    "readQueries": 7301,
+                    "rowsRead": 20659150,
+                    "rowsWritten": 2999900,
+                    "writeQueries": 442
+                  }
+                }
+              ],
+              "workersInvocationsAdaptive": [
+                {
+                  "dimensions": {
+                    "scriptName": "hexoplusplus"
+                  },
+                  "sum": {
+                    "cpuTimeUs": 16018951,
+                    "errors": 0,
+                    "requests": 37746
+                  }
+                },
+                {
+                  "dimensions": {
+                    "scriptName": "rin-server"
+                  },
+                  "sum": {
+                    "cpuTimeUs": 2301662422,
+                    "errors": 0,
+                    "requests": 37178
+                  }
+                },
+                {
+                  "dimensions": {
+                    "scriptName": "link"
+                  },
+                  "sum": {
+                    "cpuTimeUs": 5311818,
+                    "errors": 44,
+                    "requests": 10800
+                  }
+                },
+                {
+                  "dimensions": {
+                    "scriptName": "my9"
+                  },
+                  "sum": {
+                    "cpuTimeUs": 38001334033,
+                    "errors": 0,
+                    "requests": 3787422
+                  }
+                },
+                {
+                  "dimensions": {
+                    "scriptName": "viprpg-zh-archive-staging"
+                  },
+                  "sum": {
+                    "cpuTimeUs": 37575357,
+                    "errors": 0,
+                    "requests": 747
+                  }
+                },
+                {
+                  "dimensions": {
+                    "scriptName": "edgetunnel"
+                  },
+                  "sum": {
+                    "cpuTimeUs": 6197981,
+                    "errors": 0,
+                    "requests": 7875
+                  }
+                },
+                {
+                  "dimensions": {
+                    "scriptName": "my9-test"
+                  },
+                  "sum": {
+                    "cpuTimeUs": 117830162,
+                    "errors": 0,
+                    "requests": 9886
+                  }
+                },
+                {
+                  "dimensions": {
+                    "scriptName": "viprpg-zh-archive"
+                  },
+                  "sum": {
+                    "cpuTimeUs": 3873987,
+                    "errors": 0,
+                    "requests": 64
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "errors": null
+    },
+    "subscriptions": {
+      "at": "2026-09-18T07:02:14.107Z",
+      "status": 403,
+      "success": false,
+      "errors": [
+        {
+          "code": 10000,
+          "message": "Authentication error",
+          "documentation_url": "https://developers.cloudflare.com/api/resources/accounts/subresources/subscriptions/methods/get"
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "url": "https://developers.cloudflare.com/d1/platform/pricing/index.md",
+      "at": "2026-09-18T07:02:56.830Z",
+      "status": 200,
+      "excerpts": [
+        "|  | [Workers Free](https://developers.cloudflare.com/workers/platform/pricing/#workers) | [Workers Paid](https://developers.cloudflare.com/workers/platform/pricing/#workers) |",
+        "| Rows read | 5 million / day | First 25 billion / month included + $0.001 / million rows |",
+        "| Rows written | 100,000 / day | First 50 million / month included + $1.00 / million rows |",
+        "| Storage (per GB stored) | 5 GB (total) | First 5 GB included + $0.75 / GB-mo |",
+        "1. Rows read measure how many rows a query reads (scans), regardless of the size of each row. For example, if you have a table with 5000 rows and run a `SELECT * FROM table` as a full table scan, this would count as 5,000 rows read. A query that filters on an [unindexed column](https://developers.cloudflare.com/d1/best-practices/use-indexes/) may return fewer rows to your Worker, but is still required to read (scan) more rows to determine which subset to return.",
+        "2. Rows written measure how many rows were written to D1 database. Write operations include `INSERT`, `UPDATE`, and `DELETE`. Each of these operations contribute towards rows written. A query that `INSERT` 10 rows into a `users` table would count as 10 rows written.",
+        "4. Row size or the number of columns in a row does not impact how rows are counted. A row that is 1 KB and a row that is 100 KB both count as one row.",
+        "6. Indexes will add an additional written row when writes include the indexed column, as there are two rows written: one to the table itself, and one to the index. The performance benefit of an index and reduction in rows read will, in nearly all cases, offset this additional write.",
+        "8. Free limits reset daily at 00:00 UTC. Monthly included limits reset based on your monthly subscription renewal date, which is determined by the day you first subscribed.",
+        "9. There are no data transfer (egress) or throughput (bandwidth) charges for data accessed from D1.",
+        "Upgrading to the Workers Paid plan will remove these limits, typically within minutes."
+      ]
+    },
+    {
+      "url": "https://developers.cloudflare.com/workers/platform/pricing/index.md",
+      "at": "2026-09-18T07:02:57.069Z",
+      "status": 200,
+      "excerpts": [
+        "The Workers Paid plan includes Workers, Pages Functions, Workers KV, Hyperdrive, and Durable Objects usage for a minimum charge of $5 USD per month for an account. The plan includes increased initial usage allotments, with clear charges for usage that exceeds the base plan. There are no additional charges for data transfer (egress) or throughput (bandwidth).",
+        "Users on the Workers Paid plan have access to the Standard usage model. Workers Enterprise accounts are billed based on the usage model specified in their contract. To switch to the Standard usage model, contact your Account Manager.",
+        "| **Standard** | 10 million included per month <br> +$0.30 per additional million | No charge or limit for duration | 30 million CPU milliseconds included per month<br> +$0.02 per additional million CPU milliseconds<br><br> Max of [5 minutes of CPU time](https://developers.cloudflare.com/workers/platform/limits/#account-plan-limits) per invocation (default: 30 seconds)<br> Max of 15 minutes of CPU time per [Cron Trigger](https://developers.cloudflare.com/workers/configuration/cron-triggers/) or [Queue Consumer](https://developers.cloudflare.com/queues/configuration/javascript-apis/#consumer) invocation |",
+        "Users on the Workers Paid plan have access to the Standard usage model. However, some users may still have a legacy usage model configured. Legacy usage models include Workers Unbound and Workers Bundled. Users are advised to move to the Workers Standard usage model. Changing the usage model only affects billable usage, and has no technical implications.",
+        "| **Workers Paid** | 20 million included per month <br> +$0.60 per additional million | 7 Days |",
+        "Workers Logpush is only available on the Workers Paid plan.",
+        "- There are no data transfer (egress) or throughput (bandwidth) charges.",
+        "|  | Workers Free | Workers Paid |",
+        "| Unit | Workers Free | Workers Paid |",
+        "D1 is available on both the Workers Free and Workers Paid plans.",
+        "|  | [Workers Free](https://developers.cloudflare.com/workers/platform/pricing/#workers) | [Workers Paid](https://developers.cloudflare.com/workers/platform/pricing/#workers) |",
+        "| Rows read | 5 million / day | First 25 billion / month included + $0.001 / million rows |",
+        "| Rows written | 100,000 / day | First 50 million / month included + $1.00 / million rows |",
+        "| Storage (per GB stored) | 5 GB (total) | First 5 GB included + $0.75 / GB-mo |",
+        "1. Rows read measure how many rows a query reads (scans), regardless of the size of each row. For example, if you have a table with 5000 rows and run a `SELECT * FROM table` as a full table scan, this would count as 5,000 rows read. A query that filters on an [unindexed column](https://developers.cloudflare.com/d1/best-practices/use-indexes/) may return fewer rows to your Worker, but is still required to read (scan) more rows to determine which subset to return.",
+        "2. Rows written measure how many rows were written to D1 database. Write operations include `INSERT`, `UPDATE`, and `DELETE`. Each of these operations contribute towards rows written. A query that `INSERT` 10 rows into a `users` table would count as 10 rows written.",
+        "4. Row size or the number of columns in a row does not impact how rows are counted. A row that is 1 KB and a row that is 100 KB both count as one row.",
+        "6. Indexes will add an additional written row when writes include the indexed column, as there are two rows written: one to the table itself, and one to the index. The performance benefit of an index and reduction in rows read will, in nearly all cases, offset this additional write.",
+        "8. Free limits reset daily at 00:00 UTC. Monthly included limits reset based on your monthly subscription renewal date, which is determined by the day you first subscribed.",
+        "9. There are no data transfer (egress) or throughput (bandwidth) charges for data accessed from D1.",
+        "Durable Objects are available both on Workers Free and Workers Paid plans.",
+        "- **Workers Paid plan**: Durable Objects with the SQLite storage backend are available. The [key-value storage backend](https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/#storage-backends) is only available to accounts that already have a key-value-backed namespace.",
+        "If you wish to downgrade from a Workers Paid plan to a Workers Free plan, you must first ensure that you have deleted all Durable Object namespaces with the key-value storage backend.",
+        "- **Key-value backed Durable Objects**: [Key-value storage backend](https://developers.cloudflare.com/durable-objects/reference/durable-object-class-migrations-legacy/#create-durable-object-class-with-key-value-storage) is only available on the Workers Paid plan.",
+        "|  | Workers Free plan | Workers Paid plan |",
+        "| Rows reads <sup>1,2</sup> | 5 million / day | First 25 billion / month included + $0.001 / million rows |",
+        "| Rows written <sup>1,2,3,4</sup> | 100,000 / day | First 50 million / month included + $1.00 / million rows |",
+        "<sup>1</sup> Rows read and rows written included limits and rates match <a href=\"https://developers.cloudflare.com/d1/platform/pricing/\">D1 pricing</a>, Cloudflare's serverless SQL database.",
+        "|  | Workers Paid plan |",
+        "<sup>4</sup> Delete requests are unmetered. For example, deleting a 100 KB value will be charged one delete request.",
+        "|  | [Workers Free](https://developers.cloudflare.com/workers/platform/pricing/#workers) | [Workers Paid](https://developers.cloudflare.com/workers/platform/pricing/#workers) |",
+        "| Storage | 10 GB-month / month | $0.015 / GB-month | $0.01 / GB-month |",
+        "Containers are billed for every 10ms that they are actively running at the following rates, with included monthly usage as part of the $5 USD per month [Workers Paid plan](https://developers.cloudflare.com/workers/platform/pricing/):",
+        "| **Workers Paid** | 25 GiB-hours/month included <br> +$0.0000025 per additional GiB-second | 375 vCPU-minutes/month <br>+ $0.000020 per additional vCPU-second | 200 GB-hours/month <br> +$0.00000007 per additional GB-second |",
+        "Workers Paid plan is separate from any other Cloudflare plan (Free, Professional, Business) you may have. If you are an Enterprise customer, reach out to your account team to confirm pricing details."
+      ]
+    },
+    {
+      "url": "https://developers.cloudflare.com/analytics/analytics-engine/pricing/index.md",
+      "at": "2026-09-18T07:02:57.290Z",
+      "status": 200,
+      "excerpts": [
+        "| **Workers Paid** | 10 million included per month <br> (+$0.25 per additional million) | 1 million included per month (+$1.00 per additional million) |",
+        "Currently, you will not be billed for your use of Workers Analytics Engine. Pricing information here is shared in advance, so that you can estimate what your costs will be once Cloudflare starts billing for usage in the coming months."
+      ]
+    },
+    {
+      "url": "https://developers.cloudflare.com/d1/platform/limits/index.md",
+      "at": "2026-09-18T07:02:57.516Z",
+      "status": 200,
+      "excerpts": [
+        "| Databases per account | 50,000 (Workers Paid) <sup>[1](#user-content-fn-1)</sup> / 10 (Free) |",
+        "| Maximum database size | 10 GB (Workers Paid) / 500 MB (Free) |",
+        "| Maximum storage per account | 1 TB (Workers Paid) <sup>[2](#user-content-fn-2)</sup> / 5 GB (Free) |",
+        "| [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/) duration (point-in-time recovery) | 30 days (Workers Paid) / 7 days (Free) |",
+        "| Queries per Worker invocation (read [subrequest limits](https://developers.cloudflare.com/workers/platform/limits/#subrequests)) | 1000 (Workers Paid) / 50 (Free) |",
+        "| Maximum SQL statement length | 100,000 bytes (100 KB) |",
+        "| Maximum SQL query duration | 30 seconds <sup>[4](#user-content-fn-4)</sup> |",
+        "Limits for individual queries (listed above) apply to each individual statement contained within a batch statement. For example, the maximum SQL statement length of 100 KB applies to each statement inside a `db.batch()`.",
+        "D1 is designed for horizontal scale out across multiple, smaller (10 GB) databases, such as per-user, per-tenant or per-entity databases. D1 allows you to build applications with thousands of databases at no extra cost, as the pricing is based only on query and storage costs.",
+        "Each D1 database can store up to 10 GB of data.",
+        "Note that the 10 GB limit of a D1 database cannot be further increased.",
+        "1. The maximum number of databases per account can be increased by request on Workers Paid and Enterprise plans, with support for millions to tens-of-millions of databases (or more) per account. Refer to the guidance on limit increases on this page to request an increase. [↩](#user-content-fnref-1)",
+        "2. The maximum storage per account can be increased by request on Workers Paid and Enterprise plans. Refer to the guidance on limit increases on this page to request an increase. [↩](#user-content-fnref-2)",
+        "4. Requests to Cloudflare API must resolve in 30 seconds. Therefore, this duration limit also applies to the entire batch call. [↩](#user-content-fnref-4)"
+      ]
+    }
+  ],
+  "topSnapshot": {
+    "rows": 20,
+    "bytes": 2331,
+    "checkpoint": [
+      {
+        "payload": "{\"rolledThroughMs\":1789660800000}",
+        "updated_at": 1789661158261
+      }
+    ]
+  },
+  "searchPage": {
+    "sampleRows": 21,
+    "bytes": 2372,
+    "note": "Hydration is measured; name-index seek and stable keyset pagination are estimates until the new index exists."
+  },
+  "registryObservation": {
+    "at": "2026-09-18T06:57:34.046Z",
+    "sql": "SELECT COUNT(*) AS total, SUM(creator_name IS NOT NULL AND creator_name <> '') AS named, SUM(CASE WHEN creator_name IS NOT NULL AND creator_name <> '' THEN length(CAST(creator_name AS BLOB)) ELSE 0 END) AS name_bytes, SUM(CASE WHEN creator_name IS NOT NULL AND creator_name <> '' THEN length(CAST(share_id AS BLOB)) ELSE 0 END) AS share_id_bytes, SUM(CASE WHEN creator_name IS NOT NULL AND creator_name <> '' THEN length(CAST(kind AS BLOB)) ELSE 0 END) AS kind_bytes, MAX(length(CAST(creator_name AS BLOB))) AS max_name_bytes, MAX(rowid) AS max_rowid, MIN(created_at) AS min_created_at, MAX(created_at) AS max_created_at, SUM(creator_name <> trim(creator_name)) AS untrimmed_names, SUM(CASE WHEN created_at >= ? AND created_at < ? THEN 1 ELSE 0 END) AS new_shares, SUM(CASE WHEN created_at >= ? AND created_at < ? AND creator_name IS NOT NULL AND creator_name <> '' THEN 1 ELSE 0 END) AS new_named_shares FROM my9_share_registry_v2",
+    "params": [
+      1787068800000,
+      1789660800000,
+      1787068800000,
+      1789660800000
+    ],
+    "results": {
+      "total": 962175,
+      "named": 693064,
+      "name_bytes": 5369028,
+      "share_id_bytes": 11089024,
+      "kind_bytes": 3308299,
+      "max_name_bytes": 120,
+      "max_rowid": 962175,
+      "min_created_at": 1773004041882,
+      "max_created_at": 1789714600628,
+      "untrimmed_names": 0,
+      "new_shares": 14273,
+      "new_named_shares": 8496
+    },
+    "meta": {
+      "rows_read": 962175,
+      "rows_written": 0,
+      "sql_duration_ms": 9579.837,
+      "size_after": 1981267968
+    },
+    "window": {
+      "from": "2026-08-19T00:00:00+08:00",
+      "untilExclusive": "2026-09-18T00:00:00+08:00",
+      "days": 30
+    }
+  },
+  "additionalQueryMetering": [
+    {
+      "label": "production_schema",
+      "at": "2026-09-18T06:56:11.510Z",
+      "rows_read": 63,
+      "rows_written": 0
+    }
+  ],
+  "model": {
+    "baseline": {
+      "window": {
+        "from": "2026-08-19T00:00:00Z",
+        "untilExclusive": "2026-09-18T00:00:00Z",
+        "billingCycleVerified": false
+      },
+      "reads": 3017965050,
+      "writes": 4615536,
+      "requests": 3891718,
+      "cpuMs": 40489804.711,
+      "storageBytes": 1984258048,
+      "logs": null
+    },
+    "included": {
+      "reads": 25000000000,
+      "writes": 50000000,
+      "requests": 10000000,
+      "cpuMs": 30000000,
+      "storageBytes": 5000000000,
+      "logs": 20000000
+    },
+    "rates": {
+      "read": 1e-9,
+      "write": 0.000001,
+      "request": 3e-7,
+      "cpuMs": 2e-8,
+      "storageByteMonth": 7.5e-10,
+      "log": 6e-7
+    },
+    "index": {
+      "entries": 693064,
+      "nameBytes": 5369028,
+      "shareIdBytes": 11089024,
+      "recordContentModelBytes": 29626268,
+      "physicalBudgetBytes": [
+        50000000,
+        100000000
+      ],
+      "monthlyNewEntries": 8496
+    },
+    "initialization": {
+      "sourceScanRows": 962175,
+      "newIndexEntries": 693064,
+      "idealIndexCreationAllExcessUsd": 0.694026175,
+      "readBudget": 2000000,
+      "writeBudget": 1000000,
+      "allExcessRowBudgetUsd": 1.002,
+      "indexHasNotBeenCreated": true
+    },
+    "monthly": {
+      "snapshotRefreshes": 30,
+      "extraScheduledInvocations": 0,
+      "backgroundReadsBudget": 50000,
+      "namedInsertsMeasured": 8496,
+      "snapshotWritesBudget": 100,
+      "allWritesBudget": 10000,
+      "readBudgetPerDefaultRequest": 5,
+      "readBudgetPerSearchPage": 150,
+      "cpuMsPerRequestScenario": [
+        5,
+        20
+      ],
+      "extraBackgroundCpuMsScenario": [
+        3000,
+        30000
+      ],
+      "logsSampling": 0.2,
+      "logEventsPerSampledInvocationScenario": 1,
+      "httpBytesPerResponseBudget": 8192,
+      "storageGrowthModelBytes": [
+        612930.4075814066,
+        1225860.8151628133
+      ]
+    },
+    "scenarios": [
+      {
+        "opens": 0,
+        "searches": 0,
+        "requests": 0,
+        "reads": 50000,
+        "writes": 10000,
+        "expectedLogEvents": 0,
+        "cpuMsScenario": [
+          3000,
+          30000
+        ],
+        "responseBodyBytesBudget": 0,
+        "allExcessUsd": {
+          "reads": 0.00005,
+          "writes": 0.01,
+          "requests": 0,
+          "cpu": [
+            0.00006,
+            0.0006000000000000001
+          ],
+          "storage": [
+            0.0375,
+            0.075
+          ],
+          "logs": 0
+        },
+        "allExcessTotalUsd": [
+          0.04761,
+          0.08565
+        ],
+        "accountDeltaUsd": {
+          "reads": 0,
+          "writes": 0,
+          "requests": 0,
+          "cpu": [
+            0.00006,
+            0.0006000000000000001
+          ],
+          "storage": [
+            0,
+            0
+          ],
+          "logs": [
+            0,
+            0
+          ]
+        },
+        "accountDeltaExcludingLogsUsd": [
+          0.00006,
+          0.0006000000000000001
+        ],
+        "accountDeltaIncludingUnknownLogsRangeUsd": [
+          0.00006,
+          0.0006000000000000001
+        ]
+      },
+      {
+        "opens": 100000,
+        "searches": 10000,
+        "requests": 110000,
+        "reads": 2050000,
+        "writes": 10000,
+        "expectedLogEvents": 22000,
+        "cpuMsScenario": [
+          553000,
+          2230000
+        ],
+        "responseBodyBytesBudget": 901120000,
+        "allExcessUsd": {
+          "reads": 0.00205,
+          "writes": 0.01,
+          "requests": 0.033,
+          "cpu": [
+            0.01106,
+            0.0446
+          ],
+          "storage": [
+            0.0375,
+            0.075
+          ],
+          "logs": 0.0132
+        },
+        "allExcessTotalUsd": [
+          0.10681,
+          0.17785
+        ],
+        "accountDeltaUsd": {
+          "reads": 0,
+          "writes": 0,
+          "requests": 0,
+          "cpu": [
+            0.01106,
+            0.0446
+          ],
+          "storage": [
+            0,
+            0
+          ],
+          "logs": [
+            0,
+            0.0132
+          ]
+        },
+        "accountDeltaExcludingLogsUsd": [
+          0.01106,
+          0.0446
+        ],
+        "accountDeltaIncludingUnknownLogsRangeUsd": [
+          0.01106,
+          0.057800000000000004
+        ]
+      },
+      {
+        "opens": 1000000,
+        "searches": 100000,
+        "requests": 1100000,
+        "reads": 20050000,
+        "writes": 10000,
+        "expectedLogEvents": 220000,
+        "cpuMsScenario": [
+          5503000,
+          22030000
+        ],
+        "responseBodyBytesBudget": 9011200000,
+        "allExcessUsd": {
+          "reads": 0.020050000000000002,
+          "writes": 0.01,
+          "requests": 0.32999999999999996,
+          "cpu": [
+            0.11006,
+            0.4406
+          ],
+          "storage": [
+            0.0375,
+            0.075
+          ],
+          "logs": 0.132
+        },
+        "allExcessTotalUsd": [
+          0.63961,
+          1.00765
+        ],
+        "accountDeltaUsd": {
+          "reads": 0,
+          "writes": 0,
+          "requests": 0,
+          "cpu": [
+            0.11006,
+            0.4406
+          ],
+          "storage": [
+            0,
+            0
+          ],
+          "logs": [
+            0,
+            0.132
+          ]
+        },
+        "accountDeltaExcludingLogsUsd": [
+          0.11006,
+          0.4406
+        ],
+        "accountDeltaIncludingUnknownLogsRangeUsd": [
+          0.11006,
+          0.5726
+        ]
+      },
+      {
+        "opens": 9000000,
+        "searches": 900000,
+        "requests": 9900000,
+        "reads": 180050000,
+        "writes": 10000,
+        "expectedLogEvents": 1980000,
+        "cpuMsScenario": [
+          49503000,
+          198030000
+        ],
+        "responseBodyBytesBudget": 81100800000,
+        "allExcessUsd": {
+          "reads": 0.18005000000000002,
+          "writes": 0.01,
+          "requests": 2.9699999999999998,
+          "cpu": [
+            0.99006,
+            3.9606
+          ],
+          "storage": [
+            0.0375,
+            0.075
+          ],
+          "logs": 1.188
+        },
+        "allExcessTotalUsd": [
+          5.375609999999999,
+          8.38365
+        ],
+        "accountDeltaUsd": {
+          "reads": 0,
+          "writes": 0,
+          "requests": 1.1375153999999998,
+          "cpu": [
+            0.9900599999999998,
+            3.9606
+          ],
+          "storage": [
+            0,
+            0
+          ],
+          "logs": [
+            0,
+            1.188
+          ]
+        },
+        "accountDeltaExcludingLogsUsd": [
+          2.1275753999999996,
+          5.098115399999999
+        ],
+        "accountDeltaIncludingUnknownLogsRangeUsd": [
+          2.1275753999999996,
+          6.286115399999999
+        ]
+      }
+    ],
+    "notes": [
+      "All scenarios assume no edge-cache hits. Requests count actual network calls after page-local reuse.",
+      "CPU, new-index row metering, and new-index physical size are estimates, not post-implementation measurements.",
+      "Logs baseline and actual billing cycle are unavailable. CPU time is not SQL duration.",
+      "Account statistics are adaptive monitoring, not a precise invoice. August 19 through September 17 UTC excludes the September 18 cooccurrence rollout.",
+      "Storage covers index plus tiny snapshot at the planned initial size; monthly growth and other projects accumulate.",
+      "No new Analytics Engine events or queries for listing; detail-page traffic and subsequent saves are separate induced-load variables."
+    ]
+  },
+  "auditMetering": {
+    "rowsRead": 963668,
+    "rowsWritten": 0,
+    "notes": "One registry aggregate plus schema lookup and saved metered SELECT/EXPLAIN queries. No production index or snapshot was written."
+  }
+}

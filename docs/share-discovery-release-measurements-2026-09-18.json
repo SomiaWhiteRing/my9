@@ -1,0 +1,439 @@
+{
+  "at": "2026-09-18T07:49:37.740Z",
+  "database": "my9-prod",
+  "budget": {
+    "rowsRead": 2000000,
+    "rowsWritten": 1000000,
+    "physicalBytes": 100000000
+  },
+  "total": {
+    "rowsRead": 1670281,
+    "rowsWritten": 693077
+  },
+  "physical": {
+    "before": 1981304832,
+    "after": 2009788416,
+    "delta": 28483584
+  },
+  "usage": [
+    {
+      "at": "2026-09-18T07:45:01.408Z",
+      "label": "migration-status",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.4926
+        },
+        "duration": 0.4926,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 1981304832,
+        "rows_read": 0,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:45:01.889Z",
+      "label": "index-status",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.1786
+        },
+        "duration": 0.1786,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 1981304832,
+        "rows_read": 54,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:45:14.979Z",
+      "label": "create-index-and-register",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 11682.5813
+        },
+        "duration": 11682.5813,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": true,
+        "size_after": 2009788416,
+        "rows_read": 1668660,
+        "rows_written": 693072,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:45:14.980Z",
+      "label": "create-index-and-register",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.8249
+        },
+        "duration": 0.8249,
+        "changes": 1,
+        "last_row_id": 10,
+        "changed_db": true,
+        "size_after": 2009788416,
+        "rows_read": 1,
+        "rows_written": 3,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:46:04.559Z",
+      "label": "refresh-snapshot",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 83.9229
+        },
+        "duration": 83.9229,
+        "changes": 1,
+        "last_row_id": 3,
+        "changed_db": true,
+        "size_after": 2009788416,
+        "rows_read": 1382,
+        "rows_written": 2,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:46:05.087Z",
+      "label": "snapshot-check",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.4361
+        },
+        "duration": 0.4361,
+        "changes": 0,
+        "last_row_id": 3,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 1,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:46:36.046Z",
+      "label": "index-definition",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.1768
+        },
+        "duration": 0.1768,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 55,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:46:36.483Z",
+      "label": "snapshot-check",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.7238
+        },
+        "duration": 0.7238,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 1,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:46:36.927Z",
+      "label": "search-plan",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.424
+        },
+        "duration": 0.424,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 0,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:47:20.175Z",
+      "label": "name-first",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 11.193
+        },
+        "duration": 11.193,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 55,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:47:20.710Z",
+      "label": "name-second",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 7.7099
+        },
+        "duration": 7.7099,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 55,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:47:21.188Z",
+      "label": "name-known",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 4.0016
+        },
+        "duration": 4.0016,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 15,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:47:21.694Z",
+      "label": "name-missing",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.9443
+        },
+        "duration": 0.9443,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 1,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "at": "2026-09-18T07:47:22.205Z",
+      "label": "watermark-measure",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.1798
+        },
+        "duration": 0.1798,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 1,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    }
+  ],
+  "measurements": [
+    {
+      "label": "name-first",
+      "sql": "WITH page AS MATERIALIZED (\n    SELECT share_id, kind, creator_name, created_at\n    FROM my9_share_registry_v2 INDEXED BY my9_share_registry_v2_creator_created_share_idx\n    WHERE creator_name = ? AND creator_name IS NOT NULL AND creator_name <> ''\n      \n    ORDER BY created_at DESC, share_id DESC LIMIT 21\n  ) SELECT p.*, COALESCE((SELECT v.view_count FROM my9_share_view_total_v1 v\n    WHERE v.share_id = p.share_id), 0) AS view_count\n    FROM page p ORDER BY p.created_at DESC, p.share_id DESC",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 11.193
+        },
+        "duration": 11.193,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 55,
+        "rows_written": 0,
+        "total_attempts": 1
+      },
+      "resultCount": 21,
+      "params": [
+        "我"
+      ]
+    },
+    {
+      "label": "name-second",
+      "sql": "WITH page AS MATERIALIZED (\n    SELECT share_id, kind, creator_name, created_at\n    FROM my9_share_registry_v2 INDEXED BY my9_share_registry_v2_creator_created_share_idx\n    WHERE creator_name = ? AND creator_name IS NOT NULL AND creator_name <> ''\n      AND (created_at, share_id) < (?, ?)\n    ORDER BY created_at DESC, share_id DESC LIMIT 21\n  ) SELECT p.*, COALESCE((SELECT v.view_count FROM my9_share_view_total_v1 v\n    WHERE v.share_id = p.share_id), 0) AS view_count\n    FROM page p ORDER BY p.created_at DESC, p.share_id DESC",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 7.7099
+        },
+        "duration": 7.7099,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 55,
+        "rows_written": 0,
+        "total_attempts": 1
+      },
+      "resultCount": 21,
+      "overlap": 0,
+      "params": [
+        "我",
+        "cursor timestamp",
+        "cursor share ID"
+      ]
+    },
+    {
+      "label": "name-known",
+      "sql": "WITH page AS MATERIALIZED (\n    SELECT share_id, kind, creator_name, created_at\n    FROM my9_share_registry_v2 INDEXED BY my9_share_registry_v2_creator_created_share_idx\n    WHERE creator_name = ? AND creator_name IS NOT NULL AND creator_name <> ''\n      \n    ORDER BY created_at DESC, share_id DESC LIMIT 21\n  ) SELECT p.*, COALESCE((SELECT v.view_count FROM my9_share_view_total_v1 v\n    WHERE v.share_id = p.share_id), 0) AS view_count\n    FROM page p ORDER BY p.created_at DESC, p.share_id DESC",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 4.0016
+        },
+        "duration": 4.0016,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 15,
+        "rows_written": 0,
+        "total_attempts": 1
+      },
+      "resultCount": 6,
+      "params": [
+        "阿菜"
+      ]
+    },
+    {
+      "label": "name-missing",
+      "sql": "WITH page AS MATERIALIZED (\n    SELECT share_id, kind, creator_name, created_at\n    FROM my9_share_registry_v2 INDEXED BY my9_share_registry_v2_creator_created_share_idx\n    WHERE creator_name = ? AND creator_name IS NOT NULL AND creator_name <> ''\n      \n    ORDER BY created_at DESC, share_id DESC LIMIT 21\n  ) SELECT p.*, COALESCE((SELECT v.view_count FROM my9_share_view_total_v1 v\n    WHERE v.share_id = p.share_id), 0) AS view_count\n    FROM page p ORDER BY p.created_at DESC, p.share_id DESC",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.9443
+        },
+        "duration": 0.9443,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 1,
+        "rows_written": 0,
+        "total_attempts": 1
+      },
+      "resultCount": 0,
+      "params": [
+        "my9-release-no-match-20260918"
+      ]
+    },
+    {
+      "label": "watermark-measure",
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "APAC",
+        "served_by_colo": "HKG",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.1798
+        },
+        "duration": 0.1798,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 2009788416,
+        "rows_read": 1,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    }
+  ]
+}

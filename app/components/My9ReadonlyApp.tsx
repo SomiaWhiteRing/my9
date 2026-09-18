@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
+import { ShareDiscovery } from "@/components/share/ShareDiscovery";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { InlineToast, ToastKind } from "@/app/components/v3/InlineToast";
 import { NineGridBoard } from "@/app/components/v3/NineGridBoard";
@@ -162,14 +163,17 @@ export default function My9ReadonlyApp({
             {shareTitle}
           </h1>
           <p className="text-sm text-muted-foreground">{kindMeta.subtitle}</p>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60"
-            onClick={() => router.push(`/trends?kind=${kind}`)}
-          >
-            大家的构成
-            <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60"
+              onClick={() => router.push(`/trends?kind=${kind}`)}
+            >
+              大家的构成
+              <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
+            </button>
+            <ShareDiscovery />
+          </div>
         </header>
 
         {toast ? (

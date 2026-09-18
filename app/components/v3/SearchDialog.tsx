@@ -2,16 +2,17 @@
 
 import { useEffect, useMemo } from "react";
 import Image from "next/image";
-import { AlertCircle, Loader2, RefreshCw, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { SearchDialogContent } from "@/components/search/SearchDialogContent";
+import { SearchFeedback } from "@/components/search/SearchFeedback";
+import { SearchField } from "@/components/search/SearchField";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
 import { SubjectKind } from "@/lib/subject-kind";
 import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
@@ -112,105 +113,77 @@ export function SearchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto sm:max-w-md md:max-w-lg lg:max-w-xl">
+      <SearchDialogContent>
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
         </DialogHeader>
 
-        <div className="mb-4">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Input
-                value={query}
-                role="combobox"
-                aria-expanded={open}
-                aria-controls="search-results-list"
-                aria-label={`${subjectLabel}搜索输入框`}
-                placeholder={inputPlaceholder}
-                onChange={(event) => onQueryChange(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    if (orderedResults.length === 0) return;
-                    const nextIndex = Math.min((activeIndex < 0 ? -1 : activeIndex) + 1, orderedResults.length - 1);
-                    onActiveIndexChange(nextIndex);
-                    return;
-                  }
+        <div>
+          <SearchField
+            value={query}
+            role="combobox"
+            aria-expanded={open}
+            aria-controls="search-results-list"
+            aria-label={`${subjectLabel}搜索输入框`}
+            placeholder={inputPlaceholder}
+            onValueChange={onQueryChange}
+            onClear={() => {
+              onQueryChange("");
+              onActiveIndexChange(-1);
+            }}
+            onSearch={onSubmitSearch}
+            loading={loading}
+            searchDisabled={normalizeSearchQuery(query).length === 0}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                if (orderedResults.length === 0) return;
+                const nextIndex = Math.min((activeIndex < 0 ? -1 : activeIndex) + 1, orderedResults.length - 1);
+                onActiveIndexChange(nextIndex);
+                return;
+              }
 
-                  if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    if (orderedResults.length === 0) return;
-                    const nextIndex = Math.max((activeIndex < 0 ? 0 : activeIndex) - 1, 0);
-                    onActiveIndexChange(nextIndex);
-                    return;
-                  }
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                if (orderedResults.length === 0) return;
+                const nextIndex = Math.max((activeIndex < 0 ? 0 : activeIndex) - 1, 0);
+                onActiveIndexChange(nextIndex);
+                return;
+              }
 
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    if (loading) {
-                      return;
-                    }
-                    const normalizedCommitted = normalizeSearchQuery(committedQuery);
-                    const resultsMatchCurrentQuery =
-                      normalizedCommitted.length > 0 &&
-                      normalizedCommitted === normalizeSearchQuery(trimmedQuery);
-                    if (
-                      resultsMatchCurrentQuery &&
-                      activeIndex >= 0 &&
-                      orderedResults[activeIndex]
-                    ) {
-                      onPickGame(orderedResults[activeIndex]);
-                      return;
-                    }
-                    if (normalizeSearchQuery(trimmedQuery).length > 0) {
-                      onSubmitSearch();
-                    }
-                    return;
-                  }
+              if (event.key === "Enter") {
+                event.preventDefault();
+                if (loading) {
+                  return;
+                }
+                const normalizedCommitted = normalizeSearchQuery(committedQuery);
+                const resultsMatchCurrentQuery =
+                  normalizedCommitted.length > 0 &&
+                  normalizedCommitted === normalizeSearchQuery(trimmedQuery);
+                if (
+                  resultsMatchCurrentQuery &&
+                  activeIndex >= 0 &&
+                  orderedResults[activeIndex]
+                ) {
+                  onPickGame(orderedResults[activeIndex]);
+                  return;
+                }
+                if (normalizeSearchQuery(trimmedQuery).length > 0) {
+                  onSubmitSearch();
+                }
+                return;
+              }
 
-                  if (event.key === "Escape") {
-                    onOpenChange(false);
-                  }
-                }}
-                disabled={loading}
-                className="pr-8"
-                autoFocus
-              />
-              {query ? (
-                <button
-                  type="button"
-                  aria-label="清空搜索"
-                  onClick={() => {
-                    onQueryChange("");
-                    onActiveIndexChange(-1);
-                  }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  ✕
-                </button>
-              ) : null}
-            </div>
-            <Button
-              type="button"
-              onClick={onSubmitSearch}
-              disabled={loading || normalizeSearchQuery(query).length === 0}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  搜索中
-                </>
-              ) : (
-                <>
-                  <Search className="mr-2 h-4 w-4" />
-                  搜索
-                </>
-              )}
-            </Button>
-          </div>
+              if (event.key === "Escape") {
+                onOpenChange(false);
+              }
+            }}
+            disabled={loading}
+            autoFocus
+          />
         </div>
 
-        <div className="max-h-[40vh] overflow-y-auto sm:max-h-[300px] md:max-h-[350px] lg:max-h-[400px]" id="search-results-list" role="listbox">
+        <div className="min-h-0 overflow-y-auto overscroll-contain" id="search-results-list" role="listbox">
           {state === "success" ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {orderedResults.map((game, index) => (
@@ -254,7 +227,6 @@ export function SearchDialog({
               idleHint={idleHint}
               state={state}
               error={error}
-              loading={loading}
               noResultQuery={noResultQuery}
               onRetry={onSubmitSearch}
             />
@@ -274,7 +246,7 @@ export function SearchDialog({
             关闭
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </SearchDialogContent>
     </Dialog>
   );
 }
@@ -285,7 +257,6 @@ function SearchStatus(props: {
   idleHint: string;
   state: Exclude<ViewState, "success">;
   error: string;
-  loading: boolean;
   noResultQuery: string | null;
   onRetry: () => void;
 }) {
@@ -295,30 +266,17 @@ function SearchStatus(props: {
     idleHint,
     state,
     error,
-    loading,
     noResultQuery,
     onRetry,
   } = props;
 
-  if (state === "searching") {
+  if (state === "searching" || state === "error") {
     return (
-      <div className="flex flex-col items-center justify-center py-10 text-muted-foreground" aria-live="polite">
-        <Loader2 className="mb-2 h-8 w-8 animate-spin" />
-        <p>正在搜索...</p>
-      </div>
-    );
-  }
-
-  if (state === "error") {
-    return (
-      <div className="flex flex-col items-center justify-center py-10 text-red-500" aria-live="polite">
-        <AlertCircle className="mb-2 h-8 w-8" />
-        <p>{error || "搜索失败，请检查网络连接后重试"}</p>
-        <Button variant="outline" className="mt-4" onClick={onRetry} disabled={loading}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          重试
-        </Button>
-      </div>
+      <SearchFeedback
+        loading={state === "searching"}
+        error={error || "搜索失败，请检查网络连接后重试"}
+        onRetry={onRetry}
+      />
     );
   }
 
