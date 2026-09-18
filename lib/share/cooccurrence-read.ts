@@ -31,7 +31,8 @@ export async function handleRelatedSelectionsRequest(request: Request) {
     if (!state?.ready || !state.valid || state.count_ready !== 1 ||
         !Number.isSafeInteger(state.kind_shares) || state.kind_shares < 0) return unavailable();
     const [row] = await readCooccurrenceSnapshots(db, kind, [subjectId], excludeShareId ?? undefined, true);
-    // A newly submitted subject may not have entered the next daily window yet.
+    // Missing subjects in a healthy snapshot have zero matches. A missing
+    // snapshot still means unavailable, never a confirmed zero.
     if (!row?.top10) return unavailable();
     const originalTop = unpackCounters(row.top10);
     let top = originalTop;

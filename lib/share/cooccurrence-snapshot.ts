@@ -3,7 +3,7 @@ import { queryAll, type D1DatabaseLike } from "@/lib/share/storage-d1-runtime";
 import type { SubjectKind } from "@/lib/subject-kind";
 
 type SnapshotRow = {
-  id: number;
+  id: number | null;
   subject_id: string;
   matched: number;
   applied_seq: number;
@@ -23,6 +23,9 @@ export async function readCooccurrenceSnapshots(
 ) {
   const ids = [...new Set(subjectIds)].slice(0, 9);
   if (!ids.length) return [];
+  // A complete, valid baseline contains every historical subject. Missing
+  // identities (or empty identities prepared for the next window) therefore
+  // mean zero at this snapshot. Keep the control guard to distinguish failure.
   const rows = await queryAll<SnapshotRow>(db, `
     WITH requested AS (SELECT value AS subject_id FROM json_each(?2))
     ${excludeShareId ? `, excluded AS MATERIALIZED (
@@ -44,18 +47,20 @@ export async function readCooccurrenceSnapshots(
         json_extract(r.hot_payload, '$[8].sid'))) AS payload
       FROM my9_share_registry_v2 r WHERE r.share_id = (SELECT share_id FROM excluded)
     )` : ""}
-    SELECT s.id, s.subject_id, s.matched, s.applied_seq, s.updated_at,
-      ${includeRanking ? "s.top10" : "NULL"} AS top10,
+    SELECT s.id, q.subject_id, COALESCE(s.matched, 0) AS matched,
+      COALESCE(s.applied_seq, c.cursor) AS applied_seq,
+      CASE WHEN s.ready = 1 THEN s.updated_at ELSE c.updated_at END AS updated_at,
+      ${includeRanking ? "CASE WHEN s.ready = 1 THEN s.top10 ELSE X'' END" : "NULL"} AS top10,
       ${excludeShareId ? `COALESCE((
         SELECT json_object('kind', e.old_kind, 'ids', json(e.old_ids), 'renamed', e.renamed)
         FROM future_share_events e
-        WHERE e.seq > MAX(s.applied_seq, c.cursor)
+        WHERE e.seq > MAX(COALESCE(s.applied_seq, c.cursor), c.cursor)
         ORDER BY e.seq LIMIT 1
       ), (SELECT payload FROM current_share))` : "NULL"} AS excluded_share
-    FROM requested q CROSS JOIN my9_cooccurrence_subject_v1 s
-    ON s.kind = ?1 AND s.subject_id = q.subject_id
-    JOIN my9_cooccurrence_control_v1 c ON c.id = 1 AND c.ready = 1 AND c.valid = 1
-    WHERE s.ready = 1
+    FROM requested q CROSS JOIN my9_cooccurrence_control_v1 c
+    LEFT JOIN my9_cooccurrence_subject_v1 s ON s.kind = ?1 AND s.subject_id = q.subject_id
+    WHERE c.id = 1 AND c.ready = 1 AND c.valid = 1
+      AND (s.id IS NULL OR s.ready = 1 OR (s.ready = 0 AND s.matched = 0))
   `, [kind, JSON.stringify(ids), ...(excludeShareId ? [excludeShareId] : [])]);
 
   return rows.map((row) => {
