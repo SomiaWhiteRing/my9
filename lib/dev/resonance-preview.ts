@@ -73,6 +73,7 @@ export function createResonancePreview(empty = false): {
           count: COUNTS[rank] - index * 3,
         })),
         matchedShares: empty ? 0 : 1000,
+        kindShares: 319940,
         updatedAt: UPDATED_AT,
       },
     };

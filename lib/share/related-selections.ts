@@ -7,6 +7,7 @@ export type RelatedSelectionItem = {
 export type RelatedSelectionsResult = {
   items: RelatedSelectionItem[];
   matchedShares: number;
+  kindShares: number;
   updatedAt: number;
 };
 

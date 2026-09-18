@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useId, useRef, useState, type Rea
 import { Activity, ArrowUpRight, LoaderCircle } from "lucide-react";
 import type { RelatedSelectionPreview, RelatedSelectionsResult } from "@/lib/share/related-selections";
 import { getSubjectKindMeta, type SubjectKind } from "@/lib/subject-kind";
-import { getCollectedCountText } from "@/lib/share/collected-count";
 import { resolveSubjectLink } from "@/lib/subject-source";
 import { cn } from "@/lib/utils";
 
@@ -194,7 +193,9 @@ export function RelatedSelectionsCard({
                 )}
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] leading-relaxed text-muted-foreground">
-                  <span>基于 {getCollectedCountText()} 次构成</span>
+                  {Number.isSafeInteger(result.kindShares) && result.kindShares >= 0 ? (
+                    <span>基于 {result.kindShares.toLocaleString("zh-CN")} 次构成</span>
+                  ) : null}
                   <time dateTime={new Date(result.updatedAt).toISOString()}>
                     {new Date(result.updatedAt).toLocaleDateString("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit" })} 更新
                   </time>
