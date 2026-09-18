@@ -9,7 +9,7 @@ import { resolveSubjectLink } from "@/lib/subject-source";
 import { ShareSelectionCount, ShareSelectionStatsTimestamp } from "@/app/components/v3/ShareSelectionStats";
 import { SelectedGamesSection } from "@/app/components/v3/SelectedGamesSection";
 import { SelectedGameCard } from "@/app/components/v3/SelectedGameCard";
-import { RelatedSelectionsButton } from "@/app/components/v3/RelatedSelections";
+import { RelatedSelectionsButton } from "@/components/subject/RelatedSelections";
 import type { RelatedSelectionPreviews } from "@/lib/share/related-selections";
 
 interface SelectedGamesListProps {
@@ -65,7 +65,6 @@ export function SelectedGamesList({
               subjectName={displayName(game)}
               subjectId={readOnly ? String(game.id) : undefined}
               kind={kind}
-              bangumiSearchCat={bangumiSearchCat}
               relatedPreview={readOnly ? relatedSelectionPreviews?.[String(game.id)] : undefined}
             >
               <div className="flex min-w-0 items-start gap-3 sm:gap-4">

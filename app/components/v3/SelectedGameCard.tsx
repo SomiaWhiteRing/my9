@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { RelatedSelectionsCard } from "@/app/components/v3/RelatedSelections";
+import { RelatedSelectionsCard } from "@/components/subject/RelatedSelections";
 import type { RelatedSelectionPreview } from "@/lib/share/related-selections";
 import type { SubjectKind } from "@/lib/subject-kind";
 
@@ -12,7 +12,6 @@ export function SelectedGameCard({
   subjectId?: string;
   subjectName: string;
   kind?: SubjectKind;
-  bangumiSearchCat?: number;
   children: ReactNode;
 }) {
   const className = "rounded-2xl border border-border bg-card p-5 transition-shadow hover:shadow-md";

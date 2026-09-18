@@ -8,6 +8,7 @@ import { ArrowUp, ChevronsUpDown, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SubjectKindIcon } from "@/components/subject/SubjectKindIcon";
+import { RelatedSelectionsButton, RelatedSelectionsCard } from "@/components/subject/RelatedSelections";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SupportButton } from "@/components/SupportButton";
 import {
@@ -17,6 +18,7 @@ import {
   parseSubjectKind,
 } from "@/lib/subject-kind";
 import type { TrendGameItem, TrendResponse, TrendPeriod, TrendView, TrendYearPage } from "@/lib/share/types";
+import type { RelatedSelectionPreview, RelatedSelectionPreviews } from "@/lib/share/related-selections";
 import { resolveSubjectLink } from "@/lib/subject-source";
 import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";
 import { cn } from "@/lib/utils";
@@ -268,9 +270,10 @@ interface TrendGameMiniCardProps {
   count: number;
   tagLabel?: string | null;
   showReleaseYear?: boolean;
+  relatedPreview?: RelatedSelectionPreview;
 }
 
-function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear = true }: TrendGameMiniCardProps) {
+function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear = true, relatedPreview }: TrendGameMiniCardProps) {
   const coverUrl = game ? toTrendsCoverUrl(game.cover) : null;
   const title = game ? game.localizedName || game.name : "暂无条目";
   const subjectResolution = game
@@ -287,8 +290,7 @@ function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear 
   const sourceLabel = subjectResolution?.sourceLabel ?? "Bangumi";
   const subtitle = game && game.localizedName && game.localizedName !== game.name ? game.name : null;
 
-  return (
-    <article className="rounded-xl border border-border bg-card p-3 transition-colors hover:bg-accent/40">
+  const content = (
       <div className="flex items-start gap-2.5">
         <span className="w-8 flex-shrink-0 pt-0.5 text-xs font-bold text-sky-500">#{rank}</span>
 
@@ -328,21 +330,24 @@ function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear 
               </div>
             </div>
 
-            {subjectUrl ? (
-              <a
-                href={subjectUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`在 ${sourceLabel} 查看`}
-                className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <Globe className="h-4 w-4" />
-              </a>
-            ) : (
-              <span className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground/50">
-                <Globe className="h-4 w-4" />
-              </span>
-            )}
+            <div className="flex shrink-0 flex-col items-center gap-1">
+              {subjectUrl ? (
+                <a
+                  href={subjectUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`在 ${sourceLabel} 查看`}
+                  className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <Globe className="h-4 w-4" />
+                </a>
+              ) : (
+                <span className="rounded-md border border-border bg-muted p-1.5 text-muted-foreground/50">
+                  <Globe className="h-4 w-4" />
+                </span>
+              )}
+              <RelatedSelectionsButton />
+            </div>
           </>
         ) : (
           <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
@@ -353,7 +358,24 @@ function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear 
           </div>
         )}
       </div>
-    </article>
+  );
+
+  const className = "rounded-xl border border-border bg-card p-3 transition-colors hover:bg-accent/40";
+  if (!game) return <article className={className}>{content}</article>;
+
+  return (
+    <RelatedSelectionsCard
+      key={`${kind}:${game.id}`}
+      kind={kind}
+      subjectId={game.id}
+      subjectName={title}
+      subject={game}
+      presentation="dialog"
+      preview={relatedPreview}
+      className={className}
+    >
+      {content}
+    </RelatedSelectionsCard>
   );
 }
 
@@ -365,6 +387,7 @@ interface TrendsClientPageProps {
   initialYearPage?: TrendYearPage;
   initialData?: TrendResponse | null;
   initialError?: string;
+  relatedSelectionPreviews?: RelatedSelectionPreviews;
 }
 
 export default function TrendsClientPage({
@@ -375,6 +398,7 @@ export default function TrendsClientPage({
   initialYearPage = DEFAULT_TREND_YEAR_PAGE,
   initialData = null,
   initialError = "",
+  relatedSelectionPreviews,
 }: TrendsClientPageProps) {
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
@@ -862,6 +886,7 @@ export default function TrendsClientPage({
                               game={game}
                               count={game.count}
                               showReleaseYear={view !== "year"}
+                              relatedPreview={relatedSelectionPreviews?.[game.id]}
                             />
                           ))}
                         </div>
@@ -887,6 +912,7 @@ export default function TrendsClientPage({
                         game={game}
                         count={bucket.count}
                         tagLabel={tagLabel}
+                        relatedPreview={game ? relatedSelectionPreviews?.[game.id] : undefined}
                       />
                     );
                   })

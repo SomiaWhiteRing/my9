@@ -8,7 +8,7 @@ import { resolveSubjectLink } from "@/lib/subject-source";
 import { ShareSelectionCount, ShareSelectionStatsTimestamp } from "@/app/components/v3/ShareSelectionStats";
 import { SelectedGamesSection } from "@/app/components/v3/SelectedGamesSection";
 import { SelectedGameCard } from "@/app/components/v3/SelectedGameCard";
-import { RelatedSelectionsButton } from "@/app/components/v3/RelatedSelections";
+import { RelatedSelectionsButton } from "@/components/subject/RelatedSelections";
 import type { RelatedSelectionPreviews } from "@/lib/share/related-selections";
 
 interface ReadonlySelectedGamesListProps {
@@ -56,7 +56,6 @@ export function ReadonlySelectedGamesList({
               subjectName={displayName(game)}
               subjectId={String(game.id)}
               kind={kind}
-              bangumiSearchCat={bangumiSearchCat}
               relatedPreview={relatedSelectionPreviews?.[String(game.id)]}
             >
               <div className="flex min-w-0 items-start gap-3 sm:gap-4">
