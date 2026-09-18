@@ -24,13 +24,42 @@ type UpdateLogEntry = {
 
 const amberPrimaryClassName = "text-amber-600 dark:text-amber-400";
 const yellowPrimaryClassName = "text-yellow-500";
+const greenPrimaryClassName = "text-green-600 dark:text-green-400";
+const normalTextClassName = "text-foreground dark:text-foreground";
 
 const UPDATE_LOG_ENTRIES: UpdateLogEntry[] = [
+  {
+    id: "2026-09-18-1622-resonance-share-discovery",
+    publishedAt: "2026-09-18 16:22",
+    headline: "功能更新：浏览共鸣与查找构成！",
+    lines: [
+      {
+        className: normalTextClassName,
+        content: <>时隔半年的功能追加！</>,
+      },
+      {
+        className: normalTextClassName,
+        content: <>在「构成分享」页与「大家的构成」页，添加了新的「共鸣」按钮。</>,
+      },
+      {
+        className: normalTextClassName,
+        content: <>点击后，即可查看喜爱着你所爱的作品的同好又同时喜欢着哪些作品了！</>,
+      },
+      {
+        className: normalTextClassName,
+        content: <>另外，分享页也能和大家的构成一样，看到有多少人选择了同一个选项了。</>,
+      },
+      {
+        className: normalTextClassName,
+        content: <>可以扫描过去的分享码来查看这一信息，而针对找不回来的用户，本次更新也添加了「查找构成」按钮。只需要输入曾经留下的创作者名称，也同样能找回过去生成的构成！</>,
+      }
+    ],
+  },
   {
     id: "2026-07-02-0530-iTunes-Music-502",
     publishedAt: "2026-07-02 05:30",
     headline: "解决了单曲无法搜索的问题",
-    lines: [{ className: amberPrimaryClassName, content: <>当站点代理搜索失败时，降级为用户本地发起搜索（可能需要翻墙）</> }],
+    lines: [{ className: amberPrimaryClassName, content: <>当站点代理搜索失败时，降级为用户本地发起搜索（可能需要翻墙）。</> }],
   },
   {
     id: "2026-05-29-1545-bangumi-image-proxy",
@@ -134,7 +163,7 @@ export function UpdateLogNotice() {
           aria-label={`${latestUpdateLogEntry.headline} 点击查看完整更新日志`}
           className={cn(
             "block w-full rounded-sm bg-transparent p-0 text-center text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 dark:focus-visible:ring-amber-700",
-            amberPrimaryClassName
+            greenPrimaryClassName
           )}
         >
           {latestUpdateLogEntry.headline}

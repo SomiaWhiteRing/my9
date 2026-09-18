@@ -56,6 +56,7 @@ export function ReadonlySelectedGamesList({
               subjectName={displayName(game)}
               subjectId={String(game.id)}
               kind={kind}
+              highlightedSubjectIds={selected.filter((item) => item.index !== index).map(({ game }) => String(game.id))}
               relatedPreview={relatedSelectionPreviews?.[String(game.id)]}
             >
               <div className="flex min-w-0 items-start gap-3 sm:gap-4">

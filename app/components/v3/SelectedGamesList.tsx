@@ -65,6 +65,7 @@ export function SelectedGamesList({
               subjectName={displayName(game)}
               subjectId={readOnly ? String(game.id) : undefined}
               kind={kind}
+              highlightedSubjectIds={readOnly ? selected.filter((item) => item.index !== index).map(({ game }) => String(game.id)) : undefined}
               relatedPreview={readOnly ? relatedSelectionPreviews?.[String(game.id)] : undefined}
             >
               <div className="flex min-w-0 items-start gap-3 sm:gap-4">

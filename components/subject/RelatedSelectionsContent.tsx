@@ -13,6 +13,7 @@ export function RelatedSelectionsContent({
   subjectName,
   subject,
   kind,
+  highlightedSubjectIds,
   headingId,
   descriptionId,
   presentation = "inline",
@@ -21,6 +22,7 @@ export function RelatedSelectionsContent({
   subjectName: string;
   subject?: Pick<ShareSubject, "name" | "localizedName" | "cover" | "releaseYear">;
   kind?: SubjectKind;
+  highlightedSubjectIds?: readonly string[];
   headingId: string;
   descriptionId?: string;
   presentation?: "inline" | "dialog";
@@ -94,7 +96,14 @@ export function RelatedSelectionsContent({
                   {index + 1}
                 </span>
                 <span className="min-w-0 flex-1 break-words leading-relaxed text-card-foreground">
-                  {item.name}
+                  {highlightedSubjectIds?.includes(item.subjectId) ? (
+                    <span
+                      title="也在这份构成中"
+                      className="text-sky-600 dark:text-sky-400"
+                    >
+                      {item.name}
+                    </span>
+                  ) : item.name}
                 </span>
                 <span className="shrink-0 pt-0.5 font-semibold tabular-nums text-sky-600">
                   {item.count.toLocaleString("zh-CN")}

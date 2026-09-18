@@ -61,6 +61,7 @@ export function RelatedSelectionsCard({
   subjectName,
   subject,
   kind,
+  highlightedSubjectIds,
   className,
   children,
   presentation = "inline",
@@ -70,6 +71,7 @@ export function RelatedSelectionsCard({
   subjectName: string;
   subject?: Pick<ShareSubject, "name" | "localizedName" | "cover" | "releaseYear">;
   kind?: SubjectKind;
+  highlightedSubjectIds?: readonly string[];
   className: string;
   children: ReactNode;
   presentation?: "inline" | "dialog";
@@ -161,6 +163,7 @@ export function RelatedSelectionsCard({
       subjectName={subjectName}
       subject={subject}
       kind={kind}
+      highlightedSubjectIds={highlightedSubjectIds}
       headingId={headingId}
       descriptionId={descriptionId}
       presentation={presentation}
