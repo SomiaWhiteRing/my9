@@ -11,11 +11,11 @@ export function ShareSelectionCount({
 
   return (
     <p className="mb-2 text-xs text-muted-foreground group-data-[show-resonance=false]/selection:hidden sm:text-sm">
-      {count === 0 ? `本${subjectLabel}作为你的构成独一无二` : (
+      {count === 0 ? `本${subjectLabel}独一无二的构成了你` : (
         <>
-          本{subjectLabel}也成为了
+          本{subjectLabel}也构成了
           <span className="font-semibold tabular-nums text-sky-600">{count.toLocaleString("zh-CN")}</span>
-          人的构成
+          人
         </>
       )}
     </p>
