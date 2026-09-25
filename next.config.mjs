@@ -30,7 +30,7 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "bgm-img.shatranj.space",
+        hostname: "bgm-pic.shatranj.space",
       },
       {
         protocol: "https",

@@ -3,7 +3,7 @@ const ALLOWED_SITE_ROOT = "shatranj.space";
 const LOCAL_DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
 
 export const BANGUMI_IMAGE_PROXY_PATH = "/api/image/bgm";
-export const BANGUMI_IMAGE_ORIGIN = "https://bgm-img.shatranj.space";
+export const BANGUMI_IMAGE_ORIGIN = "https://bgm-pic.shatranj.space";
 export const BANGUMI_IMAGE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
 export const BANGUMI_IMAGE_CACHE_CONTROL = `public, max-age=${BANGUMI_IMAGE_CACHE_TTL_SECONDS}, s-maxage=${BANGUMI_IMAGE_CACHE_TTL_SECONDS}, immutable`;
 export const BANGUMI_IMAGE_ERROR_CACHE_CONTROL = "public, max-age=300, s-maxage=300";
