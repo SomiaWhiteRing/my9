@@ -284,6 +284,12 @@ const worker = {
     bindRuntimeEnv(env);
 
     const requestUrl = new URL(request.url);
+    if (requestUrl.hostname === "bgm-img.shatranj.space") {
+      return new Response("Forbidden", {
+        status: 403,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
     if (requestUrl.pathname === BANGUMI_IMAGE_PROXY_PATH) {
       return handleBangumiImageProxy(request, ctx);
     }
