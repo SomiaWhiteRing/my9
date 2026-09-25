@@ -10,6 +10,10 @@
     {
       "pattern": "my9.shatranj.space",
       "custom_domain": true
+    },
+    {
+      "pattern": "bgm-img.shatranj.space/*",
+      "zone_name": "shatranj.space"
     }
   ],
   "assets": {
