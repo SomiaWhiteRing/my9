@@ -3,6 +3,7 @@ const ALLOWED_SITE_ROOT = "shatranj.space";
 const LOCAL_DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
 
 export const BANGUMI_IMAGE_PROXY_PATH = "/api/image/bgm";
+export const BANGUMI_IMAGE_ORIGIN = "https://bgm-img.shatranj.space";
 export const BANGUMI_IMAGE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
 export const BANGUMI_IMAGE_CACHE_CONTROL = `public, max-age=${BANGUMI_IMAGE_CACHE_TTL_SECONDS}, s-maxage=${BANGUMI_IMAGE_CACHE_TTL_SECONDS}, immutable`;
 export const BANGUMI_IMAGE_ERROR_CACHE_CONTROL = "public, max-age=300, s-maxage=300";
@@ -12,7 +13,7 @@ function normalizeRemoteImageUrl(value: string): string | null {
   const raw = value.trim();
   if (!raw) return null;
 
-  if (raw.startsWith("data:") || raw.startsWith("blob:") || raw.startsWith("/")) {
+  if (raw.startsWith("data:") || raw.startsWith("blob:") || (raw.startsWith("/") && !raw.startsWith("//"))) {
     return raw;
   }
 
@@ -62,6 +63,13 @@ export function toProxiedBangumiImageUrl(value: string | null | undefined): stri
     return normalized;
   }
 
+  const parsed = new URL(target);
+  if (parsed.pathname.startsWith("/pic/") && !parsed.search) {
+    const source = parsed.hostname === "lain.bgm.tv" ? "lain" : "img";
+    return `${BANGUMI_IMAGE_ORIGIN}/${source}${parsed.pathname}`;
+  }
+
+  // Keep uncommon URLs on the existing endpoint until the VPS proxy supports them.
   return `${BANGUMI_IMAGE_PROXY_PATH}?url=${encodeURIComponent(target)}`;
 }
 

@@ -30,6 +30,10 @@ const nextConfig = {
       },
       {
         protocol: "https",
+        hostname: "bgm-img.shatranj.space",
+      },
+      {
+        protocol: "https",
         hostname: "image.tmdb.org",
       },
     ],
