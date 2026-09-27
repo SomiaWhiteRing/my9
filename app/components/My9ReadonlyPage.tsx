@@ -34,7 +34,10 @@ export default function My9ReadonlyPage({ kind, shareId, initialShareData, relat
   const finalShareId = initialShareData.shareId || shareId;
 
   return (
-    <main className="min-h-screen bg-background px-4 py-16 text-foreground">
+    <main
+      data-my9-share-cache={initialShareData.selectionStats?.updatedAt != null ? `${kind}/${finalShareId}` : undefined}
+      className="min-h-screen bg-background px-4 py-16 text-foreground"
+    >
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
         <header className="space-y-3 text-center">
           <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">

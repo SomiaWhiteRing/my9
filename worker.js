@@ -7,6 +7,8 @@ import { handleShareHeadRequest } from "./lib/share/head-route";
 import { handleRelatedSelectionsRequest } from "./lib/share/cooccurrence-read";
 import { handleShareDiscoveryRequest } from "./lib/share/discovery-server";
 import { runCooccurrenceMaintenance } from "./lib/share/cooccurrence-maintenance";
+import { handleTrendsRequest } from "./lib/share/trends-route";
+import { fetchSharePageWithCache } from "./lib/share/page-cache";
 import openNextWorker from "./.cf-build/.open-next/worker.js";
 import { runWithCloudflareRequestContext } from "./.cf-build/.open-next/cloudflare/init.js";
 
@@ -305,7 +307,9 @@ const worker = {
             ? handleRelatedSelectionsRequest
             : requestUrl.pathname === "/api/shares/discover"
               ? handleShareDiscoveryRequest
-              : null;
+              : requestUrl.pathname === "/api/trends"
+                ? handleTrendsRequest
+                : null;
       if (handler) {
         // Reuse OpenNext's env initialization and request context without
         // loading NextServer or converting the request/response through it.
@@ -324,6 +328,11 @@ const worker = {
     }
 
     trackShareViewRequest(request, env.MY9_SHARE_VIEW_ANALYTICS ?? null);
+    if (request.method === "GET" && /^\/[^/]+\/s\/[a-f0-9]{16}$/.test(requestUrl.pathname)) {
+      return runWithCloudflareRequestContext(request, env, ctx, () => fetchSharePageWithCache(
+        request, ctx, globalThis.__BUILD_TIMESTAMP_MS__, () => openNextWorker.fetch(request, env, ctx),
+      ));
+    }
     return openNextWorker.fetch(request, env, ctx);
   },
   scheduled(controller, env, ctx) {

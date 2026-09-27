@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronRight, ChevronsUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
@@ -77,7 +77,6 @@ const SEARCH_CLIENT_CACHE_SESSION_KEY = "my-nine-search-cache:v1";
 const SEARCH_CLIENT_CACHE_TTL_MS = 15 * 60 * 1000;
 const SEARCH_CLIENT_CACHE_MAX = 192;
 const SEARCH_REQUEST_COOLDOWN_MS = 400;
-const SHARE_NAVIGATION_FALLBACK_MS = 1400;
 const ITUNES_CLIENT_SEARCH_LIMIT = 20;
 
 type SearchClientCacheEntry = {
@@ -318,7 +317,7 @@ export default function My9V3App({
   readOnlyShare = false,
 }: My9V3AppProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const [navigatingToShare, startShareNavigation] = useTransition();
   const kindMeta = useMemo(() => getSubjectKindMeta(kind), [kind]);
 
   const [games, setGames] = useState<Array<ShareGame | null>>(() =>
@@ -345,8 +344,6 @@ export default function My9V3App({
   const searchClientCacheRef = useRef<Map<string, SearchClientCacheEntry>>(new Map());
   const searchClientCacheHydratedRef = useRef(false);
   const lastSearchRequestRef = useRef<{ key: string; requestedAt: number } | null>(null);
-  const navigationFallbackTimerRef = useRef<number | null>(null);
-  const navigationFallbackTargetRef = useRef<string | null>(null);
   const [searchMeta, setSearchMeta] = useState<SearchMeta>(
     createSearchMeta()
   );
@@ -374,14 +371,6 @@ export default function My9V3App({
     writeSearchClientCacheToSession(searchClientCacheRef.current);
   }
 
-  function clearNavigationFallback() {
-    if (navigationFallbackTimerRef.current !== null) {
-      window.clearTimeout(navigationFallbackTimerRef.current);
-      navigationFallbackTimerRef.current = null;
-    }
-    navigationFallbackTargetRef.current = null;
-  }
-
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 2800);
@@ -393,28 +382,6 @@ export default function My9V3App({
     searchClientCacheRef.current = readSearchClientCacheFromSession();
     searchClientCacheHydratedRef.current = true;
   }, []);
-
-  useEffect(() => {
-    const pendingTarget = navigationFallbackTargetRef.current;
-    if (!pendingTarget) return;
-    if (pathname !== pendingTarget) return;
-    if (navigationFallbackTimerRef.current !== null) {
-      window.clearTimeout(navigationFallbackTimerRef.current);
-      navigationFallbackTimerRef.current = null;
-    }
-    navigationFallbackTargetRef.current = null;
-  }, [pathname]);
-
-  useEffect(
-    () => () => {
-      if (navigationFallbackTimerRef.current !== null) {
-        window.clearTimeout(navigationFallbackTimerRef.current);
-      }
-      navigationFallbackTimerRef.current = null;
-      navigationFallbackTargetRef.current = null;
-    },
-    []
-  );
 
   useEffect(() => {
     if (!initialShareData) return;
@@ -774,6 +741,7 @@ export default function My9V3App({
 
   async function handleSaveShare() {
     if (guardReadonly()) return;
+    if (savingShare || navigatingToShare) return;
     if (!allSelected) {
       const confirmed = window.confirm(
         `当前仅选择了 ${filledCount}/9${selectionUnit}${kindMeta.label}，确认继续保存吗？`
@@ -818,17 +786,9 @@ export default function My9V3App({
       setShareId(json.shareId);
       pushToast("success", json.deduped ? "分享页面已创建" : "分享页面已创建");
       const target = `/${targetKind}/s/${json.shareId}`;
-      clearNavigationFallback();
-      navigationFallbackTargetRef.current = target;
-      router.replace(target);
-      navigationFallbackTimerRef.current = window.setTimeout(() => {
-        const fallbackTarget = navigationFallbackTargetRef.current;
-        if (!fallbackTarget) return;
-        if (window.location.pathname !== fallbackTarget) {
-          window.location.assign(fallbackTarget);
-        }
-        clearNavigationFallback();
-      }, SHARE_NAVIGATION_FALLBACK_MS);
+      // Next falls back to document navigation if the RSC request fails.
+      // A slow successful navigation must not start a second server render.
+      startShareNavigation(() => router.replace(target));
     } catch {
       pushToast("error", "分享创建失败，请稍后重试");
     } finally {
@@ -963,7 +923,7 @@ export default function My9V3App({
             filledCount={filledCount}
             remainingUnit={selectionUnit}
             readOnly={isReadonly}
-            saving={savingShare}
+            saving={savingShare || navigatingToShare}
             canUndo={Boolean(singleUndoSnapshot)}
             canClear={filledCount > 0}
             onUndo={handleUndo}
