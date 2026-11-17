@@ -1,3 +1,4 @@
+import { searchCustomFromBrowser } from "@/lib/search/client";
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight, ChevronsUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -267,17 +268,8 @@ export default function My9CustomApp() {
     setSearchCommittedQuery(trimmedQuery);
 
     try {
-      const response = await fetch(
-        `/api/custom/search?q=${encodeURIComponent(trimmedQuery)}&source=${encodeURIComponent(searchTab)}`
-      );
-      const json = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-        items?: CustomSearchItem[];
-        noResultQuery?: string | null;
-      };
-
-      if (!response.ok || !json.ok) {
+      const json = await searchCustomFromBrowser(trimmedQuery, searchTab);
+      if (!json.ok) {
         setSearchError(json.error || "搜索失败，请稍后重试");
         setSearchResults([]);
         setSearchNoResultQuery(typeof json.noResultQuery === "string" ? json.noResultQuery : trimmedQuery);

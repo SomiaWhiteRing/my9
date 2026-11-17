@@ -1,5 +1,6 @@
+import { buildCustomSearchResponse } from "@/lib/custom/types";
+import { itunesErrorResponseInit } from "@/lib/itunes/search";
 import {
-  buildCustomSearchResponse,
   parseCustomSearchSource,
   searchCustomSource,
 } from "@/lib/custom/search";
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
         ok: false,
         error: error instanceof Error ? error.message : "搜索失败",
       },
-      { status: 500 }
+      source === "apple" ? itunesErrorResponseInit(error) : { status: 500 }
     );
   }
 }

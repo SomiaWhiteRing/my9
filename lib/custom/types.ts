@@ -1,3 +1,5 @@
+import { normalizeSearchQuery } from "@/lib/search/query";
+
 export type CustomSearchSource = "bangumi" | "tmdb" | "apple";
 export type CustomEntrySource = CustomSearchSource | "upload";
 export type CustomCoverMode = "remote" | "inline";
@@ -91,4 +93,19 @@ export function getCustomSearchItemDefaultTitle(item: CustomSearchItem): string 
 export function getDefaultCustomExportTitle(creatorName?: string | null): string {
   const name = creatorName?.trim() || "我";
   return `构成${name}的9部作品`;
+}
+
+export function buildCustomSearchResponse(params: {
+  source: CustomSearchSource;
+  query: string;
+  items: CustomSearchItem[];
+}): CustomSearchResponse {
+  const { source, query, items } = params;
+  const normalizedQuery = normalizeSearchQuery(query);
+  return {
+    ok: true,
+    source,
+    items,
+    noResultQuery: items.length === 0 && normalizedQuery ? normalizedQuery : null,
+  };
 }

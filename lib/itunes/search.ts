@@ -1,3 +1,4 @@
+import type { CustomSearchItem } from "@/lib/custom/types";
 import { SubjectKind } from "@/lib/subject-kind";
 import { ShareSubject, SubjectSearchResponse } from "@/lib/share/types";
 import { resolveItunesStorefrontForQuery, type ItunesStorefront } from "@/lib/itunes/storefront";
@@ -56,14 +57,38 @@ export type ItunesMixedSearchResult = {
   albums: ShareSubject[];
 };
 
-class ItunesHttpError extends Error {
-  status: number;
+const RATE_LIMIT_KEY = "my9:itunes:retry-at";
+let itunesRetryAt = 0;
 
-  constructor(status: number) {
+export class ItunesHttpError extends Error {
+  constructor(readonly status: number, readonly retryAt = 0) {
     super(`iTunes search failed: ${status}`);
     this.name = "ItunesHttpError";
-    this.status = status;
   }
+
+  get retryable() {
+    return ITUNES_RETRYABLE_STATUS.has(this.status);
+  }
+}
+
+export function rememberItunesRateLimit(retryAfter: string | null) {
+  const deadline = Date.now() + (parseRetryAfterMs(retryAfter) ?? 60_000);
+  itunesRetryAt = Math.max(itunesRetryAt, deadline);
+  if (typeof window !== "undefined") {
+    try {
+      window.sessionStorage.setItem(RATE_LIMIT_KEY, String(itunesRetryAt));
+    } catch { /* The in-memory deadline still applies. */ }
+  }
+  return new ItunesHttpError(429, itunesRetryAt);
+}
+
+export function itunesErrorResponseInit(error: unknown): ResponseInit {
+  const headers: Record<string, string> = { "Cache-Control": "no-store, max-age=0" };
+  if (error instanceof ItunesHttpError && error.status === 429) {
+    headers["Retry-After"] = String(Math.max(0, Math.ceil((error.retryAt - Date.now()) / 1000)));
+    return { status: 429, headers };
+  }
+  return { status: 500, headers };
 }
 
 function extractYear(raw?: string | null): number | undefined {
@@ -194,10 +219,6 @@ function isItunesCollectionResult(value: ItunesSearchResult): value is ItunesCol
   );
 }
 
-function isRetryableStatus(status: number): boolean {
-  return ITUNES_RETRYABLE_STATUS.has(status);
-}
-
 function createItunesRequestHeaders(): HeadersInit {
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -285,24 +306,32 @@ async function fetchItunesSearch<T>(
   url.searchParams.set("country", options?.country ?? "us");
   url.searchParams.set("limit", String(options?.limit ?? 20));
 
-  const requestInit = {
-    method: "GET",
+  const browser = typeof window !== "undefined";
+  if (browser) {
+    try {
+      itunesRetryAt = Math.max(itunesRetryAt, Number(window.sessionStorage.getItem(RATE_LIMIT_KEY)) || 0);
+    } catch { /* Storage can be unavailable. */ }
+  }
+  const attempts = browser ? 1 : ITUNES_RETRY_MAX_ATTEMPTS;
+  const requestInit: RequestInit = {
     headers: createItunesRequestHeaders(),
-
-  } as RequestInit & { next?: { revalidate?: number } };
+    signal: browser ? AbortSignal.timeout?.(8000) : undefined,
+  };
 
   let lastError: unknown = null;
 
-  for (let attempt = 1; attempt <= ITUNES_RETRY_MAX_ATTEMPTS; attempt += 1) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (Date.now() < itunesRetryAt) throw new ItunesHttpError(429, itunesRetryAt);
     try {
       const response = await fetch(url.toString(), requestInit);
+      if (response.status === 429) throw rememberItunesRateLimit(response.headers.get("Retry-After"));
       if (response.ok) {
         const json = (await response.json()) as { results?: T[] };
         return Array.isArray(json?.results) ? json.results : [];
       }
 
       const canRetry =
-        attempt < ITUNES_RETRY_MAX_ATTEMPTS && isRetryableStatus(response.status);
+        attempt < attempts && ITUNES_RETRYABLE_STATUS.has(response.status);
       if (!canRetry) {
         throw new ItunesHttpError(response.status);
       }
@@ -319,7 +348,7 @@ async function fetchItunesSearch<T>(
         throw error;
       }
       const canRetry =
-        attempt < ITUNES_RETRY_MAX_ATTEMPTS && isRetryableFetchError(error);
+        attempt < attempts && isRetryableFetchError(error);
       if (!canRetry) {
         throw error;
       }
@@ -478,7 +507,7 @@ export async function searchItunesSong(params: {
     limit: 20,
   });
   return results
-    .filter((r) => r.wrapperType === "track")
+    .filter(isItunesTrackResult)
     .map(toShareSongSubject)
     .filter((item): item is ShareSubject => item !== null);
 }
@@ -497,7 +526,7 @@ export async function searchItunesAlbum(params: {
     country: storefront,
     limit: 20,
   });
-  const directItems = results.filter((r) => r.wrapperType === "collection").map(toShareAlbumSubject);
+  const directItems = results.filter(isItunesCollectionResult).map(toShareAlbumSubject);
 
   if (hasRelevantSearchMatch(q, directItems)) {
     return directItems;
@@ -509,6 +538,10 @@ export async function searchItunesAlbum(params: {
     entity: "musicTrack",
     country: storefront,
     limit: ITUNES_ALBUM_FALLBACK_TRACK_LIMIT,
+  }).catch((error: unknown) => {
+    // A throttled supplemental search need not discard albums already returned by Apple.
+    if (directItems.length && error instanceof ItunesHttpError && error.status === 429) return [];
+    throw error;
   });
 
   const fallbackItems = sortBySearchScore(
@@ -568,4 +601,21 @@ export async function searchItunesMixed(params: {
     songs,
     albums,
   };
+}
+
+export async function buildAppleSearchItems(query: string) {
+  const result = await searchItunesMixed({ query });
+  return [...result.songs, ...result.albums]
+    .slice(0, 20)
+    .map<CustomSearchItem>((item) => ({
+      id: String(item.id),
+      name: item.name,
+      localizedName: item.localizedName,
+      cover: item.cover,
+      coverMode: "remote",
+      source: "apple",
+      sourceLabel: "Apple Music",
+      externalUrl: item.storeUrls?.apple?.trim() || undefined,
+      releaseYear: item.releaseYear,
+    }));
 }

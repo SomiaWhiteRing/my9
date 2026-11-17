@@ -620,7 +620,7 @@ test.describe("v3 interaction", () => {
     expect(searchRequestCount).toBe(1);
   });
 
-  test("单曲搜索在站内 iTunes 代理失败时会走浏览器直连兜底", async ({ page }) => {
+  test("站内接口不可用时仍可直连 Apple 搜索并填写单曲", async ({ page }) => {
     await page.unroute(/\/api\/subjects\/search\?/);
     await page.route(/\/api\/subjects\/search\?/, async (route) => {
       await route.fulfill({

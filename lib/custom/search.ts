@@ -1,7 +1,7 @@
 import { searchBangumiSubjects } from "@/lib/bangumi/search";
-import { searchItunesMixed } from "@/lib/itunes/search";
+import { buildAppleSearchItems } from "@/lib/itunes/search";
 import { normalizeSearchQuery } from "@/lib/search/query";
-import type { CustomSearchItem, CustomSearchResponse, CustomSearchSource } from "@/lib/custom/types";
+import type { CustomSearchItem, CustomSearchSource } from "@/lib/custom/types";
 
 const TMDB_API_BASE_URL = "https://api.themoviedb.org/3";
 const SEARCH_LIMIT = 20;
@@ -97,23 +97,6 @@ async function buildTmdbSearchItems(query: string) {
     });
 }
 
-async function buildAppleSearchItems(query: string) {
-  const result = await searchItunesMixed({ query });
-  return [...result.songs, ...result.albums]
-    .slice(0, SEARCH_LIMIT)
-    .map<CustomSearchItem>((item) => ({
-      id: String(item.id),
-      name: item.name,
-      localizedName: item.localizedName,
-      cover: item.cover,
-      coverMode: "remote",
-      source: "apple",
-      sourceLabel: "Apple Music",
-      externalUrl: item.storeUrls?.apple?.trim() || undefined,
-      releaseYear: item.releaseYear,
-    }));
-}
-
 export function parseCustomSearchSource(value: string | null | undefined): CustomSearchSource | null {
   if (!value) return null;
   const normalized = value.trim().toLowerCase();
@@ -121,21 +104,6 @@ export function parseCustomSearchSource(value: string | null | undefined): Custo
     return normalized;
   }
   return null;
-}
-
-export function buildCustomSearchResponse(params: {
-  source: CustomSearchSource;
-  query: string;
-  items: CustomSearchItem[];
-}): CustomSearchResponse {
-  const { source, query, items } = params;
-  const normalizedQuery = normalizeSearchQuery(query);
-  return {
-    ok: true,
-    source,
-    items,
-    noResultQuery: items.length === 0 && normalizedQuery ? normalizedQuery : null,
-  };
 }
 
 export async function searchCustomSource(params: {

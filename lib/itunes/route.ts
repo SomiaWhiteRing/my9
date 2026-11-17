@@ -1,6 +1,6 @@
 import { DEFAULT_SUBJECT_KIND, SubjectKind, parseSubjectKind } from "@/lib/subject-kind";
 import { normalizeSearchQuery } from "@/lib/search/query";
-import { buildItunesSearchResponse, searchItunesSong, searchItunesAlbum } from "@/lib/itunes/search";
+import { buildItunesSearchResponse, itunesErrorResponseInit, searchItunesSong, searchItunesAlbum } from "@/lib/itunes/search";
 import { resolveItunesStorefrontForQuery } from "@/lib/itunes/storefront";
 
 const SEARCH_CDN_TTL_SECONDS = 900;
@@ -244,10 +244,7 @@ export async function handleItunesSearchRequest(
         ok: false,
         error: error instanceof Error ? error.message : "搜索失败",
       },
-      {
-        status: 500,
-        headers: NO_STORE_HEADERS,
-      }
+      itunesErrorResponseInit(error)
     );
   }
 }
