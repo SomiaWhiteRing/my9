@@ -4,7 +4,7 @@ import { GET as customSearch } from "./app/api/custom/search/route";
 import { GET as shareCount } from "./app/api/stats/share-count/route";
 import { GET as retiredArchive } from "./app/api/cron/archive/route";
 import {
-  BANGUMI_IMAGE_PROXY_PATH, BANGUMI_IMAGE_CACHE_CONTROL, BANGUMI_IMAGE_ERROR_CACHE_CONTROL,
+  BANGUMI_IMAGE_PROXY_PATH, BANGUMI_IMAGE_CACHE_TTL_SECONDS, BANGUMI_IMAGE_CACHE_CONTROL, BANGUMI_IMAGE_ERROR_CACHE_CONTROL,
   BANGUMI_IMAGE_FORBIDDEN_CACHE_CONTROL, getBangumiImageProxyCorsOrigin,
   normalizeBangumiImageProxyTarget, isAllowedBangumiImageProxyRequest,
 } from "./lib/image-proxy";
