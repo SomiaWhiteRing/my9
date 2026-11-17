@@ -6,8 +6,8 @@ import { parseArgs } from "node:util";
 const require = createRequire(import.meta.url);
 const args = process.argv.slice(2);
 
-function startNext(nextArgs, env = process.env) {
-  const child = spawn(process.execPath, [require.resolve("next/dist/bin/next"), "dev", ...nextArgs], {
+function startVite(viteArgs, env = process.env) {
+  const child = spawn(process.execPath, [require.resolve("vite/package.json").replace(/package\.json$/, "bin/vite.js"), ...viteArgs], {
     stdio: "inherit",
     env,
   });
@@ -63,7 +63,7 @@ function canBind(port, host) {
 
 async function main() {
   if (args.includes("--help") || args.includes("-h")) {
-    startNext(args);
+    startVite(args);
     return;
   }
 
@@ -87,7 +87,7 @@ async function main() {
     throw new Error("--hostname 必须指定有效的主机名。");
   }
 
-  // Remove port/hostname options while preserving all other Next CLI arguments.
+  // Remove port/hostname options while preserving all other Vite CLI arguments.
   const consumed = new Set();
   for (const token of tokens) {
     if (token.kind === "option" && ["port", "hostname"].includes(token.name)) {
@@ -95,7 +95,7 @@ async function main() {
       if (!token.inlineValue && token.value !== undefined) consumed.add(token.index + 1);
     }
   }
-  const nextArgs = args.filter((_, index) => !consumed.has(index));
+  const viteArgs = args.filter((_, index) => !consumed.has(index));
   // On Windows, a wildcard bind can succeed alongside an existing loopback listener.
   const probeHosts = host === "0.0.0.0" || host === "::" ? ["127.0.0.1", "::1"] : [host];
 
@@ -110,12 +110,8 @@ async function main() {
       continue;
     }
 
-    const distDir = process.env.NEXT_DIST_DIR || (port === 3000 ? ".next" : `.next-dev/${port}`);
-    console.log(`[dev] 使用端口 ${port}，开发缓存目录：${distDir}`);
-    startNext(["--hostname", host, "--port", String(port), ...nextArgs], {
-      ...process.env,
-      PORT: String(port),
-      NEXT_DIST_DIR: distDir,
+    startVite(["--host", host, "--port", String(port), "--strictPort", ...viteArgs], {
+      ...process.env, PORT: String(port),
     });
     return;
   }

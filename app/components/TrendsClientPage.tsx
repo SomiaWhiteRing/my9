@@ -1,9 +1,6 @@
-"use client";
-
-import Image from "next/image";
-import Link from "next/link";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+
 import { ArrowUp, ChevronsUpDown, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -304,7 +301,6 @@ function TrendGameMiniCard({ kind, rank, game, count, tagLabel, showReleaseYear 
                     alt={game.name}
                     width={48}
                     height={64}
-                    unoptimized
                     className={cn("h-full w-full object-cover", shouldTopCropCover(kind) && "object-top")}
                   />
                 ) : (
@@ -400,8 +396,7 @@ export default function TrendsClientPage({
   initialError = "",
   relatedSelectionPreviews,
 }: TrendsClientPageProps) {
-  const searchParams = useSearchParams();
-  const searchParamsKey = searchParams.toString();
+  const searchParamsKey = typeof window === "undefined" ? "" : window.location.search;
   const urlState = useMemo(() => {
     const params = new URLSearchParams(searchParamsKey);
     const nextKind = parseTrendKindParam(params.get("kind"));
@@ -677,13 +672,12 @@ export default function TrendsClientPage({
     <main className="min-h-screen bg-background text-foreground">
       <section className="w-full border-b border-border bg-card shadow-sm">
         <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6">
-          <Link
+          <a
             href={`/${kind}`}
-            prefetch={false}
             className="inline-flex items-center rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             返回主页面
-          </Link>
+          </a>
 
           <div className="mt-4 flex flex-wrap flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1 flex-shrink-0">

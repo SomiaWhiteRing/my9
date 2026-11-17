@@ -1,5 +1,4 @@
-"use client";
-
+import settings from "#public-settings";
 import { useState } from "react";
 import {
   Dialog,
@@ -17,6 +16,12 @@ const donationAcknowledgements: Array<{
   amount: string;
   message: string;
 }> = [
+  { date: "2026-11-14", name: "恶棍", amount: "6", message: "" },
+  { date: "2026-10-31", name: "云梦.", amount: "2", message: "很不错的网站，随两块钱支持。" },
+  { date: "2026-10-27", name: "花季俏夕阳", amount: "6", message: "Alt3r1" },
+  { date: "2026-10-05", name: "诶嘿", amount: "1", message: "有点卡" },
+  { date: "2026-09-29", name: "Intruso", amount: "10", message: "今晚似乎卡了 显示am暂时不可用" },
+  { date: "2026-09-22", name: "匿名", amount: "10", message: "" },
   { date: "2026-08-29", name: "D", amount: "0.91", message: "" },
   { date: "2026-08-18", name: "阿米奥", amount: "3", message: "" },
   { date: "2026-07-25", name: "浮舟", amount: "20", message: "专辑/音乐建议加bangumi源" },
@@ -185,9 +190,9 @@ const donationAcknowledgements: Array<{
 export function SupportButton() {
   const [open, setOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
-  const wechatPayQrUrl = process.env.NEXT_PUBLIC_WECHAT_PAY_QR_URL?.trim();
+  const wechatPayQrUrl = settings.wechat?.trim();
   const fallbackWechatPayQrUrl = "/wechatpay.png";
-  const [wechatPayQrSrc, setWechatPayQrSrc] = useState(wechatPayQrUrl ?? fallbackWechatPayQrUrl);
+  const [wechatPayQrSrc, setWechatPayQrSrc] = useState(wechatPayQrUrl || fallbackWechatPayQrUrl);
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => {
@@ -236,7 +241,6 @@ export function SupportButton() {
         </DialogHeader>
         {wechatPayQrUrl ? (
           <div className="mt-3 flex justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={wechatPayQrSrc}
               alt="微信赞赏码"
@@ -250,7 +254,6 @@ export function SupportButton() {
           </div>
         ) : (
           <div className="mt-3 flex justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={fallbackWechatPayQrUrl}
               alt="微信赞赏码"

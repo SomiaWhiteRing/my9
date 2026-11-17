@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import {
   buildCustomSearchResponse,
   parseCustomSearchSource,
@@ -12,7 +11,7 @@ export async function GET(request: Request) {
   const query = normalizeSearchQuery(searchParams.get("q"));
 
   if (!source) {
-    return NextResponse.json(
+    return Response.json(
       {
         ok: false,
         error: "source 参数无效",
@@ -23,14 +22,14 @@ export async function GET(request: Request) {
   }
 
   if (!query) {
-    return NextResponse.json(buildCustomSearchResponse({ source, query: "", items: [] }));
+    return Response.json(buildCustomSearchResponse({ source, query: "", items: [] }));
   }
 
   try {
     const items = await searchCustomSource({ source, query });
-    return NextResponse.json(buildCustomSearchResponse({ source, query, items }));
+    return Response.json(buildCustomSearchResponse({ source, query, items }));
   } catch (error) {
-    return NextResponse.json(
+    return Response.json(
       {
         ...buildCustomSearchResponse({ source, query, items: [] }),
         ok: false,

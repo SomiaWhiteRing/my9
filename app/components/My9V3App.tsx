@@ -1,7 +1,4 @@
-"use client";
-
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, ChevronsUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { SharePlatformActions } from "@/components/share/SharePlatformActions";
@@ -304,6 +301,7 @@ function writeSearchClientCacheToSession(cache: Map<string, SearchClientCacheEnt
 }
 
 interface My9V3AppProps {
+  onSaved?: (kind: SubjectKind, shareId: string) => Promise<void>;
   kind: SubjectKind;
   initialShareId?: string | null;
   initialShareData?: InitialReadonlyShareData | null;
@@ -311,13 +309,12 @@ interface My9V3AppProps {
 }
 
 export default function My9V3App({
+  onSaved,
   kind,
   initialShareId = null,
   initialShareData = null,
   readOnlyShare = false,
 }: My9V3AppProps) {
-  const router = useRouter();
-  const [navigatingToShare, startShareNavigation] = useTransition();
   const kindMeta = useMemo(() => getSubjectKindMeta(kind), [kind]);
 
   const [games, setGames] = useState<Array<ShareGame | null>>(() =>
@@ -415,7 +412,7 @@ export default function My9V3App({
         if (responseKind !== kind) {
           setToast({ kind: "error", message: "分享类型与页面不匹配" });
           setLoadingShare(false);
-          router.replace(`/${responseKind}/s/${json.shareId || currentShareId}`);
+          window.location.replace(`/${responseKind}/s/${json.shareId || currentShareId}`);
           return;
         }
 
@@ -437,7 +434,7 @@ export default function My9V3App({
     return () => {
       active = false;
     };
-  }, [initialShareData, initialShareId, kind, router]);
+  }, [initialShareData, initialShareId, kind]);
 
   useEffect(() => {
     if (isReadonly || initialShareId) {
@@ -741,7 +738,7 @@ export default function My9V3App({
 
   async function handleSaveShare() {
     if (guardReadonly()) return;
-    if (savingShare || navigatingToShare) return;
+    if (savingShare) return;
     if (!allSelected) {
       const confirmed = window.confirm(
         `当前仅选择了 ${filledCount}/9${selectionUnit}${kindMeta.label}，确认继续保存吗？`
@@ -778,6 +775,7 @@ export default function My9V3App({
 
       const json = await response.json();
       if (!response.ok || !json?.ok) {
+        setSavingShare(false);
         pushToast("error", json?.error || "分享创建失败");
         return;
       }
@@ -786,12 +784,17 @@ export default function My9V3App({
       setShareId(json.shareId);
       pushToast("success", json.deduped ? "分享页面已创建" : "分享页面已创建");
       const target = `/${targetKind}/s/${json.shareId}`;
-      // Next falls back to document navigation if the RSC request fails.
-      // A slow successful navigation must not start a second server render.
-      startShareNavigation(() => router.replace(target));
+      if (onSaved) {
+        try {
+          await onSaved(targetKind, json.shareId);
+          return;
+        } catch {
+          // The share already exists. Direct navigation also recovers from a stale client bundle.
+        }
+      }
+      window.location.replace(target);
     } catch {
       pushToast("error", "分享创建失败，请稍后重试");
-    } finally {
       setSavingShare(false);
     }
   }
@@ -826,7 +829,7 @@ export default function My9V3App({
       return;
     }
     setKindPickerOpen(false);
-    router.push(getFillModeMeta(nextKind).route);
+    window.location.assign(getFillModeMeta(nextKind).route);
   }
 
   return (
@@ -854,7 +857,7 @@ export default function My9V3App({
             <button
               type="button"
               className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60"
-              onClick={() => router.push(`/trends?kind=${kind}`)}
+              onClick={() => window.location.assign(`/trends?kind=${kind}`)}
             >
               大家的构成
               <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
@@ -880,7 +883,7 @@ export default function My9V3App({
             <button
               type="button"
               className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-2 text-sm font-bold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              onClick={() => router.push(`/${kind}`)}
+              onClick={() => window.location.assign(`/${kind}`)}
             >
               前往填写页面
             </button>
@@ -923,7 +926,7 @@ export default function My9V3App({
             filledCount={filledCount}
             remainingUnit={selectionUnit}
             readOnly={isReadonly}
-            saving={savingShare || navigatingToShare}
+            saving={savingShare}
             canUndo={Boolean(singleUndoSnapshot)}
             canClear={filledCount > 0}
             onUndo={handleUndo}

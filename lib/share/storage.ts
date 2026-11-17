@@ -14,7 +14,7 @@ export function getShare(shareId: string) {
 
 export async function getShareSelectionStats(share: Pick<StoredShareV1, "shareId" | "kind" | "games">) {
   try {
-    const db = await getD1Database();
+    const db = getD1Database();
     if (!db) return null;
     const rows = await readCooccurrenceSnapshots(db, share.kind,
       share.games.flatMap((subject) => subject ? [String(subject.id)] : []), share.shareId);

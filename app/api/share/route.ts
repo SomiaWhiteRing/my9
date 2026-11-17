@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { createShareId } from "@/lib/share/id";
 import { saveShare } from "@/lib/share/storage";
 import { ShareGame, StoredShareV1 } from "@/lib/share/types";
@@ -98,7 +97,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const kind = parseSubjectKind(body?.kind);
     if (!kind) {
-      return NextResponse.json(
+      return Response.json(
         {
           ok: false,
           error: "kind 参数无效",
@@ -113,7 +112,7 @@ export async function POST(request: Request) {
     const games = parseGames(body?.games);
 
     if (!games) {
-      return NextResponse.json(
+      return Response.json(
         {
           ok: false,
           error: "games 参数必须是长度为 9 的数组",
@@ -140,7 +139,7 @@ export async function POST(request: Request) {
     const origin = new URL(request.url).origin;
     const shareUrl = `${origin}/${kind}/s/${finalShareId}`;
 
-    return NextResponse.json({
+    return Response.json({
       ok: true,
       shareId: finalShareId,
       kind,
@@ -149,7 +148,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[share] save failed", error);
-    return NextResponse.json(
+    return Response.json(
       {
         ok: false,
         error: error instanceof Error ? error.message : "保存失败",

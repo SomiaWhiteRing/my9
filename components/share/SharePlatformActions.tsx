@@ -1,16 +1,13 @@
-"use client";
-
-import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SubjectKind, getSubjectKindShareTitle } from "@/lib/subject-kind";
 import { ShareGame } from "@/lib/share/types";
 
-const ShareImagePreviewDialog = dynamic(
-  () => import("@/components/share/ShareImagePreviewDialog").then((mod) => mod.ShareImagePreviewDialog)
+const ShareImagePreviewDialog = lazy(
+  () => import("@/components/share/ShareImagePreviewDialog").then((mod) => ({ default: mod.ShareImagePreviewDialog }))
 );
-const ShareLinkDialog = dynamic(
-  () => import("@/components/share/ShareLinkDialog").then((mod) => mod.ShareLinkDialog)
+const ShareLinkDialog = lazy(
+  () => import("@/components/share/ShareLinkDialog").then((mod) => ({ default: mod.ShareLinkDialog }))
 );
 
 type NoticeKind = "success" | "error" | "info";
@@ -82,26 +79,28 @@ export function SharePlatformActions({
         生成分享链接
       </Button>
 
-      {shareId && previewOpen ? (
-        <ShareImagePreviewDialog
-          open={previewOpen}
-          onOpenChange={setPreviewOpen}
-          kind={kind}
-          shareId={shareId}
-          title={shareTitle}
-          games={games}
-          creatorName={creatorName}
-          onNotice={handleNotice}
-        />
-      ) : null}
-      {shareUrl && linkDialogOpen ? (
-        <ShareLinkDialog
-          open={linkDialogOpen}
-          onOpenChange={setLinkDialogOpen}
-          shareUrl={shareUrl}
-          onNotice={handleNotice}
-        />
-      ) : null}
+      <Suspense fallback={null}>
+        {shareId && previewOpen ? (
+          <ShareImagePreviewDialog
+            open={previewOpen}
+            onOpenChange={setPreviewOpen}
+            kind={kind}
+            shareId={shareId}
+            title={shareTitle}
+            games={games}
+            creatorName={creatorName}
+            onNotice={handleNotice}
+          />
+        ) : null}
+        {shareUrl && linkDialogOpen ? (
+          <ShareLinkDialog
+            open={linkDialogOpen}
+            onOpenChange={setLinkDialogOpen}
+            shareUrl={shareUrl}
+            onNotice={handleNotice}
+          />
+        ) : null}
+      </Suspense>
     </div>
   );
 }

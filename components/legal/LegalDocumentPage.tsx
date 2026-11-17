@@ -1,4 +1,3 @@
-import Link from "next/link";
 
 interface LegalDocumentPageProps {
   title: string;
@@ -18,9 +17,9 @@ export function LegalDocumentPage({ title, paragraphs }: LegalDocumentPageProps)
             {paragraph}
           </p>
         ))}
-        <Link href="/" className="mt-6 inline-block text-sm text-sky-700 hover:underline">
+        <a href="/" className="mt-6 inline-block text-sm text-sky-700 hover:underline">
           返回首页
-        </Link>
+        </a>
       </article>
     </main>
   );

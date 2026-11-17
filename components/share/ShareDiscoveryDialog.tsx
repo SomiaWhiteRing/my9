@@ -1,6 +1,3 @@
-"use client";
-
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, CalendarDays, Eye, Loader2, Search, SearchX } from "lucide-react";
 import { SearchDialogContent } from "@/components/search/SearchDialogContent";
@@ -173,9 +170,9 @@ export function ShareDiscoveryDialog({ loadPage, getShareHref, initiallyOpen = f
                             </p>
                           </div>
                           <Button asChild variant="outline" size="sm" className="h-8 shrink-0 gap-1 px-2 text-xs sm:px-3">
-                            <Link href={getShareHref(item, committedQuery)} prefetch={false} aria-label={`查看${name}的${getSubjectKindMeta(item.kind).label}构成详情`}>
+                            <a href={getShareHref(item, committedQuery)} aria-label={`查看${name}的${getSubjectKindMeta(item.kind).label}构成详情`}>
                               查看详情 <ArrowRight className="!h-3.5 !w-3.5" aria-hidden="true" />
-                            </Link>
+                            </a>
                           </Button>
                         </li>
                       );

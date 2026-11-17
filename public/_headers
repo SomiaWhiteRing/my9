@@ -1,5 +1,5 @@
 /favicon.ico
   Cache-Control: public, max-age=2592000, immutable
 
-/_next/static/*
+/assets/*
   Cache-Control: public, max-age=31536000, immutable

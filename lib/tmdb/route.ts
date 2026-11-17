@@ -21,6 +21,7 @@ type SearchMemoryStore = {
   resultCache: Map<string, { expiresAt: number; items: SearchItems }>;
   inflight: Map<string, Promise<SearchItems>>;
   rateLimit: Map<string, { windowStart: number; count: number }>;
+  lastRateLimitCleanup: number;
   rateLimitBlockedCount: number;
 };
 
@@ -34,6 +35,7 @@ function getSearchMemoryStore(): SearchMemoryStore {
       resultCache: new Map<string, { expiresAt: number; items: SearchItems }>(),
       inflight: new Map<string, Promise<SearchItems>>(),
       rateLimit: new Map<string, { windowStart: number; count: number }>(),
+      lastRateLimitCleanup: 0,
       rateLimitBlockedCount: 0,
     };
   }
@@ -85,15 +87,12 @@ function trimRateLimitStore(
   rateLimit: Map<string, { windowStart: number; count: number }>,
   now: number
 ) {
-  const expiredKeys: string[] = [];
-  rateLimit.forEach((value, key) => {
-    if (now - value.windowStart >= SEARCH_RATE_LIMIT_WINDOW_MS) {
-      expiredKeys.push(key);
+  const memory = getSearchMemoryStore();
+  if (now - memory.lastRateLimitCleanup >= SEARCH_RATE_LIMIT_WINDOW_MS) {
+    memory.lastRateLimitCleanup = now;
+    for (const [key, entry] of rateLimit) {
+      if (now - entry.windowStart >= SEARCH_RATE_LIMIT_WINDOW_MS) rateLimit.delete(key);
     }
-  });
-
-  for (const key of expiredKeys) {
-    rateLimit.delete(key);
   }
 
   while (rateLimit.size > SEARCH_RATE_LIMIT_STORE_MAX) {

@@ -1,5 +1,3 @@
-"use client";
-
 import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from "react";
 import { DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";

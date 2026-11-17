@@ -4,7 +4,6 @@ import { normalizeSearchQuery } from "@/lib/search/query";
 import type { CustomSearchItem, CustomSearchResponse, CustomSearchSource } from "@/lib/custom/types";
 
 const TMDB_API_BASE_URL = "https://api.themoviedb.org/3";
-const TMDB_API_READ_ACCESS_TOKEN = process.env.TMDB_API_READ_ACCESS_TOKEN;
 const SEARCH_LIMIT = 20;
 
 type TmdbMultiResult = {
@@ -47,8 +46,8 @@ function buildBangumiSearchItems(query: string) {
 }
 
 async function fetchTmdbMultiSearch(query: string): Promise<TmdbMultiResult[]> {
-  if (!TMDB_API_READ_ACCESS_TOKEN) {
-    throw new Error("TMDB_API_READ_ACCESS_TOKEN 未配置");
+  if (!process.env.TMDB_API_READ_ACCESS_TOKEN) {
+    throw new Error("process.env.TMDB_API_READ_ACCESS_TOKEN 未配置");
   }
 
   const url = new URL(`${TMDB_API_BASE_URL}/search/multi`);
@@ -60,9 +59,8 @@ async function fetchTmdbMultiSearch(query: string): Promise<TmdbMultiResult[]> {
     method: "GET",
     headers: {
       Accept: "application/json",
-      Authorization: `Bearer ${TMDB_API_READ_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${process.env.TMDB_API_READ_ACCESS_TOKEN}`,
     },
-    next: { revalidate: 0 },
   });
 
   if (!response.ok) {

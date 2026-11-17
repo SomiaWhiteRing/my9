@@ -1,5 +1,4 @@
-"use client";
-
+import settings from "#public-settings";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +34,7 @@ function buildTallyEmbedUrl(value: string): string {
 
 export function SiteFooter({ className, kind }: SiteFooterProps) {
   const tallyFormUrl =
-    process.env.NEXT_PUBLIC_TALLY_FORM_URL?.trim();
+    settings.tally?.trim();
   const tallyEmbedUrl = tallyFormUrl ? buildTallyEmbedUrl(tallyFormUrl) : "";
   const hitsHost = getSiteHostname(getPublicSiteUrl());
   const isWorkKind = kind === "work";
@@ -162,7 +161,6 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
           rel="noreferrer"
           aria-label="GitHub Stars"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="https://img.shields.io/github/stars/SomiaWhiteRing/my9?style=social&label=GitHub%20Stars"
             alt="GitHub Stars badge"
@@ -177,7 +175,6 @@ export function SiteFooter({ className, kind }: SiteFooterProps) {
           aria-label="hitsh"
           className="shrink-0"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`https://hits.sh/${hitsHost}.svg?style=flat-square&label=visitors`}
             alt="hitsh badge"

@@ -1,6 +1,4 @@
-"use client";
-
-import Image from "next/image";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import type { RelatedSelectionsResult } from "@/lib/share/related-selections";
 import type { ShareSubject } from "@/lib/share/types";
@@ -43,7 +41,6 @@ export function RelatedSelectionsContent({
                 alt={subject.name}
                 width={64}
                 height={86}
-                unoptimized
                 className="h-full w-full object-contain"
               />
             ) : (

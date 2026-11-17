@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight, ChevronsUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -31,7 +29,6 @@ import { readCustomDraftSnapshot, writeCustomDraftSnapshot } from "@/lib/custom/
 import { FILL_MODE_ORDER, type FillMode, getFillModeMeta } from "@/lib/fill-mode";
 import { cn } from "@/lib/utils";
 import { downloadBlob, generateLocalTestImageBlob } from "@/utils/image/exportShareImage";
-import { useRouter } from "next/navigation";
 
 type ToastState = {
   kind: ToastKind;
@@ -64,7 +61,6 @@ async function copyText(value: string) {
 }
 
 export default function My9CustomApp() {
-  const router = useRouter();
 
   const [entries, setEntries] = useState<Array<CustomEntry | null>>(createEmptyCustomEntries);
   const [creatorName, setCreatorName] = useState("");
@@ -424,7 +420,7 @@ export default function My9CustomApp() {
       return;
     }
     setKindPickerOpen(false);
-    router.push(getFillModeMeta(nextKind).route);
+    window.location.assign(getFillModeMeta(nextKind).route);
   }
 
   function handleLocalNoticeOpenChange(open: boolean) {

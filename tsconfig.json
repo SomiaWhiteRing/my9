@@ -16,36 +16,37 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "#client-assets": [
+        "./.my9/client-assets.json"
+      ],
+      "#public-settings": [
+        "./.my9/public-settings.json"
       ]
     },
-    "target": "ES2017"
+    "target": "ES2017",
+    "types": [
+      "vite/client",
+      "node"
+    ]
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next-e2e/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    ".next-e2e/dev/types/**/*.ts",
-    ".cf-build/.next/types/**/*.ts",
-    ".cf-build/.next/dev/types/**/*.ts",
-    ".next-dev/3002/types/**/*.ts",
-    ".next-dev/3002/dev/types/**/*.ts",
-    ".next-dev/3003/types/**/*.ts",
-    ".next-dev/3003/dev/types/**/*.ts",
-    ".next-dev/3004/types/**/*.ts",
-    ".next-dev/3004/dev/types/**/*.ts"
+    "cloudflare-env.d.ts",
+    "app",
+    "components",
+    "lib",
+    "src",
+    "utils",
+    "scripts",
+    "tests",
+    "*.config.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "dist",
+    ".my9"
   ]
 }

@@ -1,6 +1,4 @@
-"use client";
-
-import Image from "next/image";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -200,7 +198,6 @@ export function ShareImagePreviewDialog({
                   src={previewUrl}
                   alt="分享图片预览"
                   fill
-                  unoptimized
                   className="mx-auto object-contain"
                   sizes="(max-width: 768px) 95vw, 768px"
                 />

@@ -2,8 +2,6 @@ import { isCanonicalShareId, normalizeShareId } from "@/lib/share/id";
 import { getShare } from "@/lib/share/storage";
 import { parseSubjectKind } from "@/lib/subject-kind";
 
-// Shared by the Next page and the Worker HEAD fast path. Keep Next's thrown
-// notFound/redirect signals outside the storage error boundary.
 export async function resolveSharePage(rawKind: string, rawShareId: string) {
   const kind = parseSubjectKind(rawKind);
   const shareId = normalizeShareId(rawShareId);

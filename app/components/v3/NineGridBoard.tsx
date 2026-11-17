@@ -1,6 +1,4 @@
-"use client";
-
-import Image from "next/image";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import { MessageSquare, Plus, X } from "lucide-react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { Feedback, AutoScroller, Cursor } from '@dnd-kit/dom';
@@ -98,7 +96,6 @@ function GridCell({
             src={toProxiedBangumiImageUrl(game.cover) ?? game.cover}
             alt={displayTitle(game)}
             fill
-            unoptimized
             className={cn(
               "absolute inset-0 object-cover select-none [-webkit-touch-callout:none]",
               shouldTopCropCover(kind) && "object-top"

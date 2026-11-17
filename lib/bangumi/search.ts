@@ -281,7 +281,7 @@ export async function searchBangumiSubjects(
     method: "POST",
     headers: toBangumiRequestHeaders(),
     body: JSON.stringify(requestBody),
-    next: { revalidate: 0 },
+
   });
 
   if (!response.ok) {
@@ -401,7 +401,7 @@ export async function searchBangumiCharacters(params: { query: string }): Promis
     method: "POST",
     headers: toBangumiRequestHeaders(),
     body: JSON.stringify({ keyword: q }),
-    next: { revalidate: 0 },
+
   });
 
   if (!response.ok) {
@@ -422,7 +422,7 @@ export async function searchBangumiPersons(params: { query: string }): Promise<S
     method: "POST",
     headers: toBangumiRequestHeaders(),
     body: JSON.stringify({ keyword: q }),
-    next: { revalidate: 0 },
+
   });
 
   if (!response.ok) {

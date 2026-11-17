@@ -1,7 +1,4 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FILL_MODE_ORDER, FillMode, getFillModeMeta } from "@/lib/fill-mode";
 import { cn } from "@/lib/utils";
@@ -132,7 +129,7 @@ export default function HomeKindEntry() {
               asChild
               className="inline-flex h-auto w-full max-w-sm items-center justify-center rounded-full bg-sky-600 px-4 py-3 text-sm font-bold text-white shadow-sm shadow-sky-200 transition-all hover:bg-sky-700"
             >
-              <Link href={fillModeMeta.route} prefetch={false}>开始填写！</Link>
+              <a href={fillModeMeta.route}>开始填写！</a>
             </Button>
           </div>
         </section>

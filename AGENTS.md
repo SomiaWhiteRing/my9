@@ -3,7 +3,7 @@
 本指南面向贡献者与自动化代理，目标是与当前代码库实践保持一致。
 
 ## 项目结构与模块组织
-- `app/`：App Router 页面与 API 路由。
+- `app/`：React 页面与 API 处理器，HTTP 路由由根目录的 Hono Worker 注册。
   - 首页：`/`（`app/page.tsx`，类型选择入口）
   - 填写页：`/[kind]`
   - 分享只读页：`/[kind]/s/[shareId]`
@@ -19,12 +19,12 @@
 - `screenshot/`：验收截图产物。
 
 ## 构建、开发与测试命令
-- `npm install`：安装依赖（建议 Node 20.9+）。
-- `npm run dev`：本地开发，从 `3000` 开始检测可用端口，占用时自动递增并跳过测试专用端口 `3001`；可用 `npm run dev -- --port 3005` 或 `PORT` 指定起始端口。非 `3000` 实例默认使用 `.next-dev/<port>` 隔离缓存，`NEXT_DIST_DIR` 可显式覆盖。
+- `npm install`：安装依赖（Node 22.12+）。
+- `npm run dev`：本地开发，从 `3000` 开始检测可用端口，占用时自动递增并跳过测试专用端口 `3001`；可用 `npm run dev -- --port 3005` 或 `PORT` 指定起始端口。开发服务使用 Vite 和本地 Workers 运行时。
 - `npm run build`：生产构建。
 - `npm start`：启动生产构建产物。
 - `npm run cf:verify-access`：只读核验 Cloudflare account token、zone、Workers routes 与 R2 bucket 对齐情况。
-- `npm run cf:build`：执行 OpenNext Cloudflare 构建（输出 `.open-next/`）。
+- `npm run cf:build`：构建 Vite 客户端、预渲染静态页面并校验 Wrangler Worker 包。
 - `npm run cf:build:test`：按 `wrangler.jsonc` 的 `env.test` 生成测试域部署产物。
 - `npm run cf:preview`：先构建，再通过 Wrangler 本地预览 Worker。
 - `npm run cf:deploy`：先构建，再部署到 Cloudflare Workers。
@@ -43,7 +43,7 @@
 - `3000` 端口保留给开发者手动调试，自动化代理不得占用、停止或清理该端口进程。
 - 自动化测试统一使用 `3001`。
 - Playwright 通过 `scripts/playwright-webserver.cjs` 启动：
-  - 使用独立构建目录 `.next-e2e`
+  - 构建静态资产到 `dist/client`
   - 启动端口 `3001`
 - 不要删除或覆盖开发者本地使用的 `.next`。
 
@@ -64,7 +64,6 @@
   - `CLOUDFLARE_ACCOUNT_ID`
   - `BANGUMI_ACCESS_TOKEN`
   - `BANGUMI_USER_AGENT`
-  - 可选：`MY9_DB_WRANGLER_ENV`（本地 Node 侧通过 `getPlatformProxy()` 选择 `wrangler` 环境，例：`test`）
   - 可选：`MY9_TRENDS_24H_SOURCE=day|hour`（默认 `day`；小时窗口初始化完成后再切 `hour`）
   - 可选：`MY9_ANALYTICS_ACCOUNT_ID`（未设置时可回退到 `CLOUDFLARE_ACCOUNT_ID`）
   - 可选：`MY9_ANALYTICS_API_TOKEN`（Workers Analytics Engine SQL 读权限；未设置时 `cf:sync-secrets` 可临时回退到 `CLOUDFLARE_API_TOKEN`）
@@ -87,7 +86,7 @@
 - 若无法先完成写入量测算，自动化代理不得直接索要生产写 token；必须先说明缺失的观测数据和最坏情况范围。
 - 分享图封面当前通过 `wsrv.nl` 在前端拉取并绘制；修改该链路时需评估跨域与流量成本影响。
 - 严禁提交任何真实密钥（Cloudflare/R2/CRON）。若误泄露，必须立即旋转并更新环境变量。
-- OpenNext Cloudflare 当前不建议把原生 Windows PowerShell 作为正式构建/部署环境；发布前至少在 Linux CI 或 WSL2 上验证一次 `npm run cf:build`。
+- 正式发布由 Linux CI 或 WSL2 验证 `npm run cf:build`。
 
 ## 分享存储 v2 运维
 - 当前运行时为 D1-only；分享写入、读取、趋势聚合、浏览量总表、cron 清理都只依赖 D1。
@@ -98,7 +97,8 @@
   - 直接对生产 D1 执行 `CREATE INDEX` / `DROP INDEX` / 大范围 `DELETE` / `INSERT ... SELECT`
 - 自动化代理在执行上述高风险操作前，必须先做写入量级评估并向用户说明；未获得用户明确确认，不得自行执行。
 - 趋势重建使用 `npm run d1:rebuild-trends`，输入事实表为 `my9_share_subject_slot_v1`，输出为 `my9_trend_subject_kind_*_v3`。
-- Cloudflare Workers Cron 现在有两条：
+- Cloudflare Workers Cron 现在有三条：
+  - `*/10 * * * *`：处理共现增量任务
   - `30 * * * *`：按小时增量 rollup `my9_share_subject_slot_v1` 到 `my9_trend_subject_kind_*_v3`
   - `5 16 * * *`：北京时间 `00:05` 跑日常维护
 - daily cron 会清理 `MY9_TREND_CLEANUP_DAYS` 之前的日/小时趋势数据，并把截至前一个已闭合北京时间自然日的分享页访问量累计回写到 `my9_share_view_total_v1`（每个 `share_id` 一行）。

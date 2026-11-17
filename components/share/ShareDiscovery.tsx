@@ -1,5 +1,3 @@
-"use client";
-
 import { ShareDiscoveryDialog } from "@/components/share/ShareDiscoveryDialog";
 import type { ShareDiscoveryItem, ShareDiscoveryLoader, ShareDiscoveryPage } from "@/lib/share/discovery";
 

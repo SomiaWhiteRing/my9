@@ -1,5 +1,3 @@
-"use client";
-
 import { forwardRef, type ComponentPropsWithoutRef } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";

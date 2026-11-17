@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -45,14 +44,13 @@ export default function My9ReadonlyPage({ kind, shareId, initialShareData, relat
           </h1>
           <p className="text-sm text-muted-foreground">{kindMeta.subtitle}</p>
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <Link
+            <a
               href={`/trends?kind=${kind}`}
-              prefetch={false}
               className="inline-flex items-center justify-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60"
             >
               大家的构成
               <ChevronRight className="h-4 w-4 text-sky-500 dark:text-sky-300" aria-hidden="true" />
-            </Link>
+            </a>
             {headerActions ?? <ShareDiscovery />}
           </div>
         </header>
@@ -62,13 +60,12 @@ export default function My9ReadonlyPage({ kind, shareId, initialShareData, relat
             这是共享页面（只读）
           </p>
           <p className="text-sm text-muted-foreground">创作者: {creatorName.trim() || "匿名"}</p>
-          <Link
+          <a
             href={`/${kind}`}
-            prefetch={false}
             className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-2 text-sm font-bold text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             前往填写页面
-          </Link>
+          </a>
         </div>
 
         <div className="mx-auto w-full rounded-xl border-4 border-background bg-card p-1 shadow-2xl ring-1 ring-border/70 sm:p-4">

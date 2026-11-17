@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import { Plus } from "lucide-react";
 import { ShareGame } from "@/lib/share/types";
 import { SubjectKind } from "@/lib/subject-kind";
@@ -32,7 +32,6 @@ export function ReadonlyNineGridBoard({ games, subjectLabel, kind }: ReadonlyNin
                   src={toProxiedBangumiImageUrl(game.cover) ?? game.cover}
                   alt={displayTitle(game)}
                   fill
-                  unoptimized
                   className={cn(
                     "absolute inset-0 object-cover select-none [-webkit-touch-callout:none]",
                     shouldTopCropCover(kind) && "object-top"

@@ -1,7 +1,5 @@
-"use client";
-
 import { useMemo, useRef } from "react";
-import Image from "next/image";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import { AlertCircle, ImagePlus, Loader2, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -259,7 +257,6 @@ export function CustomSearchDialog({
                             src={toProxiedBangumiImageUrl(item.cover) ?? item.cover}
                             alt={displayName(item)}
                             fill
-                            unoptimized
                             className="object-cover"
                             sizes="(max-width: 768px) 42vw, 20vw"
                           />
@@ -292,7 +289,6 @@ export function CustomSearchDialog({
                       src={toProxiedBangumiImageUrl(pendingSelection.cover) ?? pendingSelection.cover}
                       alt={pendingSelection.fallbackName || "待填入作品"}
                       fill
-                      unoptimized
                       className="object-contain"
                     />
                   ) : (

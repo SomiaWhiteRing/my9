@@ -51,3 +51,6 @@ next-env.d.ts
 yarn.lock
 
 /docs/
+
+/dist/
+/.my9/

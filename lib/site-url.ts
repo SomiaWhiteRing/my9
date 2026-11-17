@@ -1,3 +1,4 @@
+import settings from "#public-settings";
 const DEFAULT_SITE_URL = "https://my9.shatranj.space";
 
 function normalizeSiteUrl(value: string | null | undefined): string {
@@ -18,11 +19,11 @@ function normalizeSiteUrl(value: string | null | undefined): string {
 }
 
 export function getServerSiteUrl(): string {
-  return normalizeSiteUrl(process.env.SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL);
+  return normalizeSiteUrl(settings.siteUrl);
 }
 
 export function getPublicSiteUrl(): string {
-  return normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
+  return normalizeSiteUrl(settings.siteUrl);
 }
 
 export function getSiteHost(siteUrl: string): string {

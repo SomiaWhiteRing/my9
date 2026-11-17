@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useRef } from "react";
 import { ShareDiscoveryDialog } from "@/components/share/ShareDiscoveryDialog";
 import { DISCOVERY_PREVIEW_ITEMS, type DiscoveryPreviewState } from "@/lib/dev/share-discovery-preview";

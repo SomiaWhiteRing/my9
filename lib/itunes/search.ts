@@ -288,7 +288,7 @@ async function fetchItunesSearch<T>(
   const requestInit = {
     method: "GET",
     headers: createItunesRequestHeaders(),
-    next: { revalidate: 0 },
+
   } as RequestInit & { next?: { revalidate?: number } };
 
   let lastError: unknown = null;

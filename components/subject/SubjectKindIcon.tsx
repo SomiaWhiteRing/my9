@@ -1,5 +1,3 @@
-"use client";
-
 import { Gamepad2, Tv, Film, BookOpen, BookText, Library, Music, Disc3, User, Users, PencilRuler } from "lucide-react";
 import { SubjectKind } from "@/lib/subject-kind";
 

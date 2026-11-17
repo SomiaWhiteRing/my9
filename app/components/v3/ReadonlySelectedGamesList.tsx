@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import { Globe } from "lucide-react";
 import { ShareGame, type ShareSelectionStats } from "@/lib/share/types";
 import type { SubjectKind } from "@/lib/subject-kind";
@@ -74,7 +74,6 @@ export function ReadonlySelectedGamesList({
                       alt={game.name}
                       width={64}
                       height={86}
-                      unoptimized
                       className="h-auto w-full object-contain"
                     />
                   ) : (

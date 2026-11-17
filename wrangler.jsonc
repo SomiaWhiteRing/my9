@@ -3,7 +3,9 @@
   "name": "my9",
   "main": "worker.js",
   "compatibility_date": "2026-03-14",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "workers_dev": true,
   "preview_urls": true,
   "routes": [
@@ -17,8 +19,10 @@
     }
   ],
   "assets": {
-    "directory": ".cf-build/.open-next/assets",
-    "binding": "ASSETS"
+    "directory": "dist/client",
+    "binding": "ASSETS",
+    "html_handling": "drop-trailing-slash",
+    "not_found_handling": "none"
   },
   "observability": {
     "logs": {
@@ -31,7 +35,11 @@
     }
   },
   "triggers": {
-    "crons": ["30 * * * *", "5 16 * * *", "*/10 * * * *"]
+    "crons": [
+      "30 * * * *",
+      "5 16 * * *",
+      "*/10 * * * *"
+    ]
   },
   "vars": {
     "MY9_SHARE_VIEW_ANALYTICS_DATASET": "my9_share_views_v1"
@@ -76,12 +84,21 @@
         }
       ],
       "assets": {
-        "directory": ".cf-build/.open-next/assets",
-        "binding": "ASSETS"
+        "directory": "dist/client",
+        "binding": "ASSETS",
+        "html_handling": "drop-trailing-slash",
+        "not_found_handling": "none"
       },
       "triggers": {
         "crons": []
+      },
+      "define": {
+        "__MY9_DEV__": "false"
       }
     }
-  }
+  },
+  "define": {
+    "__MY9_DEV__": "false"
+  },
+  "minify": true
 }

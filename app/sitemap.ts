@@ -1,4 +1,3 @@
-import type { MetadataRoute } from "next";
 import { getServerSiteUrl } from "@/lib/site-url";
 import { SUBJECT_KIND_ORDER } from "@/lib/subject-kind";
 
@@ -10,16 +9,16 @@ const STATIC_ROUTES = [
   { path: "/commercial-disclosure", changeFrequency: "monthly", priority: 0.3 },
 ] as const;
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default function sitemap() {
   const siteUrl = getServerSiteUrl();
 
-  const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((route) => ({
+  const staticEntries = STATIC_ROUTES.map((route) => ({
     url: new URL(route.path || "/", `${siteUrl}/`).href,
     changeFrequency: route.changeFrequency,
     priority: route.priority,
   }));
 
-  const kindEntries: MetadataRoute.Sitemap = SUBJECT_KIND_ORDER.map((kind) => ({
+  const kindEntries = SUBJECT_KIND_ORDER.map((kind) => ({
     url: `${siteUrl}/${kind}`,
     changeFrequency: "weekly",
     priority: 0.8,

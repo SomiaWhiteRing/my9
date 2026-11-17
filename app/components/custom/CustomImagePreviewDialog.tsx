@@ -1,6 +1,4 @@
-"use client";
-
-import Image from "next/image";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -179,7 +177,6 @@ export function CustomImagePreviewDialog({
                   src={previewUrl}
                   alt="自定义图片预览"
                   fill
-                  unoptimized
                   className="mx-auto object-contain"
                   sizes="(max-width: 768px) 95vw, 768px"
                 />

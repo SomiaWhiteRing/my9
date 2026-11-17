@@ -1,28 +1,23 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Activity } from "lucide-react";
 import My9ReadonlyPage from "@/app/components/My9ReadonlyPage";
 import { createResonancePreview } from "@/lib/dev/resonance-preview";
 
-export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
+export const metadata = {
   title: "共鸣样式预览",
   robots: { index: false, follow: false },
 };
 
-export default async function ResonancePreviewPage({
+export default function ResonancePreviewPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ kind: string }>;
-  searchParams: Promise<{ empty?: string }>;
+  params: { kind: string };
+  searchParams: { empty?: string };
 }) {
-  if (process.env.NODE_ENV !== "development") notFound();
-  const { kind } = await params;
-  if (kind !== "game") notFound();
+  const { kind } = params;
+  if (kind !== "game") return null;
 
-  const { empty } = await searchParams;
+  const { empty } = searchParams;
   const data = createResonancePreview(empty === "1");
 
   return (
@@ -34,8 +29,8 @@ export default async function ResonancePreviewPage({
             本地预览 · 封面与统计均为示例数据
           </p>
           <nav aria-label="预览状态" className="flex items-center gap-3">
-            <Link href="/game/s/preview#selected-games" prefetch={false} className="underline underline-offset-4">正常结果</Link>
-            <Link href="/game/s/preview?empty=1#selected-games" prefetch={false} className="underline underline-offset-4">空结果</Link>
+            <a href="/game/s/preview#selected-games" className="underline underline-offset-4">正常结果</a>
+            <a href="/game/s/preview?empty=1#selected-games" className="underline underline-offset-4">空结果</a>
           </nav>
         </div>
       </aside>

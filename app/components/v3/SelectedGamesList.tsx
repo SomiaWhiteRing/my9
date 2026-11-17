@@ -1,6 +1,4 @@
-"use client";
-
-import Image from "next/image";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import { AlertTriangle, Globe, MessageCircle } from "lucide-react";
 import { ShareGame, type ShareSelectionStats } from "@/lib/share/types";
 import type { SubjectKind } from "@/lib/subject-kind";
@@ -83,7 +81,6 @@ export function SelectedGamesList({
                       alt={game.name}
                       width={64}
                       height={86}
-                      unoptimized
                       className="h-auto w-full object-contain"
                     />
                   ) : (

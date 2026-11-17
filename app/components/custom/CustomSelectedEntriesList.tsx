@@ -1,6 +1,4 @@
-"use client";
-
-import Image from "next/image";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import { AlertTriangle, Globe, MessageCircle } from "lucide-react";
 import {
   CustomEntry,
@@ -54,7 +52,6 @@ export function CustomSelectedEntriesList({
                       alt={getCustomEntryDisplayTitle(entry)}
                       width={64}
                       height={86}
-                      unoptimized
                       className="h-auto w-full object-contain"
                     />
                   ) : (

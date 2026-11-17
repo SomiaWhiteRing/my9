@@ -1,5 +1,3 @@
-"use client";
-
 import QRCode from "qrcode";
 import { getCustomEntryExportTitle, type CustomEntry } from "@/lib/custom/types";
 import { toProxiedBangumiImageUrl } from "@/lib/image-proxy";

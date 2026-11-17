@@ -52,7 +52,6 @@ import {
   type D1DatabaseLike,
   type StatementInput,
   buildPlaceholders,
-  ensureD1Schema,
   execute,
   executeBatch,
   getD1Database,
@@ -1221,8 +1220,8 @@ const d1StorageBackend: StorageBackend = {
       payload,
     });
 
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("saveShare failed: d1 is not ready");
     }
 
@@ -1366,8 +1365,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async getShare(shareId) {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       const remoteFallback = await getShareFromRemoteFallback(shareId);
       if (remoteFallback.status === "hit") {
         return remoteFallback.share;
@@ -1429,7 +1428,7 @@ const d1StorageBackend: StorageBackend = {
     if (ids.length === 0) return null;
 
     try {
-      const db = await getD1Database();
+      const db = getD1Database();
       if (!db) return null;
 
       // One statement for up to nine subjects. Correlated primary-key lookups
@@ -1466,8 +1465,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async touchShare(shareId, now = Date.now()) {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("touchShare failed: d1 is not ready");
     }
 
@@ -1496,8 +1495,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async listAllShares() {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("listAllShares failed: d1 is not ready");
     }
 
@@ -1519,8 +1518,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async countAllShares() {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("countAllShares failed: d1 is not ready");
     }
     const row = await queryFirst<ShareCountRow>(
@@ -1534,8 +1533,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async listSharesByPeriod(period) {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("listSharesByPeriod failed: d1 is not ready");
     }
 
@@ -1570,8 +1569,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async getAggregatedTrendResponse(params) {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       return null;
     }
 
@@ -1619,8 +1618,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async getTrendSampleSummary(period, kind) {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       return null;
     }
 
@@ -1644,8 +1643,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async getTrendSampleSummaryCache(period, kind, options) {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("getTrendSampleSummaryCache failed: d1 is not ready");
     }
 
@@ -1676,8 +1675,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async setTrendSampleSummaryCache(period, kind, value, ttlSeconds = 3600) {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("setTrendSampleSummaryCache failed: d1 is not ready");
     }
 
@@ -1703,8 +1702,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async getTrendsCache(period, view, kind, overallPage, yearPage, options) {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("getTrendsCache failed: d1 is not ready");
     }
 
@@ -1735,8 +1734,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async setTrendsCache(period, view, kind, overallPage, yearPage, value, ttlSeconds = 3600) {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("setTrendsCache failed: d1 is not ready");
     }
 
@@ -1761,8 +1760,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async getShareViewRollupCheckpoint() {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("getShareViewRollupCheckpoint failed: d1 is not ready");
     }
 
@@ -1802,8 +1801,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async setShareViewRollupCheckpoint(checkpointMs) {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("setShareViewRollupCheckpoint failed: d1 is not ready");
     }
 
@@ -1829,8 +1828,8 @@ const d1StorageBackend: StorageBackend = {
       return 0;
     }
 
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("upsertShareViewTotalCounts failed: d1 is not ready");
     }
 
@@ -1920,8 +1919,8 @@ const d1StorageBackend: StorageBackend = {
   },
 
   async runTrendRollup(options): Promise<TrendRollupResult> {
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       throw new Error("runTrendRollup failed: d1 is not ready");
     }
 
@@ -1991,8 +1990,8 @@ const d1StorageBackend: StorageBackend = {
       180,
       params?.cleanupTrendDays ?? parsePositiveInt(readEnv("MY9_TREND_CLEANUP_DAYS"), 190)
     );
-    const db = await getD1Database();
-    if (!db || !(await ensureD1Schema())) {
+    const db = getD1Database();
+    if (!db) {
       return {
         cleanupTrendDays,
         cleanedTrendRows: 0,

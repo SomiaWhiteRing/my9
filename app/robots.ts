@@ -1,7 +1,6 @@
-import type { MetadataRoute } from "next";
 import { getServerSiteUrl, getSiteHost } from "@/lib/site-url";
 
-export default function robots(): MetadataRoute.Robots {
+export default function robots() {
   const siteUrl = getServerSiteUrl();
   return {
     rules: [

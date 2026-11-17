@@ -1,5 +1,3 @@
-"use client";
-
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Activity, LoaderCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";

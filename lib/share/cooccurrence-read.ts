@@ -17,7 +17,7 @@ export async function handleRelatedSelectionsRequest(request: Request) {
     return Response.json({ error: "无效的作品" }, { status: 400 });
   }
   try {
-    const db = await getD1Database();
+    const db = getD1Database();
     if (!db) return unavailable();
     const state = await queryFirst<{
       ready: number; valid: number; count_ready: number | null; kind_shares: number;

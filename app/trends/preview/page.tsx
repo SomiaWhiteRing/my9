@@ -1,22 +1,17 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Activity } from "lucide-react";
 import TrendsClientPage from "@/app/components/TrendsClientPage";
 import { createResonancePreview } from "@/lib/dev/resonance-preview";
 import type { TrendResponse } from "@/lib/share/types";
 
-export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
+export const metadata = {
   title: "榜单共鸣预览",
   robots: { index: false, follow: false },
 };
 
-export default async function TrendsResonancePreviewPage({ searchParams }: {
-  searchParams: Promise<{ empty?: string }>;
+export default function TrendsResonancePreviewPage({ searchParams }: {
+  searchParams: { empty?: string };
 }) {
-  if (process.env.NODE_ENV !== "development") notFound();
-  const { empty } = await searchParams;
+  const { empty } = searchParams;
   const preview = createResonancePreview(empty === "1");
   const initialData: TrendResponse = {
     period: "30d",
@@ -44,9 +39,9 @@ export default async function TrendsResonancePreviewPage({ searchParams }: {
             本地预览 · 封面与统计均为示例数据
           </p>
           <nav aria-label="预览状态" className="flex items-center gap-3">
-            <Link href="/trends/preview" prefetch={false} className="underline underline-offset-4">正常结果</Link>
-            <Link href="/trends/preview?empty=1" prefetch={false} className="underline underline-offset-4">空结果</Link>
-            <Link href="/game/s/preview#selected-games" prefetch={false} className="underline underline-offset-4">分享页</Link>
+            <a href="/trends/preview" className="underline underline-offset-4">正常结果</a>
+            <a href="/trends/preview?empty=1" className="underline underline-offset-4">空结果</a>
+            <a href="/game/s/preview#selected-games" className="underline underline-offset-4">分享页</a>
           </nav>
         </div>
       </aside>

@@ -86,7 +86,7 @@ async function prepareWindow(db: D1DatabaseLike, state: Control, lease: string) 
 // Every call fits within the Paid D1 subrequest limit, bounds memory, and resumes
 // from committed work. A failed prepare is deterministic and safe to repeat.
 export async function runCooccurrenceMaintenance() {
-  const db = await getD1Database();
+  const db = getD1Database();
   if (!db) return { phase: "unavailable" };
   const now = Date.now();
   const day = Math.floor((now + 8 * 3600_000) / 86400_000);

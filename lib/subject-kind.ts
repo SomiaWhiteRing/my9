@@ -220,7 +220,7 @@ export function parseSubjectKind(value: string | null | undefined): SubjectKind 
   if (!value) return null;
   const normalized = value.trim().toLowerCase();
   if (!normalized) return null;
-  if (normalized in KIND_META_MAP) {
+  if (Object.hasOwn(KIND_META_MAP, normalized)) {
     return normalized as SubjectKind;
   }
   return null;

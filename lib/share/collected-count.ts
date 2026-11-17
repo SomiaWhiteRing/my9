@@ -1,7 +1,8 @@
+import settings from "#public-settings";
 import { SHARE_COUNT_SNAPSHOT } from "@/lib/generated/share-count-snapshot";
 
-const collectedCountFromEnv = process.env.NEXT_PUBLIC_SHARE_COUNT
-  ? parseInt(process.env.NEXT_PUBLIC_SHARE_COUNT, 10)
+const collectedCountFromEnv = settings.count
+  ? parseInt(settings.count, 10)
   : null;
 const collectedCount = SHARE_COUNT_SNAPSHOT > 0 ? SHARE_COUNT_SNAPSHOT : collectedCountFromEnv;
 let collectedCountText: string | undefined;

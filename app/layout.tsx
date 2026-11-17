@@ -1,10 +1,4 @@
-import type React from "react";
-import type { Metadata } from "next";
-import GoogleAnalytics from "@/components/GoogleAnalytics";
-import { getServerSiteUrl } from "@/lib/site-url";
-import "./globals.css";
-
-const SYSTEM_THEME_INIT_SCRIPT = `
+export const SYSTEM_THEME_INIT_SCRIPT = `
 (() => {
   const root = document.documentElement;
   const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -19,44 +13,3 @@ const SYSTEM_THEME_INIT_SCRIPT = `
   }
 })();
 `;
-
-const siteUrl = getServerSiteUrl();
-
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: "构成我的九部作品",
-  description: "挑选 9 部最能代表你的作品，生成并分享你的「构成我的九部作品」页面。",
-  openGraph: {
-    type: "website",
-    locale: "zh_CN",
-    title: "构成我的九部作品",
-    description: "挑选 9 部最能代表你的作品，生成并分享你的「构成我的九部作品」页面。",
-    siteName: "构成我的九部作品",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "构成我的九部作品",
-    description: "挑选 9 部最能代表你的作品，生成并分享你的「构成我的九部作品」页面。",
-  },
-  verification: {
-    google: "swtOMxSQC6Dfn-w4YtMQ3OFH4SZz00Blcd6FI0qMgJc",
-  },
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="zh-CN" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: SYSTEM_THEME_INIT_SCRIPT }} />
-        <GoogleAnalytics />
-      </head>
-      <body>
-        {children}
-      </body>
-    </html>
-  );
-}

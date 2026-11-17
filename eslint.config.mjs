@@ -1,28 +1,13 @@
-import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
-import nextTypeScript from "eslint-config-next/typescript";
+import tseslint from "typescript-eslint";
+import hooks from "eslint-plugin-react-hooks";
 
-const eslintConfig = [
-  ...nextCoreWebVitals,
-  ...nextTypeScript,
-  {
-    ignores: [
-      ".cf-build/**",
-      ".next/**",
-      ".next-dev/**",
-      ".next-e2e/**",
-      ".open-next/**",
-      ".wrangler/**",
-      "coverage/**",
-      "screenshot/**",
-      "test-results/**",
-    ],
-  },
-  {
-    files: ["scripts/playwright-webserver.cjs", "tailwind.config.js"],
-    rules: {
-      "@typescript-eslint/no-require-imports": "off",
-    },
-  },
+export default [
+  { ignores: [".cf-build/**", ".next*/**", ".open-next/**", ".wrangler/**", ".my9/**", "dist/**",
+    "coverage/**", "screenshot/**", "test-results/**"] },
+  ...tseslint.configs.recommended,
+  { files: ["**/*.{ts,tsx}"], plugins: { "react-hooks": hooks }, rules: {
+    "react-hooks/rules-of-hooks": "error", "react-hooks/exhaustive-deps": "warn"
+  } },
+  { files: ["scripts/playwright-webserver.cjs", "tailwind.config.js"],
+    rules: { "@typescript-eslint/no-require-imports": "off" } },
 ];
-
-export default eslintConfig;

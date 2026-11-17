@@ -1,7 +1,5 @@
-"use client";
-
 import { useEffect, useMemo } from "react";
-import Image from "next/image";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import { Search } from "lucide-react";
 import { SearchDialogContent } from "@/components/search/SearchDialogContent";
 import { SearchFeedback } from "@/components/search/SearchFeedback";

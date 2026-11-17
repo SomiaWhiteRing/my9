@@ -1,132 +1,25 @@
+import { Hono } from "hono";
+import { POST as saveShare, GET as handleShareGetRequest } from "./app/api/share/route";
+import { GET as customSearch } from "./app/api/custom/search/route";
+import { GET as shareCount } from "./app/api/stats/share-count/route";
+import { GET as retiredArchive } from "./app/api/cron/archive/route";
+import {
+  BANGUMI_IMAGE_PROXY_PATH, BANGUMI_IMAGE_CACHE_CONTROL, BANGUMI_IMAGE_ERROR_CACHE_CONTROL,
+  BANGUMI_IMAGE_FORBIDDEN_CACHE_CONTROL, getBangumiImageProxyCorsOrigin,
+  normalizeBangumiImageProxyTarget, isAllowedBangumiImageProxyRequest,
+} from "./lib/image-proxy";
 import { runDailyShareMaintenance } from "./lib/share/daily-maintenance";
 import { runHourlyTrendMaintenance } from "./lib/share/hourly-trend-maintenance";
-import { trackShareViewRequest } from "./lib/share/view-stats";
-import { handleSubjectSearchRequest } from "./lib/search/route";
-import { handleShareGetRequest } from "./lib/share/read-route";
-import { handleShareHeadRequest } from "./lib/share/head-route";
-import { handleRelatedSelectionsRequest } from "./lib/share/cooccurrence-read";
-import { handleShareDiscoveryRequest } from "./lib/share/discovery-server";
+import { GET as handleSubjectSearchRequest } from "./app/api/subjects/search/route";
+import { shareRoute } from "./src/share-route";
+import { GET as handleRelatedSelectionsRequest } from "./app/api/subjects/related/route";
+import { GET as handleShareDiscoveryRequest } from "./app/api/shares/discover/route";
 import { runCooccurrenceMaintenance } from "./lib/share/cooccurrence-maintenance";
-import { handleTrendsRequest } from "./lib/share/trends-route";
-import { fetchSharePageWithCache } from "./lib/share/page-cache";
-import openNextWorker from "./.cf-build/.open-next/worker.js";
-import { runWithCloudflareRequestContext } from "./.cf-build/.open-next/cloudflare/init.js";
+import { GET as handleTrendsRequest } from "./app/api/trends/route";
 
 const TREND_ROLLUP_CRON = "30 * * * *";
 const DAILY_MAINTENANCE_CRON = "5 16 * * *";
 const COOCCURRENCE_CRON = "*/10 * * * *";
-const BANGUMI_IMAGE_PROXY_PATH = "/api/image/bgm";
-const BANGUMI_IMAGE_HOSTS = new Set(["lain.bgm.tv", "img.bgm.tv"]);
-const ALLOWED_SITE_ROOT = "shatranj.space";
-const LOCAL_DEVELOPMENT_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
-const BANGUMI_IMAGE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
-const BANGUMI_IMAGE_CACHE_CONTROL = `public, max-age=${BANGUMI_IMAGE_CACHE_TTL_SECONDS}, s-maxage=${BANGUMI_IMAGE_CACHE_TTL_SECONDS}, immutable`;
-const BANGUMI_IMAGE_ERROR_CACHE_CONTROL = "public, max-age=300, s-maxage=300";
-const BANGUMI_IMAGE_FORBIDDEN_CACHE_CONTROL = "no-store";
-
-function bindRuntimeEnv(env) {
-  globalThis.__MY9_CF_ENV = env;
-}
-
-function normalizeBangumiImageProxyTarget(value) {
-  if (typeof value !== "string") return null;
-
-  const raw = value.trim();
-  if (!raw || raw.startsWith("data:") || raw.startsWith("blob:")) {
-    return null;
-  }
-
-  const normalized = raw.startsWith("//") ? `https:${raw}` : raw;
-
-  try {
-    const parsed = new URL(normalized);
-    if (!BANGUMI_IMAGE_HOSTS.has(parsed.hostname.toLowerCase())) {
-      return null;
-    }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return null;
-    }
-
-    parsed.protocol = "https:";
-    parsed.hash = "";
-    return parsed.toString();
-  } catch {
-    return null;
-  }
-}
-
-function normalizeHostname(hostname) {
-  return hostname.trim().toLowerCase().replace(/\.$/, "");
-}
-
-function isAllowedSiteHostname(hostname) {
-  const normalized = normalizeHostname(hostname);
-  return normalized === ALLOWED_SITE_ROOT || normalized.endsWith(`.${ALLOWED_SITE_ROOT}`);
-}
-
-function isLocalDevelopmentHostname(hostname) {
-  return LOCAL_DEVELOPMENT_HOSTS.has(normalizeHostname(hostname));
-}
-
-function parseHeaderHostname(value) {
-  if (!value) return null;
-
-  try {
-    return new URL(value).hostname;
-  } catch {
-    return null;
-  }
-}
-
-function isAllowedSourceHostname(requestHostname, sourceHostname) {
-  if (isAllowedSiteHostname(sourceHostname)) {
-    return true;
-  }
-
-  return isLocalDevelopmentHostname(requestHostname) && isLocalDevelopmentHostname(sourceHostname);
-}
-
-function isAllowedBangumiImageProxyRequest(request) {
-  const requestHostname = new URL(request.url).hostname;
-  const originHostname = parseHeaderHostname(request.headers.get("origin"));
-  const refererHostname = parseHeaderHostname(request.headers.get("referer"));
-
-  if (originHostname) {
-    return isAllowedSourceHostname(requestHostname, originHostname);
-  }
-
-  if (refererHostname) {
-    return isAllowedSourceHostname(requestHostname, refererHostname);
-  }
-
-  const fetchSite = request.headers.get("sec-fetch-site")?.toLowerCase();
-  if (fetchSite === "same-origin") {
-    return isAllowedSiteHostname(requestHostname) || isLocalDevelopmentHostname(requestHostname);
-  }
-  if (fetchSite === "same-site") {
-    return isAllowedSiteHostname(requestHostname);
-  }
-
-  return isLocalDevelopmentHostname(requestHostname);
-}
-
-function getBangumiImageProxyCorsOrigin(request) {
-  const origin = request.headers.get("origin");
-  const originHostname = parseHeaderHostname(origin);
-  if (!origin || !originHostname) return null;
-
-  const requestHostname = new URL(request.url).hostname;
-  if (!isAllowedSourceHostname(requestHostname, originHostname)) {
-    return null;
-  }
-
-  try {
-    return new URL(origin).origin;
-  } catch {
-    return null;
-  }
-}
-
 function appendBangumiImageProxyAccessHeaders(headers, request) {
   const corsOrigin = getBangumiImageProxyCorsOrigin(request);
 
@@ -281,62 +174,53 @@ async function handleBangumiImageProxy(request, ctx) {
   }
 }
 
+const app = new Hono();
+app.get("/api/subjects/search", c => handleSubjectSearchRequest(c.req.raw));
+app.get("/api/subjects/related", c => handleRelatedSelectionsRequest(c.req.raw));
+app.get("/api/share", c => handleShareGetRequest(c.req.raw));
+app.post("/api/share", c => saveShare(c.req.raw));
+app.get("/api/shares/discover", c => handleShareDiscoveryRequest(c.req.raw));
+app.get("/api/trends", c => handleTrendsRequest(c.req.raw));
+app.get("/api/custom/search", c => customSearch(c.req.raw));
+app.get("/api/stats/share-count", () => shareCount());
+app.get("/api/cron/archive", () => retiredArchive());
+app.all(BANGUMI_IMAGE_PROXY_PATH, c => handleBangumiImageProxy(c.req.raw, c.executionCtx));
+
+if (__MY9_DEV__) {
+  app.get("*", async (c, next) => {
+    const { renderDevPage } = await import("./src/dev-pages");
+    const html = await renderDevPage(new URL(c.req.url));
+    return html === null ? next() : c.html(html);
+  });
+}
+
+app.get("/:kind/s/:id", shareRoute);
+app.notFound(c => {
+  const url = new URL(c.req.url);
+  if (url.pathname.endsWith("/") && url.pathname !== "/") {
+    url.pathname = url.pathname.replace(/\/+$/, "");
+    return c.redirect(url.pathname + url.search, 308);
+  }
+  if (url.pathname.startsWith("/api/")) {
+    const methods = app.routes.filter(route => route.path === url.pathname).map(route => route.method);
+    if (methods.length) {
+      const allow = [...new Set([...methods, ...(methods.includes("GET") ? ["HEAD"] : []), "OPTIONS"])].join(", ");
+      return new Response(null, { status: c.req.method === "OPTIONS" ? 204 : 405, headers: { Allow: allow } });
+    }
+    return new Response(null, { status: 404 });
+  }
+  if (/\.[a-z0-9]+$/i.test(url.pathname) || url.pathname.startsWith("/assets/")) return new Response(null, { status: 404 });
+  return c.redirect("/", 307);
+});
+
 const worker = {
-  async fetch(request, env, ctx) {
-    bindRuntimeEnv(env);
-
-    const requestUrl = new URL(request.url);
-    if (requestUrl.hostname === "bgm-img.shatranj.space") {
-      return new Response("Forbidden", {
-        status: 403,
-        headers: { "Cache-Control": "no-store" },
-      });
+  fetch(request, env, ctx) {
+    if (new URL(request.url).hostname === "bgm-img.shatranj.space") {
+      return new Response("Forbidden", { status: 403, headers: { "Cache-Control": "no-store" } });
     }
-    if (requestUrl.pathname === BANGUMI_IMAGE_PROXY_PATH) {
-      return handleBangumiImageProxy(request, ctx);
-    }
-
-    // Only these read endpoints bypass Next routing. Other methods and URL
-    // normalization (including trailing slashes) remain handled by Next.
-    if (request.method === "GET") {
-      const handler = requestUrl.pathname === "/api/subjects/search"
-        ? handleSubjectSearchRequest
-        : requestUrl.pathname === "/api/share"
-          ? handleShareGetRequest
-          : requestUrl.pathname === "/api/subjects/related"
-            ? handleRelatedSelectionsRequest
-            : requestUrl.pathname === "/api/shares/discover"
-              ? handleShareDiscoveryRequest
-              : requestUrl.pathname === "/api/trends"
-                ? handleTrendsRequest
-                : null;
-      if (handler) {
-        // Reuse OpenNext's env initialization and request context without
-        // loading NextServer or converting the request/response through it.
-        return runWithCloudflareRequestContext(request, env, ctx, async () => {
-          const response = await handler(request);
-          response.headers.set("Vary", "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch");
-          response.headers.set("x-opennext", "1");
-          return response;
-        });
-      }
-    }
-
-    if (request.method === "HEAD") {
-      const response = await runWithCloudflareRequestContext(request, env, ctx, () => handleShareHeadRequest(request));
-      if (response) return response;
-    }
-
-    trackShareViewRequest(request, env.MY9_SHARE_VIEW_ANALYTICS ?? null);
-    if (request.method === "GET" && /^\/[^/]+\/s\/[a-f0-9]{16}$/.test(requestUrl.pathname)) {
-      return runWithCloudflareRequestContext(request, env, ctx, () => fetchSharePageWithCache(
-        request, ctx, globalThis.__BUILD_TIMESTAMP_MS__, () => openNextWorker.fetch(request, env, ctx),
-      ));
-    }
-    return openNextWorker.fetch(request, env, ctx);
+    return app.fetch(request, env, ctx);
   },
   scheduled(controller, env, ctx) {
-    bindRuntimeEnv(env);
 
     if (controller.cron === COOCCURRENCE_CRON) {
       ctx.waitUntil(runCooccurrenceMaintenance().then((result) => {

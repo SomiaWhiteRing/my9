@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { countAllShares } from "@/lib/share/storage";
 import { SHARE_COUNT_SNAPSHOT } from "@/lib/generated/share-count-snapshot";
 
@@ -16,7 +15,7 @@ function createShareCountCacheHeaders() {
 export async function GET() {
   try {
     const totalCount = await countAllShares();
-    return NextResponse.json(
+    return Response.json(
       {
         ok: true,
         totalCount,
@@ -27,7 +26,7 @@ export async function GET() {
     );
   } catch (error) {
     console.error("[share-count] falling back to snapshot", error);
-    return NextResponse.json(
+    return Response.json(
       {
         ok: true,
         totalCount: SHARE_COUNT_SNAPSHOT,

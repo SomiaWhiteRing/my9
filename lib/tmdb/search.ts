@@ -97,7 +97,6 @@ async function fetchTmdbSearch<T>(
       Accept: "application/json",
       Authorization: `Bearer ${process.env.TMDB_API_READ_ACCESS_TOKEN}`,
     },
-    next: { revalidate: 0 },
   });
 
   if (!response.ok) {

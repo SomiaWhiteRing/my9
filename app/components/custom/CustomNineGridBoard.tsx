@@ -1,6 +1,4 @@
-"use client";
-
-import Image from "next/image";
+import { CoverImage as Image } from "@/components/ui/cover-image";
 import type React from "react";
 import { Plus, X } from "lucide-react";
 import { DragDropProvider } from "@dnd-kit/react";
@@ -73,7 +71,6 @@ function GridCell({
             src={toProxiedBangumiImageUrl(entry.cover) ?? entry.cover}
             alt={getCustomEntryDisplayTitle(entry)}
             fill
-            unoptimized
             className="absolute inset-0 select-none object-cover [-webkit-touch-callout:none]"
             sizes="(max-width: 640px) 30vw, (max-width: 1024px) 22vw, 180px"
           />

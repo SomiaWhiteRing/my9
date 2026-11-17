@@ -38,7 +38,7 @@ function viewsThrough(rolledThrough: number) {
 }
 
 export async function refreshShareDiscoverySnapshot() {
-  const db = await getD1Database();
+  const db = getD1Database();
   if (!db) throw new Error("Share discovery database unavailable");
   // One statement publishes the list and its view watermark together. No request
   // path calls this function, so a missing snapshot cannot cause a refresh stampede.
@@ -57,7 +57,7 @@ export async function handleShareDiscoveryRequest(request: Request) {
     return Response.json({ error: "无效的名称或分页参数。" }, { status: 400, headers });
   }
   try {
-    const db = await getD1Database();
+    const db = getD1Database();
     if (!db) throw new Error("Share discovery database unavailable");
     if (!name) {
       const row = await queryFirst<{ payload: string }>(db, readDiscoverySnapshotSql, [DISCOVERY_SNAPSHOT_KEY]);
